@@ -384,3 +384,105 @@ Phases 1-12, 15-20 lost in Nov 14 truncation incident. Reconstructed via forensi
 - Created: `scripts/core/app_config.py` (AppConfigManager)
 - Rewrote: `scripts/core/action_plan_generator.py` (700+ lines, complete logic)
 - Updated: `jelly_rancher_clean.py` (imports, initialization, worker integration)
+
+---
+
+## Phase 28: Git Workflow Established & Rename to JellyRancher
+**Date:** 2025-11-15 04:09:43 - 04:32:00
+
+**Objective:**
+Establish professional version control workflow, rename project from ChocoTaco to JellyRancher, and publish to GitHub.
+
+**User Requirements:**
+1. Create massive backup of entire project folder
+2. Archive non-essential files using programming best practices
+3. Initialize git repository with proper .gitignore
+4. Rename application from ChocoTaco to JellyRancher (pervasive and complete)
+5. Publish to GitHub (username: atomicmilkshake)
+6. Make git part of workflow for every coding session
+
+**Implementation Steps:**
+
+### 1. Project Backup
+- Created comprehensive ZIP backup: `backups/COMPLETE_PROJECT_BACKUP_2025-11-15_040954.zip`
+- Backed up 57,562 files (1.8 GB → 618 MB compressed)
+- Ensures full recovery capability before major changes
+
+### 2. Archive Non-Essential Files
+- Created `pre_rename_archive/` directory
+- Archived following Python best practices:
+  - Deprecated code: `chroma_db/` directory
+  - Old log files: 5 log files from logs/ directory
+  - Old backups: 3 previous backup ZIP files
+  - Temporary files: `temp_time.py`
+- Total: 9 files and 1 directory archived
+
+### 3. Created .gitignore (Python Best Practices)
+- Comprehensive Python-specific excludes (*.pyc, __pycache__, .venv, etc.)
+- IDE-specific excludes (VSCode, PyCharm, Sublime, Vim, Emacs)
+- OS-specific excludes (Windows, macOS, Linux)
+- Project-specific excludes:
+  - data/ (user configuration, may contain sensitive info)
+  - logs/ (runtime logs)
+  - backups/ and pre_rename_archive/
+  - LLM_io_log/ (historical LLM transaction logs)
+  - cleanup_reports/, audit-logs/, ._state/
+  - Recovery artifacts (ALL_RECOVERED_PHASES.txt, etc.)
+- Build artifacts (build/, dist/, *.exe)
+- Media files (*.mkv, *.mp4, etc. - too large for git)
+
+### 4. Pervasive Rename: ChocoTaco → JellyRancher
+**Content Updates:**
+- Updated 104 files with 5,769 replacements
+- Replaced all variants:
+  - `choco_taco` → `jelly_rancher`
+  - `choco-taco` → `jelly-rancher`
+  - `ChocoTaco` → `JellyRancher`
+  - `Choco Taco` → `Jelly Rancher`
+  - `CHOCO_TACO` → `JELLY_RANCHER`
+  - `chocotaco` → `jellyrancher`
+
+**File Renames:**
+- `choco_taco_clean.py` → `jelly_rancher_clean.py` (main application)
+- `scripts/core/choco_taco_*.py` → `scripts/core/jelly_rancher_*.py` (3 files)
+- `run_choco_taco.bat` → `run_jelly_rancher.bat`
+- `requirements-choco-taco.txt` → `requirements-jelly-rancher.txt`
+- Log files and directories renamed accordingly
+- Documentation files updated (CHOCO_TACO_PROJECT_STATE_2025.md → JELLY_RANCHER_PROJECT_STATE_2025.md)
+- Total: 12 files + 1 directory renamed
+
+### 5. Git Repository Initialization
+- Initialized git repository in project root
+- Configured user: atomicmilkshake
+- Removed problematic `nul` file (reserved Windows filename)
+- Staged 249 files following .gitignore rules
+- Created initial commit with comprehensive message
+- Commit stats: 249 files changed, 74,488 insertions(+)
+
+### 6. GitHub Publication
+- Repository: [atomicmilkshake/JellyRancher](https://github.com/atomicmilkshake/JellyRancher)
+- Visibility: Public
+- Description: "PyQt6-based media library management application with Jellyfin integration, LLM-powered analysis, and comprehensive metadata handling"
+- Successfully pushed master branch to origin
+
+**Git Workflow Going Forward:**
+1. Commit changes after each significant implementation phase
+2. Use descriptive commit messages following best practices
+3. Push to GitHub at end of each session
+4. Use branches for experimental features
+5. Maintain clean commit history
+
+**Summary:**
+- ✅ Full project backup created (618 MB)
+- ✅ Non-essential files archived (10 items)
+- ✅ Professional .gitignore established
+- ✅ Complete rename: ChocoTaco → JellyRancher (5,769 replacements)
+- ✅ Git repository initialized (249 files, 74K+ lines)
+- ✅ Published to GitHub: https://github.com/atomicmilkshake/JellyRancher
+- ✅ Git workflow integrated into development process
+
+**Next Steps:**
+1. Continue Point 5 implementation (settings dialog for base paths)
+2. Implement Point 6 (action plan execution with verification)
+3. Regular git commits after each phase
+4. Consider GitHub Actions for automated testing (future)
