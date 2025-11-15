@@ -19,4 +19,13 @@ Before implementing new functionality, you must query the LLM-enhanced function 
 
 For time entries in journal: Always get the current time by running: python -c "from datetime import datetime; print(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))" and use the output for the time field. Never use placeholders for time.
 
+Git workflow is mandatory for this project. After completing each significant phase or set of related changes:
+1. Stage changes: git add .
+2. Commit with descriptive message following conventional commits format (e.g., "feat: add X", "fix: resolve Y", "docs: update Z")
+3. Push to GitHub: git push origin master
+4. Document git commits in journal entries when appropriate
+
+GitHub repository: https://github.com/atomicmilkshake/JellyRancher
+GitHub CLI location: "C:\Program Files\GitHub CLI\gh.exe"
+
 Philosophically, don't halfass things just because you're in a hurry or have a sycophantic personality disorder.  Always ASK and never ASSUME before making important design decisions.  I don't like shortcuts unless I specify otherwise.
