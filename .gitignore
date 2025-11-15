@@ -1,0 +1,306 @@
+# JellyRancher .gitignore
+# Python best practices for media library management application
+
+# ===================================
+# Python
+# ===================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+env/
+.env
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# ===================================
+# IDEs and Editors
+# ===================================
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+.idea_modules/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+\#*\#
+.\#*
+
+# ===================================
+# Operating System
+# ===================================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ===================================
+# Project Specific
+# ===================================
+# Application data (may contain sensitive info)
+data/
+!data/.gitkeep
+
+# Log files
+logs/
+*.log
+
+# Backups
+backups/
+pre_rename_archive/
+*.zip
+*.tar.gz
+*.bak
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+temp_*.py
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Configuration files with secrets
+*_config.json
+.env
+.env.local
+secrets.json
+
+# Analysis results
+analysis_results/
+scan_results/
+
+# Jellyfin cache
+jellyfin_cache/
+
+# LLM/AI caches
+.llm_cache/
+anthropic_cache/
+LLM_io_log/
+
+# Media files (too large for git)
+*.mkv
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flv
+*.webm
+*.m4v
+
+# Subtitle files (if large)
+*.srt
+*.sub
+*.idx
+*.ass
+*.ssa
+
+# NFO files (generated)
+*.nfo
+
+# ===================================
+# Build and Release
+# ===================================
+# PyInstaller builds
+build/
+dist/
+*.exe
+*.app
+
+# Installers
+*.msi
+*.msix
+
+# ===================================
+# Misc
+# ===================================
+# Archive/deprecated code
+archive/
+deprecated/
+old/
+
+# Project-specific excludes
+cleanup_reports/
+audit-logs/
+._state/
+reports/
+enhanced_function_index.json
+checkpoint-shitball.json
+
+# Recovery and backup files
+ALL_RECOVERED_PHASES.txt
+PHASES_1-21_RECONSTRUCTED.md
+RECOVERED_journal*.md
+RECOVERY_SUMMARY.md
+agent-journal_RESTORED.md
+phases_21_22.txt
+
+# Documentation builds
+docs/_build/
+docs/_static/
+docs/_templates/
+
+# Node modules (if any JS tooling)
+node_modules/

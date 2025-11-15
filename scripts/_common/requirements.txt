@@ -1,0 +1,18 @@
+# Core dependencies for Jellyfin Media Organization Agent
+
+# Encryption for credential storage (Fernet)
+cryptography>=41.0.0
+
+# Testing framework
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# Subtitle API libraries (will be added in Phase 2)
+# requests>=2.31.0  # HTTP library for subtitle APIs
+# opensubtitles-com>=0.1.0  # OpenSubtitles.com API wrapper (TBD)
+
+# Optional: Progress bars for long operations
+tqdm>=4.66.0
+
+# Optional: Rich console output
+rich>=13.7.0

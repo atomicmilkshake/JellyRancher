@@ -1,0 +1,51 @@
+{
+  "show_name": "Test Show",
+  "tmdb_id": 12345,
+  "first_air_date": "",
+  "overview": "",
+  "generated_date": "2025-11-09T05:30:59.108908",
+  "seasons": {
+    "1": {
+      "season_number": 1,
+      "name": "Season 1",
+      "air_date": "2020-01-01",
+      "episodes": {
+        "1": {
+          "episode_number": 1,
+          "canonical_title": "Episode 1",
+          "original_title": "Episode 1",
+          "air_date": "2020-01-01",
+          "overview": "Overview 1"
+        },
+        "2": {
+          "episode_number": 2,
+          "canonical_title": "Episode 2",
+          "original_title": "Episode 2",
+          "air_date": "2020-01-08",
+          "overview": "Overview 2"
+        }
+      }
+    },
+    "2": {
+      "season_number": 2,
+      "name": "Season 2",
+      "air_date": "2020-01-01",
+      "episodes": {
+        "1": {
+          "episode_number": 1,
+          "canonical_title": "Episode 1",
+          "original_title": "Episode 1",
+          "air_date": "2020-01-01",
+          "overview": "Overview 1"
+        },
+        "2": {
+          "episode_number": 2,
+          "canonical_title": "Episode 2",
+          "original_title": "Episode 2",
+          "air_date": "2020-01-08",
+          "overview": "Overview 2"
+        }
+      }
+    }
+  }
+}

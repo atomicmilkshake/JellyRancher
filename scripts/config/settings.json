@@ -1,0 +1,26 @@
+{
+  "version": "1.0",
+  "last_updated": "2025-11-02T01:43:52.814052",
+  "settings": {
+    "media_root": "C:/Jellyfin/#MEDIA",
+    "movies_folder": "Movies",
+    "tv_shows_folder": "TV Shows",
+    "anime_folder": "Anime",
+    "enable_dry_run": true,
+    "auto_snapshot": true,
+    "subtitle_languages": [
+      "English"
+    ],
+    "subtitle_providers": [
+      "opensubtitles"
+    ],
+    "batch_size": 10,
+    "batch_delay": 0.5,
+    "audit_log_rotation_mb": 10,
+    "theme": "light",
+    "window_geometry": null,
+    "window_state": null,
+    "last_session_date": null,
+    "custom_setting": "custom_value"
+  }
+}

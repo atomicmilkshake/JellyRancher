@@ -1,0 +1,1 @@
+Read the bootstrap.md file to understand the JellyRancher project workflow, ChromaDB usage patterns, and index maintenance requirements. This file contains all the critical information you need to work effectively on this project.
