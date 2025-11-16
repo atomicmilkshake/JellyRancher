@@ -545,9 +545,73 @@ Establish professional version control workflow, rename project from ChocoTaco t
 
 ---
 
+## Phase 31: Point 5 Review Table Enhancement Planning
+**Date:** 2025-11-16 12:51:43 | **Status:** Planning | **By:** Claude Sonnet 4.5
+
+**Context:** Analyzing current Point 5 implementation and planning enhancements based on plan.md requirements and comprehensive project reference.
+
+**Current Implementation Assessment:**
+- ✅ **Basic table structure:** 7 columns (Source, Destination, Action, Confidence, Jellyfin Status, Notes, Approve)
+- ✅ **Color coding:** Basic confidence-based colors (Green/Yellow/Red/Orange)
+- ✅ **Action plan generation:** ActionPlanWorker populates table from canonical DB and LLM analysis
+- ✅ **Approval checkboxes:** Manual approval workflow
+- ✅ **Settings dialog:** Application configuration now available
+
+**Missing Point 5 Requirements (per plan.md):**
+- ❌ **MD5 verification columns:** Current and proposed hashes for integrity verification
+- ❌ **Bulk edit capabilities:** Select/deselect all, filter by status, bulk approve/reject
+- ❌ **Artwork/theme previews:** Visual previews of posters/fanart
+- ❌ **Collection/box set suggestions:** TMDb Box Sets plugin integration
+- ❌ **Enhanced color coding:** Distinguish auto-marked duplicates vs manual decisions
+- ❌ **Advanced filtering:** Filter by confidence, action type, Jellyfin status
+- ❌ **Real data testing:** End-to-end validation with actual media libraries
+
+**Action Plan for Point 5 Completion:**
+
+**Phase 31A: Enhanced Review Table Features**
+- Add MD5 columns (current/proposed) to table
+- Implement bulk operations toolbar (select all, invert, approve selected, reject selected)
+- Add advanced filtering (combo boxes for confidence, action type, Jellyfin status)
+- Enhance color coding to distinguish auto-marked vs manual operations
+- Add keyboard shortcuts for common operations (Ctrl+A select all, Space toggle approval)
+
+**Phase 31B: Visual Enhancements**
+- Implement artwork previews in expandable rows or side panel
+- Add collection/box set suggestions with checkboxes
+- Improve table layout with better column sizing and tooltips
+- Add progress indicators for large action plans
+
+**Phase 31C: Testing & Validation**
+- Test with real media library data (movies + TV shows)
+- Validate end-to-end workflow: scan → LLM → canonical DB → action plan → review
+- Performance testing with large libraries (1000+ files)
+- Error handling validation for edge cases
+
+**Technical Implementation Strategy:**
+- Extend `create_review_tab()` with additional columns and toolbar
+- Enhance `_on_action_plan_finished()` to populate MD5 data and visual enhancements
+- Add new methods for bulk operations and filtering
+- Leverage existing ActionPlanGenerator output (already includes MD5, artwork paths)
+- Maintain backward compatibility with existing approval workflow
+
+**Dependencies:**
+- ActionPlanGenerator must provide MD5 hashes and artwork paths (Phase 27 implementation)
+- AppConfigManager must be accessible for user preferences (Phase 30 implementation)
+- Real media library for testing (coordinate with user)
+
+**Risks & Mitigations:**
+- **Performance:** Large tables may be slow → Implement virtual scrolling and pagination
+- **UI Complexity:** Too many features → Keep core workflow simple, advanced features optional
+- **Data Integrity:** MD5 mismatches → Clear error indicators and rollback options
+
+**Next:** Begin Phase 31A - Enhanced Review Table Features implementation.
+
+---
+
 **Next Steps:**
-1. Enhance Point 5 review table (color coding for auto-marked duplicates)
-2. Test Point 5 implementation with real scan data
-3. Implement Point 6 (action plan execution with verification)
-4. Regular git commits after each phase
-5. Consider GitHub Actions for automated testing (future)
+1. **Phase 31A:** Enhance review table with MD5 columns, bulk operations, and advanced filtering
+2. **Phase 31B:** Add visual enhancements (artwork previews, collection suggestions)
+3. **Phase 31C:** Test with real data and validate end-to-end workflow
+4. Implement Point 6 (action plan execution with verification)
+5. Regular git commits after each phase
+6. Consider GitHub Actions for automated testing (future)
