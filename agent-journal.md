@@ -631,20 +631,55 @@ Following software design best practices, I recommend a **Build-Measure-Learn cy
 3. **Faster Feedback:** Get user validation before building more features
 4. **Agile Development:** Build-measure-learn cycle instead of big upfront design
 
-**Technical Readiness:**
-- ✅ MD5 infrastructure exists (`hash_file`, `safe_move`)
-- ✅ ActionPlanGenerator has MD5 indexing
-- ❌ ProposedOperation missing MD5 fields (needs fix)
-- ✅ Basic table framework exists
+## Phase 31A-Prime: Minimal Point 5 Enhancements - COMPLETE
+**Date:** 2025-11-16 12:56:05 | **Status:** Complete | **By:** Claude Sonnet 4.5
 
-**Next:** Begin Phase 31A-Prime with minimal enhancements, then immediate testing.
+**Context:** Implemented minimal viable enhancements to Point 5 review table following build-measure-learn approach.
+
+**Completed Enhancements:**
+
+**✅ MD5 Columns Added:**
+- Added `current_md5` and `proposed_md5` fields to `ProposedOperation` dataclass
+- Updated `ActionPlanGenerator` to populate MD5 data from `FileRecord.md5_hash`
+- Extended review table to 9 columns with MD5 display (Current MD5, Proposed MD5)
+- Added tooltips showing full MD5 hashes for truncated display
+
+**✅ Basic Bulk Operations:**
+- Added "Select All" button to check all approval checkboxes
+- Added "Approve Selected" to mark checked operations as approved
+- Added "Reject Selected" to mark checked operations as rejected
+- Operations update `ProposedOperation.user_approved` field for persistence
+- Proper feedback with operation counts in status log
+
+**✅ Table Structure Updates:**
+- Updated from 7 to 9 columns to accommodate MD5 fields
+- Adjusted column widths and stretch modes for better layout
+- Updated approval checkbox column index (now column 8)
+- Maintained color coding and confidence-based auto-approval
+
+**Technical Implementation:**
+- **Data Layer:** Extended `ProposedOperation` with MD5 verification fields
+- **Business Logic:** `ActionPlanGenerator` now populates MD5 data for all operations
+- **UI Layer:** Review table displays MD5 hashes with truncation and tooltips
+- **User Experience:** Bulk operations for efficient approval workflow
+- **Best Practices:** Incremental enhancement without breaking existing functionality
+
+**Point 5 Core Requirements Met:**
+- ✅ Interactive table with confidence-based color coding
+- ✅ MD5 verification columns (newly added)
+- ✅ Bulk edit capabilities (newly added)
+- ✅ Jellyfin status column
+- ✅ Approval workflow with checkboxes
+
+**Ready for Testing:** Point 5 now has complete minimal functionality that can be validated with real data.
+
+**Next:** Phase 31B-Test - Validate end-to-end workflow with real media library.
 
 ---
 
 **Next Steps:**
-1. **Phase 31A-Prime:** Add MD5 columns and basic bulk operations to review table
-2. **Phase 31B-Test:** Test with real media library and validate end-to-end workflow
-3. **Phase 31C-Iterate:** Add remaining features based on real usage feedback
-4. Implement Point 6 (action plan execution with verification)
-5. Regular git commits after each phase
-6. Consider GitHub Actions for automated testing (future)
+1. **Phase 31B-Test:** Test with real media library and validate end-to-end workflow
+2. **Phase 31C-Iterate:** Add remaining features based on real usage feedback
+3. Implement Point 6 (action plan execution with verification)
+4. Regular git commits after each phase
+5. Consider GitHub Actions for automated testing (future)

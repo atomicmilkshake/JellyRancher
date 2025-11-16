@@ -823,30 +823,47 @@ class JellyRancherClean(QMainWindow):
         
         # Action table
         self.action_table = QTableWidget()
-        self.action_table.setColumnCount(7)
+        self.action_table.setColumnCount(9)
         self.action_table.setHorizontalHeaderLabels([
-            "Source File", "Proposed Destination", "Action", "Confidence", 
-            "Jellyfin Status", "Notes", "Approve"
+            "Source File", "Proposed Destination", "Action", "Confidence",
+            "Jellyfin Status", "Current MD5", "Proposed MD5", "Notes", "Approve"
         ])
         self.action_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.action_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.action_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
+        self.action_table.horizontalHeader().setSectionResizeMode(7, QHeaderView.ResizeMode.Stretch)
         self.action_table.setColumnWidth(2, 100) # Action
         self.action_table.setColumnWidth(3, 100) # Confidence
         self.action_table.setColumnWidth(4, 120) # Jellyfin Status
-        self.action_table.setColumnWidth(6, 80)  # Approve
+        self.action_table.setColumnWidth(5, 120) # Current MD5
+        self.action_table.setColumnWidth(6, 120) # Proposed MD5
+        self.action_table.setColumnWidth(8, 80)  # Approve
         layout.addWidget(self.action_table)
         
         # Buttons
         btn_layout = QHBoxLayout()
+
+        # Action plan management
         btn_load = QPushButton("Load Action Plan")
         btn_load.clicked.connect(self.step_5_review)
         btn_export = QPushButton("Export to CSV")
         btn_dry_run = QPushButton("Dry Run Preview")
+
+        # Bulk operations (Point 5 requirement)
+        btn_select_all = QPushButton("Select All")
+        btn_select_all.clicked.connect(self._select_all_operations)
+        btn_approve_selected = QPushButton("Approve Selected")
+        btn_approve_selected.clicked.connect(self._approve_selected_operations)
+        btn_reject_selected = QPushButton("Reject Selected")
+        btn_reject_selected.clicked.connect(self._reject_selected_operations)
+
         btn_layout.addWidget(btn_load)
         btn_layout.addWidget(btn_export)
         btn_layout.addWidget(btn_dry_run)
         btn_layout.addStretch()
+        btn_layout.addWidget(btn_select_all)
+        btn_layout.addWidget(btn_approve_selected)
+        btn_layout.addWidget(btn_reject_selected)
+
         layout.addLayout(btn_layout)
         
         return widget
@@ -1685,36 +1702,48 @@ class JellyRancherClean(QMainWindow):
             # --- Create Items ---
             source_item = QTableWidgetItem(str(op.source_path.name))
             source_item.setToolTip(str(op.source_path))
-            
+
             dest_text = str(op.destination_path) if op.destination_path else "N/A"
             dest_item = QTableWidgetItem(dest_text)
-            
+
             action_item = QTableWidgetItem(op.action_type.name)
             confidence_item = QTableWidgetItem(op.confidence.name)
             jellyfin_item = QTableWidgetItem(op.jellyfin_status)
+
+            # MD5 columns (Point 5 requirement)
+            current_md5_item = QTableWidgetItem(op.current_md5 or "N/A")
+            current_md5_item.setToolTip(op.current_md5 or "")
+            proposed_md5_item = QTableWidgetItem(op.proposed_md5 or "N/A")
+            proposed_md5_item.setToolTip(op.proposed_md5 or "")
+
             notes_item = QTableWidgetItem(op.notes)
 
             # --- Apply Color and Set Items ---
-            for col, item in enumerate([source_item, dest_item, action_item, confidence_item, jellyfin_item, notes_item]):
+            # Columns: 0=Source, 1=Dest, 2=Action, 3=Confidence, 4=Jellyfin, 5=CurrentMD5, 6=ProposedMD5, 7=Notes
+            for col, item in enumerate([source_item, dest_item, action_item, confidence_item, jellyfin_item, current_md5_item, proposed_md5_item, notes_item]):
                 item.setBackground(color)
-                # Make items non-editable for now, except for notes
-                if col != 5:
+                # Make items non-editable, except for notes (column 7)
+                if col != 7:
                     item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 self.action_table.setItem(row, col, item)
 
-            # --- Add 'Approve' Checkbox ---
+            # --- Add 'Approve' Checkbox (Column 8) ---
             checkbox_widget = QWidget()
             checkbox_layout = QHBoxLayout(checkbox_widget)
             checkbox = QCheckBox()
             checkbox_layout.addWidget(checkbox)
             checkbox_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
             checkbox_layout.setContentsMargins(0, 0, 0, 0)
-            
-            # Set initial state based on confidence
-            if op.confidence == Confidence.HIGH:
+
+            # Set initial state based on confidence and user approval
+            if op.user_approved is True:
                 checkbox.setChecked(True)
-            
-            self.action_table.setCellWidget(row, 6, checkbox_widget)
+            elif op.user_approved is False:
+                checkbox.setChecked(False)
+            elif op.confidence == Confidence.HIGH:
+                checkbox.setChecked(True)  # Auto-approve high confidence
+
+            self.action_table.setCellWidget(row, 8, checkbox_widget)
 
         self.action_table.resizeRowsToContents()
         self.log_status("Action plan loaded. Review and approve changes.")
@@ -1727,6 +1756,49 @@ class JellyRancherClean(QMainWindow):
             "Action Plan Error",
             f"An error occurred while generating the action plan:\n\n{error_message}"
         )
+
+    # =========================================================================
+    # BULK OPERATIONS (Point 5 Enhancement)
+    # =========================================================================
+
+    def _select_all_operations(self):
+        """Select all checkboxes in the action table."""
+        for row in range(self.action_table.rowCount()):
+            checkbox_widget = self.action_table.cellWidget(row, 8)  # Approve column
+            if checkbox_widget:
+                checkbox = checkbox_widget.findChild(QCheckBox)
+                if checkbox:
+                    checkbox.setChecked(True)
+
+    def _approve_selected_operations(self):
+        """Approve all operations that have their checkbox checked."""
+        approved_count = 0
+        for row in range(self.action_table.rowCount()):
+            checkbox_widget = self.action_table.cellWidget(row, 8)  # Approve column
+            if checkbox_widget:
+                checkbox = checkbox_widget.findChild(QCheckBox)
+                if checkbox and checkbox.isChecked():
+                    # Update the corresponding ProposedOperation
+                    if row < len(self.action_plan):
+                        self.action_plan[row].user_approved = True
+                        approved_count += 1
+
+        self.log_status(f"Approved {approved_count} operations.")
+
+    def _reject_selected_operations(self):
+        """Reject all operations that have their checkbox checked."""
+        rejected_count = 0
+        for row in range(self.action_table.rowCount()):
+            checkbox_widget = self.action_table.cellWidget(row, 8)  # Approve column
+            if checkbox_widget:
+                checkbox = checkbox_widget.findChild(QCheckBox)
+                if checkbox and checkbox.isChecked():
+                    # Update the corresponding ProposedOperation
+                    if row < len(self.action_plan):
+                        self.action_plan[row].user_approved = False
+                        rejected_count += 1
+
+        self.log_status(f"Rejected {rejected_count} operations.")
 
     # =========================================================================
     # WORKFLOW STEP 6: SNAPSHOT & TRANSACTION LOG

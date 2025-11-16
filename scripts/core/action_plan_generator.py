@@ -203,7 +203,8 @@ class ActionPlanGenerator:
                     notes=notes,
                     jellyfin_status=self._determine_jellyfin_status(dup),
                     jellyfin_id=dup.jellyfin_id,
-                    current_provider_ids=dup.jellyfin_provider_ids or {}
+                    current_provider_ids=dup.jellyfin_provider_ids or {},
+                    current_md5=dup.md5_hash  # MD5 for verification
                 )
 
                 self.action_plan.append(operation)
@@ -245,6 +246,7 @@ class ActionPlanGenerator:
             jellyfin_id=record.jellyfin_id,
             current_provider_ids=record.jellyfin_provider_ids or {},
             proposed_provider_ids=self._extract_provider_ids(matched_metadata) if matched_metadata else {},
+            current_md5=record.md5_hash,  # MD5 for verification
             canonical_metadata=matched_metadata
         )
 
@@ -281,7 +283,8 @@ class ActionPlanGenerator:
                 action_type=ActionType.REVIEW,
                 confidence=Confidence.MANUAL,
                 notes="Orphaned subtitle - no matching video file found",
-                jellyfin_status="Unknown"
+                jellyfin_status="Unknown",
+                current_md5=record.md5_hash  # MD5 for verification
             )
 
         # Find the video's operation in the action plan
@@ -299,7 +302,8 @@ class ActionPlanGenerator:
                 action_type=ActionType.SKIP,
                 confidence=Confidence.NONE,
                 notes=f"Associated with {associated_video.name} (no move needed)",
-                jellyfin_status="N/A (Subtitle)"
+                jellyfin_status="N/A (Subtitle)",
+                current_md5=record.md5_hash  # MD5 for verification
             )
 
         # Video is moving, subtitle follows
@@ -316,6 +320,7 @@ class ActionPlanGenerator:
                 confidence=Confidence.HIGH,
                 notes=f"Follows {associated_video.name} (auto-approved)",
                 jellyfin_status="N/A (Subtitle)",
+                current_md5=record.md5_hash,  # MD5 for verification
                 user_approved=self.app_config.is_subtitle_auto_approve()
             )
 

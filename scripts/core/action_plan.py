@@ -44,16 +44,20 @@ class ProposedOperation:
     action_type: ActionType = ActionType.SKIP
     confidence: Confidence = Confidence.NONE
     notes: str = ""
-    
+
     # Jellyfin-related context
     jellyfin_status: str = "Unknown" # e.g., "New", "Already in Library", "Path Mismatch"
     jellyfin_id: Optional[str] = None
     current_provider_ids: Dict[str, str] = field(default_factory=dict)
     proposed_provider_ids: Dict[str, str] = field(default_factory=dict)
-    
+
+    # MD5 verification (Point 5 requirement)
+    current_md5: Optional[str] = None  # Current file MD5 hash
+    proposed_md5: Optional[str] = None  # Expected MD5 after operation (for verification)
+
     # Metadata context
     canonical_metadata: Optional[Dict[str, Any]] = None
-    
+
     # User override
     user_approved: Optional[bool] = None # None = no user action, True = approved, False = rejected
 
