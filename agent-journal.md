@@ -604,14 +604,47 @@ Establish professional version control workflow, rename project from ChocoTaco t
 - **UI Complexity:** Too many features → Keep core workflow simple, advanced features optional
 - **Data Integrity:** MD5 mismatches → Clear error indicators and rollback options
 
-**Next:** Begin Phase 31A - Enhanced Review Table Features implementation.
+**Alternative Approach Recommended (Software Design Best Practice):**
+
+Following software design best practices, I recommend a **Build-Measure-Learn cycle** approach instead of Option A:
+
+**Phase 31A-Prime: Minimal Viable Enhancement**
+- Add MD5 columns (current/proposed hashes) to table
+- Add basic bulk operations (select all, approve selected)
+- Fix missing ProposedOperation MD5 fields
+- Keep implementation minimal and focused
+
+**Phase 31B-Test: Immediate Validation**
+- Test with real media library (your actual files)
+- Validate end-to-end workflow: scan → LLM → canonical DB → action plan → review
+- Identify actual usability issues and priorities
+- Measure performance with real data
+
+**Phase 31C-Iterate: Data-Driven Enhancements**
+- Add advanced features based on real usage feedback
+- Implement most-requested improvements first
+- Avoid building features that might not be needed
+
+**Why This is Better:**
+1. **Validates Assumptions:** Real data reveals what features are actually important
+2. **Reduces Risk:** Don't invest in complex UI features that might not be used
+3. **Faster Feedback:** Get user validation before building more features
+4. **Agile Development:** Build-measure-learn cycle instead of big upfront design
+
+**Technical Readiness:**
+- ✅ MD5 infrastructure exists (`hash_file`, `safe_move`)
+- ✅ ActionPlanGenerator has MD5 indexing
+- ❌ ProposedOperation missing MD5 fields (needs fix)
+- ✅ Basic table framework exists
+
+**Next:** Begin Phase 31A-Prime with minimal enhancements, then immediate testing.
 
 ---
 
 **Next Steps:**
-1. **Phase 31A:** Enhance review table with MD5 columns, bulk operations, and advanced filtering
-2. **Phase 31B:** Add visual enhancements (artwork previews, collection suggestions)
-3. **Phase 31C:** Test with real data and validate end-to-end workflow
+1. **Phase 31A-Prime:** Add MD5 columns and basic bulk operations to review table
+2. **Phase 31B-Test:** Test with real media library and validate end-to-end workflow
+3. **Phase 31C-Iterate:** Add remaining features based on real usage feedback
 4. Implement Point 6 (action plan execution with verification)
 5. Regular git commits after each phase
 6. Consider GitHub Actions for automated testing (future)
