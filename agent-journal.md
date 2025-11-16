@@ -481,8 +481,73 @@ Establish professional version control workflow, rename project from ChocoTaco t
 - ✅ Published to GitHub: https://github.com/atomicmilkshake/JellyRancher
 - ✅ Git workflow integrated into development process
 
+---
+
+## Phase 29: Comprehensive Project Reference Consolidation
+**Date:** 2025-11-16 04:11:37 | **Status:** Complete | **By:** Claude Sonnet 4.5
+
+**Context:** Requested to merge architectural documents (ARCHITECTURE.md, architecture-reference.md, JELLYFIN_API_INTEGRATION_PLAN.MD, ass.plan.md) into a single reference while preserving originals, using plan.md as baseline before implementing Point 5.
+
+**Accomplishment:** Created `docs/COMPREHENSIVE_PROJECT_REFERENCE.md` - a 489-line consolidated reference document that integrates all architectural information without conflicts.
+
+**Document Structure:**
+- **Core Requirements:** plan.md baseline (8-point workflow)
+- **Technology Stack:** Complete library specifications and requirements.txt
+- **Component Architecture:** Layer breakdown and data models
+- **Jellyfin API Integration:** Full strategy and workflow mapping
+- **Implementation Status:** Current completion status (✅ implemented, ❌ not yet)
+- **Risk Mitigation:** Safety protocols and testing strategies
+
+**Analysis Results:**
+- ✅ No conflicts detected between source documents
+- ✅ Documents were complementary, not contradictory
+- ✅ Hierarchy of abstraction preserved (requirements → architecture → implementation)
+- ✅ All original documents remain intact as historical reference
+
+**Next:** Proceed with Point 5 implementation (settings dialog for base paths)
+
+---
+
+## Phase 30: Application Settings Dialog Implementation
+**Date:** 2025-11-16 04:23:22 | **Status:** Complete | **By:** Claude Sonnet 4.5
+
+**Context:** Implementing Point 5 settings dialog for base paths configuration with maximum functionality and flexibility, following programming best practices.
+
+**Accomplishment:** Created comprehensive `AppSettingsDialog` for configuring all application settings with full GUI integration.
+
+**Features Implemented:**
+- **Destination Base Paths:** Folder browser dialogs for Movies and TV Shows paths
+- **Reorganization Strategy:** Combo box with 4 options (user_choice, llm, canonical, hybrid)
+- **Duplicate Handling:** Combo box for 3 strategies (jellyfin_first, largest_file, manual)
+- **Auto-Approval Settings:** Checkboxes for high-confidence and subtitle operations
+- **UI Preferences:** Checkbox for showing subtitles in table
+- **Safety Settings:** MD5 verification toggle
+- **Validation:** Path existence checks, error messages, configuration completeness
+- **Help Text:** Integrated explanations for all settings
+- **Menu Integration:** Added to Tools menu with Ctrl+, shortcut
+
+**Technical Implementation:**
+- **Architecture:** Follows JellyfinSettingsDialog pattern with comprehensive validation
+- **Persistence:** Integrates with existing `AppConfigManager`
+- **UI/UX:** Professional layout with grouped settings, browse buttons, status tips
+- **Error Handling:** Comprehensive validation with user-friendly error messages
+- **Best Practices:** Proper imports, docstrings, separation of concerns
+
+**Integration Points:**
+- Added import and menu item to `jelly_rancher_main.py`
+- Created `open_app_settings_dialog()` method following existing patterns
+- Positioned at top of Tools menu for easy access
+- Maintains compatibility with existing Jellyfin settings dialog
+
+**Testing:** Import test passed, dialog structure validated.
+
+**Next:** Complete Point 5 GUI enhancements (color coding, table improvements) and test with real data.
+
+---
+
 **Next Steps:**
-1. Continue Point 5 implementation (settings dialog for base paths)
-2. Implement Point 6 (action plan execution with verification)
-3. Regular git commits after each phase
-4. Consider GitHub Actions for automated testing (future)
+1. Enhance Point 5 review table (color coding for auto-marked duplicates)
+2. Test Point 5 implementation with real scan data
+3. Implement Point 6 (action plan execution with verification)
+4. Regular git commits after each phase
+5. Consider GitHub Actions for automated testing (future)

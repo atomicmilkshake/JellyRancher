@@ -116,6 +116,12 @@ try:
 except ImportError:
     MovieAnalysisDialog = None
 
+# Import application settings dialog
+try:
+    from dialogs.app_settings_dialog import AppSettingsDialog
+except ImportError:
+    AppSettingsDialog = None
+
 # Import help system
 from jelly_rancher_help import show_help_dialog
 
@@ -659,7 +665,14 @@ Tailor JellyRancher to your specific workflow and environment."""),
 
         # Tools menu
         tools_menu = menubar.addMenu('Tools')
-        
+
+        # Application settings
+        settings_action = tools_menu.addAction('⚙️ Application Settings', self.open_app_settings_dialog)
+        settings_action.setShortcut('Ctrl+,')
+        settings_action.setStatusTip('Configure application settings and preferences (Ctrl+,)')
+
+        tools_menu.addSeparator()
+
         # New v2.0.0 features with keyboard shortcuts
         tmdb_action = tools_menu.addAction('📺 Generate TMDB Cache', self.open_tmdb_cache_dialog)
         tmdb_action.setShortcut('Ctrl+T')
@@ -3317,12 +3330,21 @@ Recent Activity:
     def open_audit_viewer(self): pass
     def show_documentation(self): pass
     
+    def open_app_settings_dialog(self):
+        """Open application settings dialog."""
+        if AppSettingsDialog is None:
+            QMessageBox.warning(self, "Not Available", "Application Settings Dialog not available.")
+            return
+
+        dialog = AppSettingsDialog(self)
+        dialog.exec()
+
     def open_tmdb_cache_dialog(self):
         """Open TMDB cache generator dialog."""
         if TMDBCacheDialog is None:
             QMessageBox.warning(self, "Not Available", "TMDB Cache Dialog not available.")
             return
-        
+
         dialog = TMDBCacheDialog(self)
         dialog.exec()
     
