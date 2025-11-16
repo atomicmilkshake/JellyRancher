@@ -683,3 +683,90 @@ Following software design best practices, I recommend a **Build-Measure-Learn cy
 3. Implement Point 6 (action plan execution with verification)
 4. Regular git commits after each phase
 5. Consider GitHub Actions for automated testing (future)
+
+---
+
+## Phase 31C: Centralized Error Handling Helper (GUI) 
+**Date:** 2025-11-16 13:30:34 | **Status:** Complete | **By:** GPT-5.1 (Cursor)
+
+**Context:** Before running real-library tests, the user requested a review and improvement of comprehensive error handling and centralized logging, focusing on the main GUI workflow (`jelly_rancher_clean.py`) while respecting existing architecture and avoiding unnecessary churn.
+
+**Accomplishment:** Implemented a centralized GUI error helper in `jelly_rancher_clean.py` and wired it into all major asynchronous workflow steps.
+
+**Changes Implemented:**
+- **New Helper:** Added `_show_error(title, user_message, log_message=None)` to `JellyRancherClean`:
+  - Logs errors consistently via the module logger (`logger.error`).
+  - Updates the status bar with a concise error summary.
+  - Shows a `QMessageBox.critical` dialog with a user-friendly message.
+- **Standardized Error Handling:** Updated all worker error handlers to use `_show_error`:
+  - `_on_scan_error` (Step 1: scanning / MultiScanWorker)
+  - `_on_llm_error` (Step 3: LLM analysis)
+  - `_on_metadata_error` (Step 4: metadata lookup)
+  - `_on_action_plan_error` (Step 5: action plan generation)
+- **Preserved Context:** 
+  - Existing per-step UI context (e.g., detailed messages in `llm_output` and `metadata_output`) is preserved.
+  - Error handlers still update specific widgets (progress bars, status labels) for clear visual feedback.
+
+**Resulting Behavior:**
+- All major workflow failures now:
+  - Log a structured, consistent error entry.
+  - Display a clearly titled error dialog with a human-readable explanation.
+  - Update the status bar with the same title + summary.
+- This reduces fragmented error handling and makes it easier to correlate GUI failures with log entries during debugging and test runs.
+
+**Notes on Logging Architecture:**
+- Existing logging configuration in `jelly_rancher_clean.py` still routes all module loggers through `logging.basicConfig` to `data/logs/jellyrancher.log`, which already acts as a centralized log for the GUI workflow.
+- The unified `MasterLogger`/`ProjectLogger` system in `scripts/_common/logger.py` remains available for future consolidation, but was not wired into the GUI in this phase to avoid unnecessary disruption before testing.
+
+**Next:** 
+- Proceed to **Phase 31B-Test**:
+  - Run end-to-end workflow on a real media subset.
+  - Verify that errors (if any) are surfaced consistently in both GUI and logs.
+  - Use findings to prioritize further logging unification or UX tweaks in a later phase.
+
+---
+
+## Phase 31B-Prep: Document \"My Last Response\" & Expand Pre-Test Plan
+**Date:** 2025-11-16 12:56:05 | **Status:** Planning | **By:** GPT-5.1 (Cursor)\
+
+**Context:** User requested that the assistant's previous response be documented in the journal as \"my last response\" and confirmed desire to proceed with suggested next steps, with an added emphasis on assessing error handling, centralized logging, and the full user workflow before running tests.
+
+**My Last Response (Summarized):**
+- Confirmed that **Phase 31A-Prime** (minimal Point 5 enhancements) is complete and aligned with software design best practices.
+- Described the delivered features:
+  - **MD5 verification columns** (current/proposed hashes) wired into `ProposedOperation`, `ActionPlanGenerator`, and the review table.
+  - **Bulk operations** in the review table: Select All, Approve Selected, Reject Selected, updating `user_approved` and logging counts.
+  - **Core Point 5 requirements** now satisfied: interactive, color-coded table; MD5 visibility; bulk edits; Jellyfin status; approval workflow.
+- Highlighted the **build-measure-learn** approach:
+  - Minimal viable implementation first (31A-Prime).
+  - Immediate validation with real data (31B-Test).
+  - Iterative enhancements based on real-world usage (31C-Iterate).
+- Proposed **next step**: run an end-to-end workflow test (scan → LLM → canonical DB → action plan → review) using a real media library and gather feedback.
+
+**User's Additional Direction (Post-Response):**
+- ✅ Wants to proceed with the suggested next steps.
+- ✅ Requests that **before testing**, we perform a focused assessment of:
+  - **Comprehensive error handling** across the workflow.
+  - **Comprehensive centralized logging** (where logs go, how consistent, how searchable).
+  - **User-facing workflow** from a real user's perspective (clarity of steps, messaging, affordances).
+
+**Refined Plan Before Testing:**
+1. **Error Handling Review:**
+   - Trace major workflows (Steps 1–5) and catalog how errors are surfaced (exceptions, QMessageBox, logs).
+   - Identify gaps where errors could be swallowed, under-reported, or overly technical for users.
+   - Propose standardized error-handling patterns (e.g., structured error objects, consistent user messages).
+2. **Centralized Logging Assessment:**
+   - Map current logging outputs (files, loggers, log levels) across `jelly_rancher_clean.py`, core modules, and helpers.
+   - Evaluate whether log messages are structured, searchable, and coherent for debugging and audits.
+   - Propose logging conventions (logger names, levels, message formats) and any needed centralization.
+3. **End-to-End User Workflow Audit (Read-Only):**
+   - Walk through the UI from the perspective of a first-time user: folder selection → scan → overview → LLM → canonical DB → review.
+   - Identify confusing labels, missing status updates, or unclear transitions between steps.
+   - Ensure that the new Point 5 review table (with MD5 and bulk ops) is understandable without reading source code.
+
+**Post-Assessment Plan:**
+- Integrate any critical fixes or UX improvements discovered during the assessment into the workflow.
+- THEN execute **Phase 31B-Test** using a real media library to validate behavior under realistic conditions.
+- Use findings from both the assessment and test run to drive **Phase 31C-Iterate** (targeted enhancements, not speculative ones).
+
+**Next:** Perform structured assessment of error handling, logging, and user workflow (pre-testing), then run initial end-to-end tests with real data.

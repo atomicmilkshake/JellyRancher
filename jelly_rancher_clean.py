@@ -961,6 +961,23 @@ class JellyRancherClean(QMainWindow):
         self.statusBar().showMessage(message)
         print(message)  # Also print to console
 
+    # -------------------------------------------------------------------------
+    # Centralized error handling helper
+    # -------------------------------------------------------------------------
+    def _show_error(self, title: str, user_message: str, log_message: str | None = None):
+        """
+        Show a critical error dialog and log the error in a consistent way.
+
+        Args:
+            title: Title for the error dialog and log entry
+            user_message: Message shown to the user (human-friendly)
+            log_message: Optional detailed message for logs (defaults to user_message)
+        """
+        details = log_message or user_message
+        logger.error(f"{title}: {details}")
+        self.statusBar().showMessage(f"{title}: {details}")
+        QMessageBox.critical(self, title, user_message)
+
     # =========================================================================
     # WORKFLOW STEP 1: FOLDER SCANNING - MULTI-FOLDER SUPPORT
     # =========================================================================
@@ -1187,14 +1204,11 @@ class JellyRancherClean(QMainWindow):
         """Handle scan errors."""
         self.scan_progress.setVisible(False)
         self.scan_status.setText(f"❌ Scan failed: {error_message}")
-
-        QMessageBox.critical(
-            self,
+        self._show_error(
             "Scan Error",
-            f"An error occurred during scanning:\n\n{error_message}"
+            f"An error occurred during scanning:\n\n{error_message}",
+            error_message
         )
-
-        self.log_status(f"Scan failed: {error_message}")
 
     @staticmethod
     def _format_size(size_bytes: int) -> str:
@@ -1464,15 +1478,15 @@ class JellyRancherClean(QMainWindow):
     def _on_llm_error(self, error_message: str):
         """Handle LLM analysis errors."""
         self.llm_output.append(f"\nERROR: {error_message}")
-
-        QMessageBox.critical(
-            self,
+        self._show_error(
             "LLM Analysis Error",
-            f"An error occurred during LLM analysis:\n\n{error_message}\n\n"
-            f"Check that your Poe API key is valid and you have internet connectivity."
+            (
+                "An error occurred during LLM analysis:\n\n"
+                f"{error_message}\n\n"
+                "Check that your Poe API key is valid and you have internet connectivity."
+            ),
+            error_message
         )
-
-        self.log_status(f"LLM analysis failed: {error_message}")
 
     # =========================================================================
     # WORKFLOW STEP 4: METADATA DATABASE
@@ -1635,13 +1649,14 @@ class JellyRancherClean(QMainWindow):
         self.metadata_output.append("3. API services are not down")
         
         self.metadata_progress.setValue(0)
-        self.log_status(f"Metadata lookup failed: {error_message}")
-        
-        QMessageBox.critical(
-            self,
+        self._show_error(
             "Metadata Lookup Failed",
-            f"An error occurred during metadata lookup:\n\n{error_message}\n\n"
-            "Check the output window for details."
+            (
+                "An error occurred during metadata lookup:\n\n"
+                f"{error_message}\n\n"
+                "Check the output window for details."
+            ),
+            error_message
         )
 
     # =========================================================================
@@ -1750,11 +1765,10 @@ class JellyRancherClean(QMainWindow):
 
     def _on_action_plan_error(self, error_message: str):
         """Handle action plan generation errors."""
-        self.log_status(f"Action plan generation failed: {error_message}")
-        QMessageBox.critical(
-            self,
+        self._show_error(
             "Action Plan Error",
-            f"An error occurred while generating the action plan:\n\n{error_message}"
+            f"An error occurred while generating the action plan:\n\n{error_message}",
+            error_message
         )
 
     # =========================================================================
