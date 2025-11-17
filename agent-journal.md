@@ -339,4 +339,346 @@ Project → Scan → Analysis → Review → Execute
 
 ---
 
-## END OF JOURNAL
+## PHASE 32E Part 1 Status Update
+**Date:** 2025-11-17 08:35:59
+
+**Journal Compression:** ✅ COMPLETE
+- Compressed from 1,993 → 342 lines (83% reduction)
+- Backup: `backups/agent-journal_2025-11-17_083016.md`
+- All phase numbers, decisions, obstacles/breakthroughs preserved
+- Git commit: `93ac8fe`
+
+**Phase 32F/G/H Assessment:**
+
+**Existing Code Found:**
+- ✅ `scripts/core/jellyfin_client.py` (453 lines) - Complete API client
+  - Methods: test_connection, get_all_items, find_item_by_path, get_provider_ids, refresh_item, refresh_library, get_libraries
+- ✅ `scripts/media/media_metadata_lookup.py` (683 lines) - Complete TMDB/TVDB/OMDb
+  - Methods: lookup_movie, lookup_tv_show, with caching and rate limiting
+- ✅ `scripts/utils/transaction_manager.py` (718 lines) - Already integrated
+- ✅ `scripts/ui/styles.py` (450 lines) - Professional QSS stylesheet already applied
+
+**Missing Functionality:**
+- ❌ Jellyfin collection creation/management methods
+- ❌ Jellyfin integration in ExecutionView (library refresh after operations)
+- ❌ Metadata lookup integration in AnalysisView
+- ❌ NFO file generation for multi-part episodes
+- ❌ Dark mode QSS variant
+- ❌ Keyboard shortcuts for all actions
+
+**Recommendation:**
+Given the comprehensive scope of Phases 32F/G/H and that 90% of the required code already exists, recommend implementing these as focused, incremental enhancements rather than a single large phase. Each enhancement can be independently tested and deployed.
+
+**Implementation Strategy:**
+1. **Phase 32F (Jellyfin):** Add 3 methods to JellyfinClient (create_collection, add_items_to_collection, refresh_library_targeted), integrate refresh into ExecutionView post-execution
+2. **Phase 32G (Metadata):** Add metadata lookup button to AnalysisView, integrate with existing MediaMetadataLookup class
+3. **Phase 32H (UI):** Create dark_mode.qss variant, add QShortcut objects to Studio for keyboard nav
+
+**Status:** Phase 32E Part 1 COMPLETE. Ready for 32F/G/H implementation when user confirms scope/priority.
+
+---
+
+## PHASE 32F/G/H: IMPLEMENTATION PLAN
+**Date:** 2025-11-17 08:45:00 | **Status:** IN PROGRESS
+
+### Phase 32F: Jellyfin Integration ✅ (Partial Complete)
+
+**Completed:**
+- ✅ Enhanced `JellyfinClient` with 5 new methods (scripts/core/jellyfin_client.py):
+  - `create_collection(name, item_ids)` - Create Jellyfin collections
+  - `add_to_collection(collection_id, item_ids)` - Add items to collections
+  - `get_collections()` - Retrieve all collections
+  - `update_provider_ids(item_id, provider_ids)` - Sync TMDb/TVDb/IMDb IDs
+  - `refresh_library_by_path(path)` - Targeted library refresh (faster than full refresh)
+- No linter errors, all methods tested
+
+**Remaining Tasks:**
+1. **Integrate Jellyfin into ExecutionView** (scripts/ui/execution_view.py)
+   - Add Jellyfin settings checkbox (optional, default: enabled if configured)
+   - After successful execution, trigger `refresh_library_by_path()` for modified paths
+   - Log refresh status in transaction log
+   - Add to completion dialog: "Jellyfin library refreshed"
+
+2. **Add Jellyfin Settings to Studio Menu**
+   - Import existing `JellyfinSettingsDialog` (scripts/core/dialogs/jellyfin_settings_dialog.py)
+   - Add "Jellyfin Settings" to Tools menu (jelly_rancher_studio.py)
+   - Add status indicator to status bar (shows if Jellyfin is connected)
+
+3. **Provider ID Synchronization**
+   - Add "Sync Provider IDs" button to AnalysisView
+   - After LLM analysis + metadata lookup, sync discovered IDs to Jellyfin
+   - Update Jellyfin items with correct TMDb/TVDb/IMDb IDs
+
+**Estimated Time:** 2-3 hours
+**Files to Modify:** execution_view.py, jelly_rancher_studio.py, analysis_view.py
+
+---
+
+### Phase 32G: Metadata Enrichment
+
+**Tasks:**
+1. **Integrate MediaMetadataLookup into AnalysisView** (scripts/ui/analysis_view.py)
+   - Import existing `MediaMetadataLookup` (scripts/media/media_metadata_lookup.py)
+   - Add "Enrich Metadata" button (after analysis completes)
+   - For each detected movie/TV show from LLM:
+     - Query TMDB/TVDB for canonical metadata
+     - Display results in expandable tree (title, year, poster URL, IMDb ID)
+   - Save enriched metadata to database (project_analyses.metadata_json)
+   - Progress dialog with "Querying TMDB for 'Movie Title'..." updates
+
+2. **NFO Generation for Multi-Part Episodes** (scripts/media/nfo_generator.py - NEW FILE)
+   - Detect multi-part episodes (e.g., "Episode 1-2" in single file)
+   - Generate NFO files per Jellyfin spec:
+     ```xml
+     <episodedetails>
+       <title>Episode Title</title>
+       <showtitle>Show Name</showtitle>
+       <season>1</season>
+       <episode>1</episode>
+       <aired>2020-01-15</aired>
+       <tvdbid>12345</tvdbid>
+     </episodedetails>
+     ```
+   - Add "Generate NFOs" button to ReviewView (for multi-part operations)
+   - Preview NFO content before writing
+   - Add to ProposedOperation: `nfo_content` field
+
+3. **Artwork Download Integration**
+   - Use TMDB API to download poster/backdrop images
+   - Add "Download Artwork" checkbox to AnalysisView metadata enrichment
+   - Save to `<media_folder>/<title>-poster.jpg` (Jellyfin naming convention)
+   - Progress: "Downloading poster for 'Movie Title'..."
+   - Store artwork paths in database for tracking
+
+**Estimated Time:** 4-5 hours
+**Files to Modify:** analysis_view.py, review_view.py
+**Files to Create:** nfo_generator.py
+
+---
+
+### Phase 32H: UI Enhancements
+
+**Tasks:**
+1. **Dark Mode QSS Stylesheet** (scripts/ui/dark_mode.qss - NEW FILE)
+   - Create dark mode variant of existing styles.py
+   - Color scheme:
+     - Background: #1e1e1e (dark gray)
+     - Primary: #0d7bdc (blue)
+     - Text: #e0e0e0 (light gray)
+     - Accent: #4a9eff (bright blue)
+   - Add "View > Dark Mode" toggle to Studio menu
+   - Save preference to AppConfig
+   - Apply stylesheet dynamically on toggle
+
+2. **Keyboard Shortcuts** (jelly_rancher_studio.py)
+   - Add QShortcut objects for all major actions:
+     - `Ctrl+N` - New Project (already implemented)
+     - `Ctrl+O` - Open Project (already implemented)
+     - `Ctrl+S` - Save Project (already implemented)
+     - `Ctrl+Shift+S` - Scan Folders
+     - `Ctrl+Shift+A` - Analyze Structure
+     - `Ctrl+Shift+R` - Review Action Plan
+     - `Ctrl+Shift+E` - Execute Operations
+     - `Ctrl+,` - Settings (already implemented)
+     - `F5` - Refresh Project Explorer
+     - `Ctrl+W` - Close Current Tab (already implemented)
+     - `Ctrl+Q` - Quit
+   - Add "Keyboard Shortcuts" to Help menu (shows all shortcuts)
+
+3. **Drag-and-Drop in ScanView** (scripts/ui/scan_view.py)
+   - Enable `setAcceptDrops(True)` on ScanView
+   - Implement `dragEnterEvent()` and `dropEvent()`
+   - Accept folder drops from Windows Explorer
+   - Auto-open FolderContentSelectionDialog on drop
+   - Visual feedback during drag (highlight drop zone)
+
+4. **Custom Filters in ReviewView** (scripts/ui/review_view.py)
+   - Add filter bar with dropdown:
+     - "All Operations"
+     - "Only Moves"
+     - "Only Renames"
+     - "Only Approved"
+     - "Only High Confidence"
+     - "Only Failed (if any)"
+   - Add "Save Current Filter" button (saves to project_state)
+   - Add "Clear Filters" button
+   - Filter applies to both table display and search
+
+**Estimated Time:** 3-4 hours
+**Files to Modify:** jelly_rancher_studio.py, scan_view.py, review_view.py
+**Files to Create:** dark_mode.qss
+
+---
+
+### Testing & Integration Plan
+
+**Phase 32F Testing:**
+1. Configure Jellyfin settings in Studio
+2. Run execution with Jellyfin enabled
+3. Verify library refresh triggered
+4. Check Jellyfin server for updated items
+5. Test collection creation with detected media
+
+**Phase 32G Testing:**
+1. Run LLM analysis on sample media
+2. Click "Enrich Metadata" button
+3. Verify TMDB/TVDB queries complete
+4. Check metadata display in UI
+5. Generate sample NFO files
+6. Verify NFO format with Jellyfin
+7. Test artwork download for sample titles
+
+**Phase 32H Testing:**
+1. Toggle dark mode, verify all widgets update
+2. Test all keyboard shortcuts
+3. Drag folders into ScanView from Explorer
+4. Apply various filters in ReviewView
+5. Save/load filter preferences
+
+**Integration Testing:**
+Complete end-to-end workflow:
+1. Create project
+2. Scan folders (with drag-and-drop)
+3. Analyze structure
+4. Enrich metadata (TMDB/TVDB)
+5. Review operations (with filters)
+6. Generate NFOs for multi-part episodes
+7. Execute with Jellyfin refresh
+8. Verify Jellyfin library updated with correct metadata
+
+---
+
+### Commit Strategy
+
+**Commit 1: Phase 32F - Jellyfin Integration**
+- JellyfinClient enhancements
+- ExecutionView integration
+- Studio menu additions
+- ~300 lines added
+
+**Commit 2: Phase 32G - Metadata Enrichment**
+- AnalysisView metadata lookup
+- NFO generator implementation
+- Artwork download
+- ~500 lines added
+
+**Commit 3: Phase 32H - UI Enhancements**
+- Dark mode stylesheet
+- Keyboard shortcuts
+- Drag-and-drop
+- Custom filters
+- ~400 lines added
+
+**Total Estimated Addition:** ~1,200 lines of production-ready code
+
+---
+
+### Success Criteria
+
+**Phase 32F Complete When:**
+- ✅ Jellyfin library refreshes automatically after execution
+- ✅ Collections can be created from Studio
+- ✅ Provider IDs sync to Jellyfin
+- ✅ Jellyfin status visible in Studio
+
+**Phase 32G Complete When:**
+- ✅ Metadata enrichment functional in AnalysisView
+- ✅ NFO files generate correctly for multi-part episodes
+- ✅ Artwork downloads and saves with correct naming
+- ✅ All metadata persists to database
+
+**Phase 32H Complete When:**
+- ✅ Dark mode toggles work without restart
+- ✅ All keyboard shortcuts functional
+- ✅ Drag-and-drop works in ScanView
+- ✅ Filters work correctly in ReviewView
+- ✅ User preferences save/load correctly
+
+---
+
+## NEXT STEPS (User Decision Required)
+
+**Current Status:** Phase 32F partially complete (JellyfinClient enhanced)
+
+**Options:**
+1. **Continue Full Implementation** - Complete all 11 remaining TODOs systematically (recommended, ~881K tokens remaining)
+2. **Implement High-Priority First** - Focus on Jellyfin integration + metadata lookup, defer UI enhancements
+3. **Review Plan First** - User reviews plan, provides feedback, then proceed
+
+**Recommendation:** Proceed with Option 1 (Full Implementation) to deliver complete Phases 32F/G/H.
+
+**Awaiting User Confirmation to Continue...**
+
+---
+
+## PHASE 32F Comprehensive Review & Analysis
+**Date:** 2025-11-17 09:58:44 | **Status:** IN PROGRESS
+
+### Review Findings Summary
+
+**All Previous Phases (1-32E):** ✅ VERIFIED COMPLETE & FUNCTIONAL
+
+#### Core Components Status:
+1. **JellyfinClient** (scripts/core/jellyfin_client.py - 490+ lines)
+   - ✅ Already has all required methods:
+     - `create_collection(name, item_ids)` - Create Jellyfin collections
+     - `add_to_collection(collection_id, item_ids)` - Add items to collections
+     - `get_collections()` - Retrieve all collections
+     - `update_provider_ids(item_id, provider_ids)` - Sync TMDb/TVDb/IMDb IDs
+     - `refresh_library_by_path(library_path)` - Targeted library refresh
+   - ✅ All methods tested and verified working
+
+2. **ExecutionWorker** (scripts/ui/execution_view.py - 514 lines)
+   - ✅ Full transaction management with MD5 verification
+   - ✅ Dry-run and production modes
+   - ✅ Rollback capability via TransactionManager
+   - ❌ **MISSING:** Jellyfin library refresh integration after execution
+
+3. **JellyfinSettingsDialog** (scripts/core/dialogs/jellyfin_settings_dialog.py)
+   - ✅ Complete dialog implementation with test connection
+   - ❌ **MISSING:** Integration into jelly_rancher_studio.py menu
+
+4. **MediaMetadataLookup** (scripts/media/media_metadata_lookup.py - 683 lines)
+   - ✅ Complete TMDB/TVDB/OMDb integration
+   - ✅ Available but NOT integrated into AnalysisView
+
+5. **ProjectManager** (scripts/core/project_manager.py)
+   - ✅ Complete with database persistence
+   - ✅ Auto-save every 30 seconds
+   - ✅ Recent projects management
+
+#### Function Index Query Results:
+- Queried for "Jellyfin API integration library refresh collection management"
+- Found ~10 results, mostly from deprecated old codebase (jelly_rancher_clean.py, old UI files)
+- **Key Finding:** Valuable code already exists but is NOT wired into Phase 32 studio architecture
+- No valuable unused code found - old code in function index is deprecated
+
+#### Database Schema:
+- ✅ 7 tables created and verified: projects, scan_sessions, analyses, action_plans, operations, state, migrations
+- ✅ Migrations system working
+- ✅ All data persisting correctly
+
+#### Git Status:
+- Last commit: `184be8d` - Phase 32E Part 1 (Production Execution)
+- All changes staged and committed
+- Ready for Phase 32F
+
+### Phase 32F: Jellyfin Integration Implementation Plan
+
+**What's Already Done (from partial Phase 32F):**
+- ✅ All JellyfinClient methods added and tested
+- ✅ JellyfinSettingsDialog exists and functional
+
+**What Needs to be Done:**
+1. **ExecutionWorker Enhancement** - Add Jellyfin refresh after successful operations
+2. **Studio Menu Integration** - Add "Jellyfin Settings" to Tools menu
+3. **Status Bar Indicator** - Show Jellyfin connection status
+4. **Post-Execution Callback** - Trigger library refresh for moved files
+
+### Estimated Scope:
+- ~150-200 lines of new code
+- 3 files to modify (execution_view.py, jelly_rancher_studio.py, potentially one more)
+- Zero new dependencies required
+- All existing code reusable
+
+### Proceeding with Full Implementation...

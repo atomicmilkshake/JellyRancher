@@ -38,6 +38,7 @@ from scripts.ui.scan_view import ScanView
 from scripts.ui.analysis_view import AnalysisView
 from scripts.ui.review_view import ReviewView
 from scripts.ui.execution_view import ExecutionView
+from scripts.core.dialogs.jellyfin_settings_dialog import JellyfinSettingsDialog
 from scripts.ui.styles import apply_stylesheet
 
 # Initialize logging
@@ -182,7 +183,10 @@ class JellyRancherStudio(QMainWindow):
         
         # Tools menu
         tools_menu = menubar.addMenu("&Tools")
-        # TODO: Add tools actions
+
+        jellyfin_settings_action = QAction("&Jellyfin Settings", self)
+        jellyfin_settings_action.triggered.connect(self.show_jellyfin_settings)
+        tools_menu.addAction(jellyfin_settings_action)
         
         # Help menu
         help_menu = menubar.addMenu("&Help")
@@ -626,7 +630,18 @@ class JellyRancherStudio(QMainWindow):
             "<li>Safe execution with rollback</li>"
             "</ul>"
         )
-    
+
+    def show_jellyfin_settings(self):
+        """Show Jellyfin settings dialog."""
+        dialog = JellyfinSettingsDialog(self)
+        if dialog.exec():
+            QMessageBox.information(
+                self,
+                "Jellyfin Settings Saved",
+                "Jellyfin settings have been updated successfully.\n\n"
+                "The refresh checkbox in Execution View will now be enabled."
+            )
+
     def closeEvent(self, event):
         """Handle window close event."""
         # Auto-save before closing

@@ -414,6 +414,98 @@ class JellyfinClient:
 
         return False
 
+    def create_collection(self, name: str, item_ids: List[str] = None) -> Optional[str]:
+        """Create a new collection in Jellyfin."""
+        try:
+            params = {'Name': name, 'IsLocked': 'false'}
+            if item_ids:
+                params['Ids'] = ','.join(item_ids)
+
+            response = self.session.post(f"{self.server_url}/Collections", params=params, timeout=10)
+            response.raise_for_status()
+
+            collection_id = response.json().get('Id')
+            self.logger.info(f"Created collection '{name}' (ID: {collection_id})")
+            return collection_id
+        except Exception as e:
+            self.logger.error(f"Failed to create collection '{name}': {e}")
+            return None
+
+    def add_to_collection(self, collection_id: str, item_ids: List[str]) -> bool:
+        """Add items to an existing collection."""
+        try:
+            response = self.session.post(
+                f"{self.server_url}/Collections/{collection_id}/Items",
+                params={'Ids': ','.join(item_ids)},
+                timeout=10
+            )
+            response.raise_for_status()
+            self.logger.info(f"Added {len(item_ids)} items to collection {collection_id}")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to add items to collection {collection_id}: {e}")
+            return False
+
+    def get_collections(self) -> List[Dict]:
+        """Get all collections in Jellyfin."""
+        try:
+            user_id = self.get_user_id()
+            response = self.session.get(
+                f"{self.server_url}/Users/{user_id}/Items",
+                params={'Recursive': 'true', 'IncludeItemTypes': 'BoxSet', 'Fields': 'ChildCount'},
+                timeout=30
+            )
+            response.raise_for_status()
+            collections = response.json().get('Items', [])
+            self.logger.info(f"Retrieved {len(collections)} collections")
+            return collections
+        except Exception as e:
+            self.logger.error(f"Failed to get collections: {e}")
+            return []
+
+    def update_provider_ids(self, item_id: str, provider_ids: Dict[str, str]) -> bool:
+        """Update provider IDs for an item (TMDb, TVDb, IMDb)."""
+        try:
+            item = self.get_item_by_id(item_id)
+            if not item:
+                return False
+
+            current_providers = item.get('ProviderIds', {})
+            current_providers.update(provider_ids)
+
+            response = self.session.post(
+                f"{self.server_url}/Items/{item_id}",
+                json={'Id': item_id, 'ProviderIds': current_providers},
+                timeout=10
+            )
+            response.raise_for_status()
+            self.logger.info(f"Updated provider IDs for item {item_id}")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to update provider IDs for {item_id}: {e}")
+            return False
+
+    def refresh_library_by_path(self, library_path: str) -> bool:
+        """Trigger targeted library refresh for a specific path."""
+        try:
+            libraries = self.get_libraries()
+            for lib in libraries:
+                if library_path.startswith(lib.get('Path', '')):
+                    response = self.session.post(
+                        f"{self.server_url}/Library/Media/Updated",
+                        json={'Path': library_path},
+                        timeout=10
+                    )
+                    response.raise_for_status()
+                    self.logger.info(f"Triggered refresh for path: {library_path}")
+                    return True
+
+            self.logger.warning(f"No library found for path: {library_path}")
+            return self.refresh_library()
+        except Exception as e:
+            self.logger.error(f"Failed to refresh path {library_path}: {e}")
+            return False
+
 
 if __name__ == "__main__":
     # Example usage and testing

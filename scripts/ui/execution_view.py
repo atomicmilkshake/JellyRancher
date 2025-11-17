@@ -22,6 +22,8 @@ from scripts.core.project_manager import ProjectManager, Project
 from scripts.utils.transaction_manager import (
     TransactionManager, Operation, OperationType, FileHasher
 )
+from scripts.core.jellyfin_client import JellyfinClient
+from scripts.core.jellyfin_config import JellyfinConfigManager
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +36,14 @@ class ExecutionWorker(QThread):
     finished = pyqtSignal(int, int, str)  # success_count, fail_count, batch_id
     error = pyqtSignal(str)
     
-    def __init__(self, action_plan_id: int, dry_run: bool = False):
+    def __init__(self, action_plan_id: int, dry_run: bool = False, jellyfin_refresh: bool = False):
         super().__init__()
         self.action_plan_id = action_plan_id
         self.dry_run = dry_run
+        self.jellyfin_refresh = jellyfin_refresh
         self.batch_id = None
+        self.jellyfin_client = None
+        self.modified_paths = set()  # Track paths that were modified for Jellyfin refresh
     
     def run(self):
         """Execute operations with full transaction management."""
@@ -67,11 +72,34 @@ class ExecutionWorker(QThread):
             # Initialize TransactionManager
             tm = TransactionManager()
             self.batch_id = tm.begin_batch(f"action_plan_{self.action_plan_id}")
-            
+
+            # Initialize Jellyfin client if refresh enabled
+            if self.jellyfin_refresh and not self.dry_run:
+                try:
+                    config_mgr = JellyfinConfigManager()
+                    config = config_mgr.load_config()
+                    if config and config.get('enabled'):
+                        self.jellyfin_client = JellyfinClient(
+                            server_url=config.get('server_url'),
+                            api_key=config.get('api_key')
+                        )
+                        if self.jellyfin_client.test_connection():
+                            self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] Jellyfin: Connected")
+                        else:
+                            self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] Jellyfin: Connection FAILED")
+                            self.jellyfin_client = None
+                except Exception as e:
+                    self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] Jellyfin: Error - {str(e)}")
+                    self.jellyfin_client = None
+
             mode_str = "DRY RUN" if self.dry_run else "PRODUCTION"
             self.log_message.emit(f"Starting execution of {total} operations...")
             self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] Mode: {mode_str}")
-            self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] Batch ID: {self.batch_id}\n")
+            self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] Batch ID: {self.batch_id}")
+            if self.jellyfin_client:
+                self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] Jellyfin Refresh: ENABLED\n")
+            else:
+                self.log_message.emit("")
             
             for i, (op_id, op_type, current_path, proposed_path) in enumerate(operations, 1):
                 self.progress.emit(i, total, f"Processing {i}/{total}")
@@ -122,12 +150,16 @@ class ExecutionWorker(QThread):
                         # Execute move
                         shutil.move(str(source_path), str(dest_path))
                         self.log_message.emit(f"  ✓ File moved successfully")
-                        
+
+                        # Track path for Jellyfin refresh
+                        if self.jellyfin_client:
+                            self.modified_paths.add(str(dest_path.parent))
+
                         # Calculate destination MD5 and complete transaction
                         dest_md5 = FileHasher.calculate_md5(dest_path)
                         tm.complete_operation(tx_id, dest_md5)
                         self.log_message.emit(f"  ✓ MD5 verified: {dest_md5[:16]}...")
-                        
+
                         # Update database
                         cursor.execute('''
                             UPDATE project_operations
@@ -135,7 +167,7 @@ class ExecutionWorker(QThread):
                                 current_md5 = ?, proposed_md5 = ?
                             WHERE id = ?
                         ''', (datetime.now().isoformat(), dest_md5, dest_md5, op_id))
-                        
+
                         success_count += 1
                         self.log_message.emit(f"  ✓ Operation complete\n")
                     
@@ -149,20 +181,35 @@ class ExecutionWorker(QThread):
                     if not self.dry_run and 'tx_id' in locals():
                         tm.fail_operation(tx_id, error_msg)
             
+            # Trigger Jellyfin library refresh if configured
+            if self.jellyfin_client and self.modified_paths and success_count > 0:
+                self.log_message.emit(f"\n[{datetime.now().strftime('%H:%M:%S')}] Triggering Jellyfin library refresh...")
+                try:
+                    for path in self.modified_paths:
+                        self.log_message.emit(f"  Refreshing: {path}")
+                        if self.jellyfin_client.refresh_library_by_path(path):
+                            self.log_message.emit(f"  ✓ Refresh successful")
+                        else:
+                            self.log_message.emit(f"  ⚠ Refresh may have failed - check Jellyfin server logs")
+                    self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] Jellyfin refresh complete\n")
+                except Exception as e:
+                    self.log_message.emit(f"  ⚠ Error during Jellyfin refresh: {str(e)}\n")
+                    logger.error(f"Jellyfin refresh error: {e}", exc_info=True)
+
             # Update action plan
             cursor.execute('''
                 UPDATE project_action_plans
                 SET executed = 1, execution_timestamp = ?
                 WHERE id = ?
             ''', (datetime.now().isoformat(), self.action_plan_id))
-            
+
             conn.commit()
             conn.close()
-            
-            self.log_message.emit(f"\n[{datetime.now().strftime('%H:%M:%S')}] Execution complete!")
+
+            self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] Execution complete!")
             self.log_message.emit(f"Success: {success_count}, Failed: {fail_count}")
             self.log_message.emit(f"Batch ID: {self.batch_id} (for rollback)")
-            
+
             self.finished.emit(success_count, fail_count, self.batch_id)
             
         except Exception as e:
@@ -232,6 +279,14 @@ class ExecutionView(QWidget):
         self.chk_dry_run.setChecked(True)  # Default to dry run for safety
         self.chk_dry_run.setStyleSheet("font-weight: bold; color: #e67e22;")
         mode_layout.addWidget(self.chk_dry_run)
+
+        # Jellyfin refresh option
+        self.chk_jellyfin_refresh = QCheckBox("Refresh Jellyfin Library After Execution")
+        self.chk_jellyfin_refresh.setChecked(True)  # Default to enabled if configured
+        self.chk_jellyfin_refresh.setStyleSheet("color: #2980b9;")
+        self.chk_jellyfin_refresh.setEnabled(False)  # Will be enabled if Jellyfin is configured
+        mode_layout.addWidget(self.chk_jellyfin_refresh)
+
         mode_layout.addStretch()
         layout.addLayout(mode_layout)
         
@@ -291,33 +346,43 @@ class ExecutionView(QWidget):
         """Load action plan details."""
         if not self.action_plan_id:
             return
-        
+
         try:
             conn = sqlite3.connect("data/media_library.db")
             cursor = conn.cursor()
-            
+
             cursor.execute('''
                 SELECT total_operations, approved_count, executed
                 FROM project_action_plans
                 WHERE id = ?
             ''', (self.action_plan_id,))
-            
+
             row = cursor.fetchone()
             if row:
                 total, approved, executed = row
                 self.lbl_status.setText(
                     f"Action Plan #{self.action_plan_id}: {approved} operations approved"
                 )
-                
+
                 if executed:
                     self.btn_execute.setEnabled(False)
                     self.btn_rollback.setEnabled(True)
                     self.lbl_summary.setText("This action plan has already been executed")
-            
+
             conn.close()
-            
+
         except Exception as e:
             logger.error(f"Failed to load action plan: {e}")
+
+        # Check if Jellyfin is configured and enable refresh checkbox if so
+        try:
+            config_mgr = JellyfinConfigManager()
+            config = config_mgr.load_config()
+            if config and config.get('enabled') and config.get('server_url') and config.get('api_key'):
+                self.chk_jellyfin_refresh.setEnabled(True)
+                self.lbl_summary.setText(f"{self.lbl_summary.text()} | Jellyfin: Ready")
+        except Exception as e:
+            logger.warning(f"Jellyfin config check failed: {e}")
     
     def _start_execution(self):
         """Start execution of approved operations."""
@@ -357,17 +422,21 @@ class ExecutionView(QWidget):
         # Disable UI during execution
         self.btn_execute.setEnabled(False)
         self.chk_dry_run.setEnabled(False)
+        self.chk_jellyfin_refresh.setEnabled(False)
         self.progress_bar.setValue(0)
         self.log_text.clear()
-        
+
+        # Get Jellyfin refresh setting
+        jellyfin_refresh = self.chk_jellyfin_refresh.isChecked() and self.chk_jellyfin_refresh.isEnabled()
+
         # Start worker
-        self.execution_worker = ExecutionWorker(self.action_plan_id, dry_run)
+        self.execution_worker = ExecutionWorker(self.action_plan_id, dry_run, jellyfin_refresh)
         self.execution_worker.progress.connect(self._on_progress)
         self.execution_worker.log_message.connect(self._on_log_message)
         self.execution_worker.finished.connect(self._on_finished)
         self.execution_worker.error.connect(self._on_error)
         self.execution_worker.start()
-        
+
         mode_str = "DRY RUN" if dry_run else "PRODUCTION"
         logger.info(f"Started {mode_str} execution of action plan {self.action_plan_id}")
     
@@ -387,8 +456,9 @@ class ExecutionView(QWidget):
         """Handle execution completion."""
         self.btn_execute.setEnabled(False)
         self.chk_dry_run.setEnabled(True)
+        self.chk_jellyfin_refresh.setEnabled(True)
         self.current_batch_id = batch_id
-        
+
         # Enable rollback only if production mode was used
         if batch_id and not self.chk_dry_run.isChecked():
             self.btn_rollback.setEnabled(True)
