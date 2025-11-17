@@ -37,6 +37,7 @@ from scripts.ui.scan_view import ScanView
 from scripts.ui.analysis_view import AnalysisView
 from scripts.ui.review_view import ReviewView
 from scripts.ui.execution_view import ExecutionView
+from scripts.ui.styles import apply_stylesheet
 
 # Initialize logging
 logger = logging.getLogger(__name__)
@@ -624,6 +625,9 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("JellyRancher Studio")
     app.setOrganizationName("JellyRancher")
+    
+    # Apply modern stylesheet
+    apply_stylesheet(app)
     
     # Create and show main window
     window = JellyRancherStudio()
