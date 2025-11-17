@@ -660,12 +660,362 @@ for item_path in folder_path.rglob('*'):  # ONE tree walk
 - All UI improvements functional
 
 **Next:** 
-- Phase 31H: Git commit for scan optimization + UI improvements
+- Phase 31H: Git commit for scan optimization + UI improvements ✅
 - Phase 32: Continue with Point 5 testing and iteration
 
 ---
 
+## Phase 31H: Git Commit - Scan Optimization & GUI Improvements
+**Date:** 2025-11-16 19:25:15 | **Status:** Complete | **By:** GPT-5.1 (Cursor)
+
+**Git Commit:** `e8c25f6`
+**Message:** `feat: 56x scan optimization + comprehensive GUI improvements`
+
+**Changes Committed:**
+- `agent-journal.md` - Phases 31F-31G documentation
+- `jelly_rancher_clean.py` - GUI improvements, model selector, prompt preview (401 insertions)
+- `scripts/core/file_scanner.py` - Single-pass optimization
+- `scripts/core/app_config.py` - MD5 config setting
+- `scripts/media/llm_structure_analyzer.py` - Improved JSON parsing
+- `launch_gui.py` - Venv-aware launcher
+
+**Stats:**
+- 6 files changed
+- 1,157 insertions(+)
+- 756 deletions(-)
+
+**Pushed to GitHub:** https://github.com/atomicmilkshake/JellyRancher
+**Branch:** master (`8c72244..e8c25f6`)
+
+**Next:** 
+- Phase 32: Continue with Point 5 testing and iteration
+- Test all UI improvements in live workflow
+- Consider Point 6-9 implementation planning
+
+---
+
+## Phase 31I: Fix Prompt Preview Import Error
+**Date:** 2025-11-16 19:35:54 | **Status:** Complete | **By:** GPT-5.1 (Cursor)
+
+**Problem:** 
+- User clicked "Preview Prompt" button → Error: `No module named 'scripts.ai.llm_structure_analyzer'`
+- Log showed: `ModuleNotFoundError: No module named 'scripts.ai.llm_structure_analyzer'`
+
+**Root Cause:**
+- Wrong import path in `preview_llm_prompt()` method (line 1660)
+- Used `scripts.ai.llm_structure_analyzer` instead of `scripts.media.llm_structure_analyzer`
+- Also called wrong method: `_build_prompt()` instead of `_build_analysis_prompt()`
+
+**Fix:**
+1. **Corrected import path:**
+   ```python
+   # Before:
+   from scripts.ai.llm_structure_analyzer import LLMStructureAnalyzer
+   
+   # After:
+   from scripts.media.llm_structure_analyzer import LLMStructureAnalyzer
+   ```
+
+2. **Fixed method call:**
+   ```python
+   # Before:
+   prompt = analyzer._build_prompt(structure_summary)
+   
+   # After:
+   prompt = analyzer._build_analysis_prompt(structure_summary)
+   ```
+
+3. **Added helper method:**
+   - Created `_build_structure_summary_for_preview()` method
+   - Reuses same logic as `LLMAnalysisWorker._build_structure_summary()`
+   - Builds structure summary dict with folders, metadata, Jellyfin provider IDs, MD5 duplicates
+
+**Files Modified:**
+- `jelly_rancher_clean.py` - Fixed import path, method call, added helper method
+
+**Testing:**
+- Prompt preview should now work correctly
+- Will generate full prompt text for user inspection before sending to LLM
+
+**Next:** 
+- Phase 32: Continue with Point 5 testing and iteration
+- Test prompt preview functionality
+- Verify all UI improvements work in live workflow
+
+---
+
+## Phase 31J: Fix LLM JSON Parsing for Thinking Models (Gemini-2.5-Pro)
+**Date:** 2025-11-16 20:42:45 | **Status:** Complete | **By:** GPT-5.1 (Cursor)
+
+**Problem:**
+- User ran LLM analysis with Gemini-2.5-Pro model
+- Analysis completed but returned 0 detected media items
+- Error: `Failed to parse LLM response as JSON: Expecting value: line 1 column 1 (char 0)`
+- Saved analysis file showed empty `detected_media` array
+
+**Root Cause:**
+- Gemini-2.5-Pro returns thinking process text BEFORE the JSON code block
+- Response format: `*Thinking...*\n\n> **Parsing the Data Structure**\n...\n```json\n{...}\n````
+- Previous parser only checked if response STARTED with ```, not if JSON block was embedded later
+- When parser tried `json.loads()` on "*Thinking...*", it failed immediately
+
+**Investigation:**
+- Checked I/O log: `llm_transaction_20251116_200746_970929.json`
+- Found response started with "*Thinking...*" followed by ~12KB of thinking text
+- JSON code block (` ```json\n{...}\n``` `) was embedded in the middle/end
+- Response contained valid JSON with 60+ movies detected, but parser couldn't extract it
+
+**Fix:**
+1. **Enhanced JSON extraction:**
+   - Changed from checking `response_text.startswith('```')` 
+   - To searching for ````json`, ````JSON`, or ` ``` ` anywhere in response
+   - Extracts JSON block even when preceded by thinking text
+
+2. **Improved error logging:**
+   - Preserves original response text for debugging
+   - Logs first 1000 chars and last 500 chars of original response
+   - Reports position of JSON markers (` ```json`, `{`, `[`) for debugging
+
+**Code Changes:**
+```python
+# Before: Only checked if response started with ```
+if response_text.startswith('```'):
+    # extract...
+
+# After: Search for JSON block anywhere in response
+for marker in ['```json', '```JSON', '```']:
+    pos = response_text.find(marker)
+    if pos != -1:
+        # Extract JSON block from this position
+        # ...
+```
+
+**Files Modified:**
+- `scripts/media/llm_structure_analyzer.py` - Enhanced `_parse_llm_response()` method
+
+**Testing:**
+- Should now correctly parse Gemini-2.5-Pro responses with thinking text
+- Should still work with Claude-Sonnet-4.5 and other models
+- Better error messages if parsing still fails
+
+**Next:** 
+- Phase 32: Test LLM analysis again with Gemini-2.5-Pro
+- Verify detected media items are correctly parsed
+- Continue with Point 5 testing and iteration
+
+---
+
+## Phase 32: Critical UX Assessment & Redesign Planning
+**Date:** 2025-11-16 20:48:37 | **Status:** Planning | **By:** GPT-5.1 (Cursor)
+
+**Context:**
+User provided critical feedback on current GUI/UX:
+- "Janky and counterintuitive"
+- "Rigid/inflexible"
+- "Desperately calls for modernization and redesign"
+- Rescanning workflow is inconvenient for iterative development
+- No way to save/resume work (project management needed)
+
+**Current GUI Problems Identified:**
+
+**1. Architecture Issues:**
+- PyQt6 basic widgets (QTableWidget, QGroupBox, QTabWidget)
+- No modern styling/theming
+- Rigid tab-based workflow (forces linear progression)
+- No state persistence (everything lost on close)
+- Manual, repetitive interactions
+
+**2. UX Issues:**
+- Must rescan every session (slow, frustrating)
+- Can't save progress and resume later
+- Can't experiment with different LLM models/settings
+- No project concept (one-shot workflow only)
+- Tables are basic, not interactive enough
+- No visual feedback/polish
+
+**3. Workflow Issues:**
+- 9-point workflow is rigid (can't skip/reorder)
+- Tabs force specific order
+- No way to compare results
+- No version history
+- No undo/redo beyond snapshots
+
+**Proposed Solutions:**
+
+**Option 1: Modern PyQt6 Redesign** (Incremental)
+- Keep PyQt6, modernize with QSS stylesheets
+- Add project management system (save/load state)
+- Replace QTableWidget with QTreeView/custom models
+- Add modern widgets (QDockWidget, QSplitter for flexibility)
+- Implement proper MVC architecture
+- **Pros:** Incremental, less risky, keeps existing code
+- **Cons:** Still limited by PyQt6 constraints
+
+**Option 2: Web-Based UI** (Revolutionary)
+- FastAPI backend + React/Vue frontend
+- Modern, responsive, beautiful UI
+- Browser-based (cross-platform automatically)
+- Can run locally or remote
+- **Pros:** Modern UX, flexible, professional
+- **Cons:** Complete rewrite, learning curve
+
+**Option 3: Hybrid Approach** (Pragmatic)
+- Keep PyQt6 for core functionality
+- Embed web view (QWebEngineView) for complex UIs
+- Use modern web components where needed
+- Gradual migration path
+- **Pros:** Best of both worlds, gradual transition
+- **Cons:** Complexity, two tech stacks
+
+**Recommended Approach: Option 1 + Project System**
+
+**Phase 32A: Project Management System**
+- Add SQLite tables for projects, state persistence
+- File menu: New/Open/Save/Recent Projects
+- Auto-save workflow state
+- Resume from any point
+- **Impact:** Solves immediate pain point (rescanning)
+
+**Phase 32B: Modern PyQt6 Redesign**
+- QSS stylesheet for modern look
+- Replace rigid tabs with flexible dock system
+- Better table widgets (sortable, filterable, searchable)
+- Visual polish (icons, animations, feedback)
+- **Impact:** Makes GUI feel modern and professional
+
+**Phase 32C: Workflow Flexibility**
+- Non-linear workflow (skip steps, reorder)
+- Side-by-side comparisons
+- Version history for analyses
+- Quick actions/shortcuts
+- **Impact:** Makes tool flexible and powerful
+
+**User Questions to Answer:**
+1. **Scope:** Full redesign or incremental improvements?
+2. **Timeline:** How urgent? (Days vs. weeks)
+3. **Tech stack:** Stay with PyQt6 or consider alternatives?
+4. **Priority:** Project system first, or UI polish first?
+5. **Vision:** What apps/tools have UX you admire?
+
+**Next Steps:**
+- Get user feedback on approach
+- Create detailed redesign specification ✅
+- Implement in phases (starting with project system)
+- Iterate based on user testing
+
+**Files to Review:**
+- `jelly_rancher_clean.py` - Current GUI (2,444 lines)
+- `scripts/core/jelly_rancher_main.py` - Legacy GUI (3,568 lines)
+- `docs/PYQT6_MIGRATION_PLAN.md` - Previous migration notes
+
+**Comprehensive Planning Document Created:**
+- `docs/GUI_REDESIGN_COMPREHENSIVE_PLAN.md` (500+ lines)
+- Complete analysis of current state
+- Three architectural options with pros/cons
+- Detailed implementation phases
+- Database schema design
+- UI/UX design principles
+- Migration strategy
+- Success criteria
+
+**Key Findings:**
+- Current GUI: 2,444 lines, 2 classes, 11 worker threads
+- Zero state persistence (everything lost on close)
+- Rigid tab-based workflow (9 sequential steps)
+- User pain points documented across multiple phases
+- Project management system identified as critical foundation
+
+**Recommended Approach:**
+- Option 1: Modern PyQt6 with incremental refactoring
+- Phase 32A: Project management system (Week 1)
+- Phase 32B: UI modernization (Week 2)
+- Phase 32C: Workflow flexibility (Week 3)
+- Total timeline: 2-3 weeks for complete overhaul
+
+**Awaiting User Decisions:**
+1. Confirm architectural approach (PyQt6 vs Web vs Hybrid)
+2. Prioritize features (project system vs UI polish first)
+3. Timeline urgency (days vs weeks)
+4. Identify must-have vs nice-to-have features
+5. Provide UX inspiration examples
+
+---
+
+## PHASE 32 COMPLETE: UX REDESIGN MASTER PLAN APPROVED ✅
+**Date:** 2025-11-17  
+**Status:** APPROVED - Ready for Implementation
+
+### User Feedback
+User reviewed the comprehensive redesign plan and responded: **"OUTSTAINDING!!!! Put it all in a master UX redesign plan and let's roll with it."**
+
+### Accomplishments
+1. ✅ **Created `docs/UX_REDESIGN_MASTER_PLAN.md`** (800+ lines)
+   - Complete UX specifications with ASCII wireframes
+   - "Project-Centric Workflow Canvas" design philosophy
+   - Main window layout: Studio design (Project Explorer + Workspace + Context Panel)
+   - Four core views fully specified: Scan, Analysis, Action Plan Review, Execution Monitor
+   - Complete database schema for project management (6 new tables)
+   - Visual design system (colors, typography, icons, spacing)
+   - Keyboard shortcuts specification
+   - Three implementation phases (32A, 32B, 32C)
+   - Migration strategy (parallel development + gradual cutover)
+   - Success criteria and risk mitigation
+   - Detailed wireframes for all major dialogs
+
+2. ✅ **Approved Design Philosophy**
+   - **"Think Like Photoshop/Premiere, Not Like a Wizard"**
+   - Task-based workflow (not step-based)
+   - Always-visible context and state
+   - Save/resume capability (no data loss)
+   - Flexible, non-linear workflow
+   - Professional polish and modern UI
+
+3. ✅ **Key Features Specified**
+   - Project management system (create, save, load, resume)
+   - Multi-document workspace with tabs
+   - Side-by-side analysis comparison
+   - Excel-like action plan review table
+   - Smart dependency handling (helpful, not blocking)
+   - Real-time execution monitor with rollback
+   - Comprehensive keyboard shortcuts
+   - Auto-save every 30 seconds
+
+### Implementation Plan Approved
+**Phase 32A: Foundation (Week 1)**
+- Database schema + migrations
+- ProjectManager class
+- Main window shell
+- Project Explorer sidebar
+
+**Phase 32B: Core Views (Week 2)**
+- Scan view
+- Analysis view (single + comparison)
+- Action Plan Review table
+- Execution Monitor
+
+**Phase 32C: Polish & Advanced Features (Week 3)**
+- Visual design (QSS styling)
+- Smart interactions
+- Advanced features (bulk edit, filters, export)
+- Testing & refinement
+
+### Next Steps: Implementation Kickoff
+**Immediate (Today):**
+- ✅ Document master plan
+- ✅ Update journal
+- ⏳ Commit to Git
+
+**Tomorrow: Start Phase 32A**
+1. Create database migration script
+2. Implement ProjectManager class
+3. Start new main window (`jelly_rancher_studio.py`)
+
+**Week 1 Goal:**
+Users can create/save/load projects and see project structure in sidebar.
+
+---
+
 ## END OF JOURNAL
-**Last Updated:** 2025-11-16 19:24:04
-**Total Phases:** 31G (including sub-phases)
-**Status:** Active Development - Ready for Git commit
+**Last Updated:** 2025-11-17 15:30:00
+**Total Phases:** 32 (Planning Complete - Implementation Ready)
+**Status:** Active Development - UX Redesign Master Plan approved, ready to begin Phase 32A implementation
