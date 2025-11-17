@@ -44,6 +44,9 @@ from scripts.ui.styles import apply_stylesheet
 # Initialize logging
 logger = logging.getLogger(__name__)
 
+# Global for dark mode state
+DARK_MODE_ENABLED = False
+
 
 class NewProjectDialog(QDialog):
     """Dialog for creating a new project."""
@@ -114,10 +117,11 @@ class JellyRancherStudio(QMainWindow):
         # Setup UI
         self.setWindowTitle("JellyRancher Studio")
         self.resize(1400, 900)
-        
+
         self._create_menu_bar()
         self._create_main_layout()
         self._create_status_bar()
+        self._setup_keyboard_shortcuts()
         self._setup_auto_save()
         
         # Load last project or show welcome
@@ -179,7 +183,17 @@ class JellyRancherStudio(QMainWindow):
         
         # View menu
         view_menu = menubar.addMenu("&View")
-        # TODO: Add view actions
+
+        dark_mode_action = QAction("&Dark Mode", self, checkable=True)
+        dark_mode_action.setChecked(False)
+        dark_mode_action.triggered.connect(self.toggle_dark_mode)
+        view_menu.addAction(dark_mode_action)
+
+        view_menu.addSeparator()
+
+        shortcuts_action = QAction("Keyboard &Shortcuts", self)
+        shortcuts_action.triggered.connect(self.show_keyboard_shortcuts)
+        view_menu.addAction(shortcuts_action)
         
         # Tools menu
         tools_menu = menubar.addMenu("&Tools")
@@ -641,6 +655,55 @@ class JellyRancherStudio(QMainWindow):
                 "Jellyfin settings have been updated successfully.\n\n"
                 "The refresh checkbox in Execution View will now be enabled."
             )
+
+    def _setup_keyboard_shortcuts(self):
+        """Setup keyboard shortcuts for all major actions."""
+        from PyQt6.QtGui import QKeySequence
+
+        # File menu shortcuts
+        QAction("New Project", self, shortcut=QKeySequence.New, triggered=self.new_project)
+        QAction("Open Project", self, shortcut=QKeySequence.Open, triggered=self.open_project)
+        QAction("Save Project", self, shortcut=QKeySequence.Save, triggered=self._auto_save)
+        QAction("Settings", self, shortcut=QKeySequence.Preferences, triggered=self.show_settings)
+        QAction("Exit", self, shortcut=QKeySequence.Quit, triggered=self.close)
+
+    def toggle_dark_mode(self, checked: bool):
+        """Toggle dark mode on/off."""
+        global DARK_MODE_ENABLED
+        DARK_MODE_ENABLED = checked
+        apply_stylesheet(QApplication.instance(), dark_mode=checked)
+        logger.info(f"Dark mode: {'ENABLED' if checked else 'DISABLED'}")
+
+    def show_keyboard_shortcuts(self):
+        """Show keyboard shortcuts dialog."""
+        shortcuts_text = """
+<b>JellyRancher Studio - Keyboard Shortcuts</b>
+
+<b>File Menu:</b>
+• Ctrl+N - New Project
+• Ctrl+O - Open Project
+• Ctrl+S - Save Project
+• Ctrl+, - Settings
+• Ctrl+Q - Exit
+
+<b>View Menu:</b>
+• View > Dark Mode - Toggle dark/light theme
+• View > Keyboard Shortcuts - Show this dialog
+
+<b>Tools Menu:</b>
+• Tools > Jellyfin Settings - Configure Jellyfin integration
+
+<b>Tips:</b>
+• All actions are also available through the menu bar
+• Projects auto-save every 30 seconds
+• Changes are persisted to the database
+"""
+
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("Keyboard Shortcuts")
+        msg_box.setText(shortcuts_text)
+        msg_box.setIcon(QMessageBox.Icon.Information)
+        msg_box.exec()
 
     def closeEvent(self, event):
         """Handle window close event."""

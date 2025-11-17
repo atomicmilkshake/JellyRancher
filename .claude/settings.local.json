@@ -1,17 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(.venvScriptsActivate.ps1)",
-      "Bash(python:*)",
-      "Bash(if [ -d \".venv\" ])",
-      "Bash(then source .venv/Scripts/activate)",
-      "Bash(else echo \"Virtual environment not found\")",
-      "Bash(fi)",
-      "Bash(cp:*)",
-      "Bash(cat:*)",
-      "Bash(\"v:\\JellyRancher\\agent-journal.md\")",
-      "Bash(.venv/Scripts/python.exe -m pip install:*)",
-      "Bash(.venv/Scripts/python.exe:*)"
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

@@ -251,26 +251,40 @@ IMPORTANT: Return ONLY the JSON object, no additional text before or after.
         Returns:
             Parsed analysis dictionary
         """
+        # Preserve original for error logging
+        original_response = response_text
+        
         try:
             # Try to extract JSON from response
             # LLMs sometimes wrap JSON in markdown code blocks
+            # Some models (like Gemini-2.5-Pro) include thinking text before the JSON
             response_text = response_text.strip()
             
-            # Remove markdown code blocks if present
-            # Strip markdown code fences if present (handles ```json, ```JSON, or just ```)
-            response_text = response_text.strip()
-            if response_text.startswith('```'):
-                # Find the first newline after the opening fence (skip language identifier)
-                first_newline = response_text.find('\n')
-                if first_newline != -1:
-                    start = first_newline + 1
-                    # Find the closing ```
-                    end = response_text.rfind('```')
-                    if end > start:
-                        response_text = response_text[start:end].strip()
-                    else:
-                        # No closing fence found, just remove opening
-                        response_text = response_text[start:].strip()
+            # First, try to find a JSON code block (```json or ```JSON)
+            # This handles cases where the response has thinking text before the JSON
+            json_block_start = -1
+            for marker in ['```json', '```JSON', '```']:
+                pos = response_text.find(marker)
+                if pos != -1:
+                    json_block_start = pos
+                    # Find the first newline after the opening fence
+                    first_newline = response_text.find('\n', json_block_start)
+                    if first_newline != -1:
+                        start = first_newline + 1
+                        # Find the closing ``` after the start
+                        end = response_text.find('```', start)
+                        if end > start:
+                            response_text = response_text[start:end].strip()
+                            break
+                        else:
+                            # No closing fence found, try to parse from start onwards
+                            response_text = response_text[start:].strip()
+                            break
+            
+            # If we didn't find a code block, try parsing the whole response
+            # (maybe it's already pure JSON)
+            if json_block_start == -1:
+                response_text = response_text.strip()
             
             # Parse JSON
             result = json.loads(response_text)
@@ -286,7 +300,14 @@ IMPORTANT: Return ONLY the JSON object, no additional text before or after.
             
         except json.JSONDecodeError as e:
             self.logger.error(f"Failed to parse LLM response as JSON: {e}")
-            self.logger.debug(f"Raw response: {response_text[:500]}...")
+            self.logger.debug(f"Original response (first 1000 chars): {original_response[:1000]}...")
+            self.logger.debug(f"Original response (last 500 chars): ...{original_response[-500:]}")
+            # Try to find where JSON might be
+            json_markers = ['```json', '```JSON', '{', '[']
+            for marker in json_markers:
+                pos = original_response.find(marker)
+                if pos != -1:
+                    self.logger.debug(f"Found '{marker}' at position {pos}")
             
             # Return a structured error response
             return {
@@ -298,7 +319,7 @@ IMPORTANT: Return ONLY the JSON object, no additional text before or after.
                 },
                 'multi_part_episodes': [],
                 'reasoning': f'Error: Failed to parse response - {str(e)}',
-                'raw_response': response_text,
+                'raw_response': original_response,
                 'error': str(e)
             }
     

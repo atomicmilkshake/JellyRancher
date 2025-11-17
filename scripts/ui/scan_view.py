@@ -237,7 +237,7 @@ class ScanView(QWidget):
         self.current_scan_session_id: Optional[int] = None
         
         self._init_ui()
-        
+        self.setAcceptDrops(True)  # Enable drag-and-drop
         logger.info(f"ScanView initialized for project: {project.name}")
     
     def _init_ui(self):
@@ -670,4 +670,42 @@ class ScanView(QWidget):
             
         except Exception as e:
             logger.error(f"Failed to save scan to database: {e}", exc_info=True)
+
+    def dragEnterEvent(self, event):
+        """Handle drag enter event - allow folders to be dropped."""
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event):
+        """Handle drop event - add dropped folders to scan list."""
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+            # Extract folder paths from dropped URLs
+            dropped_paths = []
+            for url in event.mimeData().urls():
+                path = Path(url.toLocalFile())
+                if path.is_dir():
+                    dropped_paths.append(path)
+
+            if dropped_paths:
+                # Auto-open content selection dialog with dropped paths
+                from PyQt6.QtWidgets import QInputDialog
+
+                for folder_path in dropped_paths:
+                    # Add the folder
+                    self.selected_folders.append(folder_path)
+
+                    # Update the folder table
+                    self.tbl_folders.setRowCount(len(self.selected_folders))
+                    for i, path in enumerate(self.selected_folders):
+                        self.tbl_folders.setItem(i, 0, QTableWidgetItem(str(path)))
+                        self.tbl_folders.setItem(i, 1, QTableWidgetItem("All"))
+                        self.tbl_folders.setItem(i, 2, QTableWidgetItem("None"))
+
+                logger.info(f"Added {len(dropped_paths)} folder(s) via drag-and-drop")
+        else:
+            event.ignore()
 

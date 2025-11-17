@@ -1657,11 +1657,14 @@ class JellyRancherClean(QMainWindow):
             return
         
         try:
-            from scripts.ai.llm_structure_analyzer import LLMStructureAnalyzer
+            from scripts.media.llm_structure_analyzer import LLMStructureAnalyzer
+            
+            # Build structure summary (same format as LLMAnalysisWorker uses)
+            structure_summary = self._build_structure_summary_for_preview()
             
             # Generate the prompt (without sending it)
             analyzer = LLMStructureAnalyzer()
-            prompt = analyzer._build_prompt(self.folder_structure, self.scanned_files)
+            prompt = analyzer._build_analysis_prompt(structure_summary)
             
             # Show in a dialog
             dialog = QDialog(self)
@@ -1699,6 +1702,84 @@ class JellyRancherClean(QMainWindow):
                 f"Failed to generate prompt preview:\n\n{e}"
             )
             logger.error(f"Failed to preview prompt: {e}", exc_info=True)
+    
+    def _build_structure_summary_for_preview(self) -> dict:
+        """
+        Build structure summary for prompt preview (same format as LLMAnalysisWorker).
+        
+        Returns:
+            Structure summary dict compatible with LLMStructureAnalyzer
+        """
+        # Create a map for quick lookup of FileRecord by absolute path
+        file_record_map = {str(f.absolute_path): f for f in self.scanned_files}
+        
+        folders = []
+        for folder_path, data in self.folder_structure.items():
+            folder_info = {
+                'path': str(folder_path),
+                'file_count': data['file_count'],
+                'total_size_bytes': data['total_size'],
+                'file_types': dict(data['file_types']),
+                'file_type_sizes': dict(data['file_type_sizes']),
+                'jellyfin_provider_ids': []
+            }
+            
+            # Iterate through files in this folder to collect Jellyfin ProviderIds
+            for file_path_str in file_record_map:
+                file_record = file_record_map[file_path_str]
+                if (
+                    file_record.parent_folder == folder_path
+                    and getattr(file_record, "jellyfin_matched", False)
+                    and getattr(file_record, "jellyfin_provider_ids", None)
+                ):
+                    folder_info['jellyfin_provider_ids'].append(file_record.jellyfin_provider_ids)
+            
+            # Remove duplicates from provider IDs
+            unique_provider_ids = []
+            seen_ids = set()
+            for p_ids in folder_info['jellyfin_provider_ids']:
+                # Convert dict to frozenset of (key, value) tuples for hashing
+                frozen_p_ids = frozenset(p_ids.items())
+                if frozen_p_ids not in seen_ids:
+                    unique_provider_ids.append(p_ids)
+                    seen_ids.add(frozen_p_ids)
+            folder_info['jellyfin_provider_ids'] = unique_provider_ids
+            
+            folders.append(folder_info)
+        
+        # Sort folders by path for consistency
+        folders.sort(key=lambda x: x['path'])
+        
+        # Build MD5 duplicate groups for LLM context
+        from collections import defaultdict as _dd
+        
+        md5_map = _dd(list)
+        for record in self.scanned_files:
+            md5_value = getattr(record, "md5_hash", None)
+            if md5_value:
+                md5_map[md5_value].append(str(record.absolute_path))
+        
+        duplicate_groups = []
+        for md5_value, paths in md5_map.items():
+            if len(paths) >= 2:
+                duplicate_groups.append({
+                    'md5': md5_value,
+                    'paths': paths,
+                    'count': len(paths)
+                })
+        
+        # Build final structure summary
+        structure_summary = {
+            'scan_metadata': {
+                'total_folders': len(folders),
+                'total_files': len(self.scanned_files),
+                'total_size_bytes': sum(data['total_size'] for data in self.folder_structure.values())
+            },
+            'folders': folders,
+            'duplicate_groups': duplicate_groups
+        }
+        
+        return structure_summary
     
     def step_3_llm_proposal(self):
         """Step 3: Get LLM reorganization proposal."""

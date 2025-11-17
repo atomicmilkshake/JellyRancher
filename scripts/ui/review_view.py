@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QTableWidget,
     QTableWidgetItem, QMessageBox, QGroupBox, QHBoxLayout,
     QLineEdit, QHeaderView, QCheckBox, QDialog, QTextEdit,
-    QDialogButtonBox
+    QDialogButtonBox, QComboBox
 )
 from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt, pyqtSignal
@@ -65,12 +65,26 @@ class ReviewView(QWidget):
         title.setStyleSheet("color: #2c3e50; padding: 10px;")
         layout.addWidget(title)
         
-        # Search bar
+        # Search bar with filter dropdown
         search_layout = QHBoxLayout()
         search_layout.addWidget(QLabel("Search:"))
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Search operations...")
         search_layout.addWidget(self.search_input)
+
+        search_layout.addWidget(QLabel("Filter:"))
+        self.filter_combo = QComboBox()
+        self.filter_combo.addItems([
+            "All Operations",
+            "Approved Only",
+            "High Confidence (≥90%)",
+            "Manual Review (70-89%)",
+            "Moves Only",
+            "Renames Only"
+        ])
+        self.filter_combo.currentTextChanged.connect(self._apply_filter)
+        search_layout.addWidget(self.filter_combo)
+
         search_layout.addStretch()
         layout.addLayout(search_layout)
         
@@ -352,7 +366,52 @@ class ReviewView(QWidget):
                         break
             
             self.operations_table.setRowHidden(row, not show_row)
-    
+
+    def _apply_filter(self, filter_text: str):
+        """Apply filter based on selected filter type."""
+        for row in range(self.operations_table.rowCount()):
+            show_row = True
+
+            if filter_text == "Approved Only":
+                # Only show approved operations
+                approve_checkbox = self.operations_table.cellWidget(row, 6)
+                if approve_checkbox:
+                    show_row = approve_checkbox.isChecked()
+
+            elif filter_text == "High Confidence (≥90%)":
+                # Only show high confidence operations
+                confidence_item = self.operations_table.item(row, 4)
+                if confidence_item:
+                    try:
+                        confidence_pct = float(confidence_item.text().rstrip('%'))
+                        show_row = confidence_pct >= 90
+                    except ValueError:
+                        show_row = True
+
+            elif filter_text == "Manual Review (70-89%)":
+                # Show medium confidence operations
+                confidence_item = self.operations_table.item(row, 4)
+                if confidence_item:
+                    try:
+                        confidence_pct = float(confidence_item.text().rstrip('%'))
+                        show_row = 70 <= confidence_pct < 90
+                    except ValueError:
+                        show_row = True
+
+            elif filter_text == "Moves Only":
+                # Only show move operations
+                op_type_item = self.operations_table.item(row, 1)
+                if op_type_item:
+                    show_row = "MOVE" in op_type_item.text().upper()
+
+            elif filter_text == "Renames Only":
+                # Only show rename operations
+                op_type_item = self.operations_table.item(row, 1)
+                if op_type_item:
+                    show_row = "RENAME" in op_type_item.text().upper()
+
+            self.operations_table.setRowHidden(row, not show_row)
+
     def _preview_changes(self):
         """Preview the proposed changes."""
         approved_ops = [op for op in self.operations if op.user_approved]

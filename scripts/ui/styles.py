@@ -430,7 +430,25 @@ QToolTip {
 """
 
 
-def apply_stylesheet(app):
-    """Apply the studio stylesheet to the application."""
-    app.setStyleSheet(STUDIO_STYLESHEET)
+def apply_stylesheet(app, dark_mode: bool = False):
+    """
+    Apply the studio stylesheet to the application.
+
+    Args:
+        app: QApplication instance
+        dark_mode: If True, apply dark mode stylesheet. If False, use light mode.
+    """
+    if dark_mode:
+        # Load dark mode stylesheet
+        from pathlib import Path
+        dark_qss_path = Path(__file__).parent / "dark_mode.qss"
+        if dark_qss_path.exists():
+            with open(dark_qss_path, 'r', encoding='utf-8') as f:
+                app.setStyleSheet(f.read())
+        else:
+            # Fallback to light mode if dark_mode.qss not found
+            app.setStyleSheet(STUDIO_STYLESHEET)
+    else:
+        # Apply light mode stylesheet
+        app.setStyleSheet(STUDIO_STYLESHEET)
 

@@ -2,14 +2,14 @@ agent-journal.md is the sole source of truth for this project. Upon starting eac
 
 All work, decisions, code changes, and progress must be documented in agent-journal.md. Do not create additional documentation files, summaries, reference cards, or any other documentation. agent-journal.md is the only documentation file.
 
-When agent-journal.md **exceeds 1200 lines**, IMMEDIATELY create a backup and compress it. Do not ask permission. This is mandatory automatic maintenance. Steps:
+When agent-journal.md **exceeds 2000 lines**, IMMEDIATELY create a backup and compress it. Do not ask permission. This is mandatory automatic maintenance. Steps:
 1. Create backup: /backups/agent-journal_YYYY-MM-DD_HHMMSS.md (ISO 8601 format)
 2. Compress losslessly: condense verbose entries, preserve ALL phase numbers, key decisions, accomplishments, essential context
 3. **CRITICAL:** Preserve every obstacle encountered and the breakthrough that overcame it (prevents reinventing the wheel)
 4. Add journal entry (Phase N) documenting compression with backup filename reference
 5. Continue with compressed journal
 
-Note: If current line count > 1200, the journal has EXCEEDED the threshold and needs compression NOW, not "soon" or "approaching."
+Note: If current line count > 2000, the journal has EXCEEDED the threshold and needs compression NOW, not "soon" or "approaching."
 
 Each journal entry should include date/time, phase number, changes made, decisions, and next steps. When obstacles are encountered, document both the obstacle and the breakthrough solution prominently.
 
