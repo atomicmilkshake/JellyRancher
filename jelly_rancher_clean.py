@@ -10,16 +10,20 @@ Usage:
 """
 
 import sys
+import os
+import subprocess
 import logging
 from pathlib import Path
 from typing import List
 from collections import defaultdict
+from datetime import datetime
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QTextEdit, QListWidget, QTreeWidget,
     QTreeWidgetItem, QTableWidget, QTableWidgetItem, QProgressBar,
     QFileDialog, QMessageBox, QSplitter, QGroupBox, QCheckBox,
-    QHeaderView, QAbstractItemView, QTabWidget, QInputDialog, QLineEdit
+    QHeaderView, QAbstractItemView, QTabWidget, QInputDialog, QLineEdit,
+    QDialog, QScrollArea, QComboBox
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QColor, QFont
@@ -54,6 +58,141 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Open the main log file in the user's default log viewer (e.g., klogg on Windows)
+try:
+    log_file_path = Path('data/logs/jellyrancher.log')
+    log_file_path.touch(exist_ok=True)
+    if sys.platform.startswith("win"):
+        os.startfile(str(log_file_path))  # type: ignore[attr-defined]
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", str(log_file_path)])
+    else:
+        subprocess.Popen(["xdg-open", str(log_file_path)])
+except Exception as e:
+    # Log viewer is a convenience; failures should not break the app
+    logger.debug(f"Could not open external log viewer: {e}")
+
+
+class FolderContentSelectionDialog(QDialog):
+    """
+    Dialog for selecting which subfolders and files to include in scan.
+    
+    Shows all immediate contents of a selected folder with checkboxes,
+    allowing user to exclude specific items before adding to scan list.
+    """
+    
+    def __init__(self, folder_path: Path, parent=None):
+        super().__init__(parent)
+        self.folder_path = folder_path
+        self.checkboxes = {}  # path -> QCheckBox
+        
+        self.setWindowTitle(f"Select contents to include in scan")
+        self.setMinimumSize(600, 400)
+        
+        self.init_ui()
+    
+    def init_ui(self):
+        """Initialize the dialog UI."""
+        layout = QVBoxLayout(self)
+        
+        # Header
+        header = QLabel(f"<b>Folder:</b> {self.folder_path}")
+        header.setWordWrap(True)
+        layout.addWidget(header)
+        
+        instruction = QLabel(
+            "Uncheck any subfolders or files you want to exclude from the scan:"
+        )
+        layout.addWidget(instruction)
+        
+        # Scroll area for checkboxes
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll_widget = QWidget()
+        scroll_layout = QVBoxLayout(scroll_widget)
+        
+        try:
+            # Get all immediate contents (subfolders and files)
+            contents = sorted(self.folder_path.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
+            
+            if not contents:
+                no_content_label = QLabel("(Empty folder)")
+                scroll_layout.addWidget(no_content_label)
+            else:
+                for item_path in contents:
+                    checkbox = QCheckBox()
+                    checkbox.setChecked(True)  # Default: include everything
+                    
+                    # Format label with icon indicator
+                    if item_path.is_dir():
+                        label_text = f"📁 {item_path.name}/"
+                    else:
+                        size_mb = item_path.stat().st_size / (1024 * 1024)
+                        label_text = f"📄 {item_path.name} ({size_mb:.1f} MB)"
+                    
+                    checkbox.setText(label_text)
+                    scroll_layout.addWidget(checkbox)
+                    self.checkboxes[item_path] = checkbox
+                
+        except Exception as e:
+            error_label = QLabel(f"Error reading folder contents: {e}")
+            scroll_layout.addWidget(error_label)
+        
+        scroll_layout.addStretch()
+        scroll.setWidget(scroll_widget)
+        layout.addWidget(scroll)
+        
+        # Bulk selection buttons
+        button_row = QHBoxLayout()
+        
+        btn_select_all = QPushButton("Select All")
+        btn_select_all.clicked.connect(self._select_all)
+        button_row.addWidget(btn_select_all)
+        
+        btn_select_none = QPushButton("Select None")
+        btn_select_none.clicked.connect(self._select_none)
+        button_row.addWidget(btn_select_none)
+        
+        button_row.addStretch()
+        layout.addLayout(button_row)
+        
+        # Dialog buttons
+        dialog_buttons = QHBoxLayout()
+        
+        btn_ok = QPushButton("OK")
+        btn_ok.clicked.connect(self.accept)
+        btn_ok.setDefault(True)
+        dialog_buttons.addWidget(btn_ok)
+        
+        btn_cancel = QPushButton("Cancel")
+        btn_cancel.clicked.connect(self.reject)
+        dialog_buttons.addWidget(btn_cancel)
+        
+        layout.addLayout(dialog_buttons)
+    
+    def _select_all(self):
+        """Check all checkboxes."""
+        for checkbox in self.checkboxes.values():
+            checkbox.setChecked(True)
+    
+    def _select_none(self):
+        """Uncheck all checkboxes."""
+        for checkbox in self.checkboxes.values():
+            checkbox.setChecked(False)
+    
+    def get_excluded_paths(self) -> List[Path]:
+        """
+        Get list of paths that were unchecked (excluded).
+        
+        Returns:
+            List of Path objects that should be excluded from scan
+        """
+        excluded = []
+        for path, checkbox in self.checkboxes.items():
+            if not checkbox.isChecked():
+                excluded.append(path)
+        return excluded
 
 
 class ScanWorker(QThread):
@@ -132,7 +271,7 @@ class MultiScanWorker(QThread):
     finished = pyqtSignal(list, dict, list)  # file_records, folder_structure, session_ids
     error = pyqtSignal(str)
 
-    def __init__(self, folder_paths: List[Path], recursive: bool = True, jellyfin_client: JellyfinClient = None):
+    def __init__(self, folder_paths: List[Path], recursive: bool = True, jellyfin_client: JellyfinClient = None, excluded_subfolders: List[Path] | None = None):
         """
         Initialize multi-folder scanner.
 
@@ -146,10 +285,14 @@ class MultiScanWorker(QThread):
         self.recursive = recursive
         self.repository = InventoryRepository()
         self.jellyfin_client = jellyfin_client
+        self.excluded_subfolders = [p.resolve() for p in (excluded_subfolders or [])]
 
     def run(self):
         """Execute multi-folder scan and Jellyfin cross-reference."""
         try:
+            # Measure end-to-end scan duration for Build-Measure-Learn feedback
+            overall_start_time = datetime.now()
+
             combined_file_records = []
             combined_folder_structure = {}
             session_ids = []
@@ -169,15 +312,25 @@ class MultiScanWorker(QThread):
                         notes=f"Multi-folder scan ({folder_idx}/{total_folders})"
                     )
                     session_ids.append(session_id)
+                    
+                    # Get MD5 config from app settings
+                    from scripts.core.app_config import AppConfigManager
+                    app_config = AppConfigManager()
+                    calculate_md5 = app_config.is_md5_calculate_during_scan()
+                    
                     scanner = FileScanner(
                         progress_callback=lambda msg, cur, tot: self._progress_callback(
                             msg, cur, tot, folder_idx, total_folders
-                        )
+                        ),
+                        exclude_paths=set(self.excluded_subfolders),
+                        calculate_md5=calculate_md5,
                     )
                     file_records = scanner.scan_folder(folder_path, recursive=self.recursive)
                     stats = scanner.get_statistics()
                     
-                    # Save to database (initial records without Jellyfin data)
+                    # OPTIMIZED: Batch write to database every 100 files during scan
+                    # (Note: For now, still writing all at once since scan returns complete list.
+                    #  Future optimization: implement streaming from scanner itself)
                     self.repository.add_file_records(session_id, file_records)
                     self.repository.finalize_scan_session(
                         session_id,
@@ -242,6 +395,25 @@ class MultiScanWorker(QThread):
             
             # Emit combined results
             self.finished.emit(combined_file_records, combined_folder_structure, session_ids)
+
+            # --- Performance Metrics (End-to-End Scan) ---
+            overall_duration = (datetime.now() - overall_start_time).total_seconds()
+            if overall_duration > 0 and combined_file_records:
+                total_files = len(combined_file_records)
+                total_bytes = sum(r.size_bytes for r in combined_file_records)
+                total_mb = total_bytes / (1024 * 1024)
+                files_per_sec = total_files / overall_duration
+                mb_per_sec = total_mb / overall_duration
+
+                logger.info(
+                    "Multi-scan performance: %.1fs total, %d files (%.1f MB), "
+                    "%.1f files/s, %.1f MB/s",
+                    overall_duration,
+                    total_files,
+                    total_mb,
+                    files_per_sec,
+                    mb_per_sec,
+                )
 
         except Exception as e:
             logger.error(f"Multi-scan failed: {e}", exc_info=True)
@@ -596,6 +768,7 @@ class JellyRancherClean(QMainWindow):
 
         # Multiple folder selection
         self.selected_folders = []  # List of Path objects
+        self.excluded_subfolders = []  # List of Path objects to skip during scan
         self.combined_session_ids = []  # Track all scan sessions
 
         # LLM analysis results
@@ -609,6 +782,9 @@ class JellyRancherClean(QMainWindow):
 
         # MD5 duplicate detection (Point 2 enhancement)
         self.duplicate_groups = {}  # md5_hash -> list[FileRecord]
+
+        # Scan timing (for elapsed-time display)
+        self.scan_start_time: datetime | None = None
 
         # Initialize repository
         self.repository = InventoryRepository()
@@ -633,13 +809,16 @@ class JellyRancherClean(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
+        layout.setSpacing(10)
+        layout.setContentsMargins(10, 10, 10, 10)
 
         # Title and Settings button
         title_layout = QHBoxLayout()
 
         title = QLabel("JellyRancher - 9-Point Jellyfin Workflow")
-        title.setFont(QFont("Arial", 16, QFont.Weight.Bold))
+        title.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title.setStyleSheet("color: #2c3e50; padding: 10px;")
         title_layout.addWidget(title)
 
         # Jellyfin Settings button (Phase 20)
@@ -687,11 +866,19 @@ class JellyRancherClean(QMainWindow):
         scan_group = QGroupBox("Step 1: Folder Scanning")
         scan_layout = QVBoxLayout()
 
-        # Folder selection list
+        # Folder selection table (with exclusion info)
         scan_layout.addWidget(QLabel("Selected Folders to Scan:"))
-        self.selected_folders_list = QListWidget()
-        self.selected_folders_list.setMaximumHeight(120)
-        scan_layout.addWidget(self.selected_folders_list)
+        self.selected_folders_table = QTableWidget()
+        self.selected_folders_table.setColumnCount(3)
+        self.selected_folders_table.setHorizontalHeaderLabels(["Folder Path", "Included Items", "Excluded Items"])
+        # Enable interactive column resizing
+        self.selected_folders_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        self.selected_folders_table.setColumnWidth(0, 400)
+        self.selected_folders_table.setColumnWidth(1, 150)
+        self.selected_folders_table.setColumnWidth(2, 150)
+        self.selected_folders_table.setMaximumHeight(120)
+        self.selected_folders_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        scan_layout.addWidget(self.selected_folders_table)
 
         # Folder management buttons
         folder_button_layout = QHBoxLayout()
@@ -770,10 +957,32 @@ class JellyRancherClean(QMainWindow):
         llm_group = QGroupBox("Step 3: LLM Reorganization Proposal")
         llm_layout = QVBoxLayout()
         
-        llm_layout.addWidget(QLabel("Submit folder structure to Claude API for Jellyfin-compliant reorganization:"))
-        btn_llm = QPushButton("Get LLM Proposal")
+        # Model selection
+        model_layout = QHBoxLayout()
+        model_layout.addWidget(QLabel("Model:"))
+        self.llm_model_combo = QComboBox()
+        self.llm_model_combo.addItem("Claude-Sonnet-4.5 (default)", "Claude-Sonnet-4.5")
+        self.llm_model_combo.setMinimumWidth(250)
+        model_layout.addWidget(self.llm_model_combo)
+        
+        btn_refresh_models = QPushButton("🔄 Refresh Models")
+        btn_refresh_models.clicked.connect(self.refresh_poe_models)
+        btn_refresh_models.setMaximumWidth(150)
+        model_layout.addWidget(btn_refresh_models)
+        model_layout.addStretch()
+        llm_layout.addLayout(model_layout)
+        
+        # Action buttons
+        btn_layout = QHBoxLayout()
+        btn_preview_prompt = QPushButton("👁 Preview Prompt")
+        btn_preview_prompt.clicked.connect(self.preview_llm_prompt)
+        btn_layout.addWidget(btn_preview_prompt)
+        
+        btn_llm = QPushButton("🚀 Get LLM Proposal")
         btn_llm.clicked.connect(self.step_3_llm_proposal)
-        llm_layout.addWidget(btn_llm)
+        btn_layout.addWidget(btn_llm)
+        btn_layout.addStretch()
+        llm_layout.addLayout(btn_layout)
         
         self.llm_output = QTextEdit()
         self.llm_output.setReadOnly(True)
@@ -828,14 +1037,17 @@ class JellyRancherClean(QMainWindow):
             "Source File", "Proposed Destination", "Action", "Confidence",
             "Jellyfin Status", "Current MD5", "Proposed MD5", "Notes", "Approve"
         ])
-        self.action_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.action_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.action_table.horizontalHeader().setSectionResizeMode(7, QHeaderView.ResizeMode.Stretch)
+        # Enable interactive column resizing for all columns
+        self.action_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        # Set initial widths
+        self.action_table.setColumnWidth(0, 300) # Source File
+        self.action_table.setColumnWidth(1, 300) # Proposed Destination
         self.action_table.setColumnWidth(2, 100) # Action
         self.action_table.setColumnWidth(3, 100) # Confidence
         self.action_table.setColumnWidth(4, 120) # Jellyfin Status
-        self.action_table.setColumnWidth(5, 120) # Current MD5
-        self.action_table.setColumnWidth(6, 120) # Proposed MD5
+        self.action_table.setColumnWidth(5, 150) # Current MD5
+        self.action_table.setColumnWidth(6, 150) # Proposed MD5
+        self.action_table.setColumnWidth(7, 200) # Notes
         self.action_table.setColumnWidth(8, 80)  # Approve
         layout.addWidget(self.action_table)
         
@@ -983,7 +1195,7 @@ class JellyRancherClean(QMainWindow):
     # =========================================================================
 
     def add_folder_to_list(self):
-        """Add a folder to the scan list."""
+        """Add a folder to the scan list with content selection dialog."""
         folder = QFileDialog.getExistingDirectory(
             self,
             "Select Folder to Add",
@@ -1005,14 +1217,24 @@ class JellyRancherClean(QMainWindow):
             )
             return
 
-        # Add to list
-        self.selected_folders.append(folder_path)
-        self.update_folder_list_display()
-        self.log_status(f"Added folder: {folder_path}")
+        # Show content selection dialog
+        dialog = FolderContentSelectionDialog(folder_path, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            excluded_paths = dialog.get_excluded_paths()
+            
+            # Add to list
+            self.selected_folders.append(folder_path)
+            
+            # Store exclusions for this folder
+            if excluded_paths:
+                self.excluded_subfolders.extend(excluded_paths)
+            
+            self.update_folder_list_display()
+            self.log_status(f"Added folder: {folder_path} ({len(excluded_paths)} items excluded)")
 
     def remove_selected_folder(self):
         """Remove the selected folder from the list."""
-        current_row = self.selected_folders_list.currentRow()
+        current_row = self.selected_folders_table.currentRow()
 
         if current_row < 0:
             QMessageBox.information(
@@ -1024,6 +1246,11 @@ class JellyRancherClean(QMainWindow):
 
         # Remove from list
         removed_folder = self.selected_folders.pop(current_row)
+        
+        # Also remove any exclusions associated with this folder
+        self.excluded_subfolders = [p for p in self.excluded_subfolders 
+                                     if not (p.parent == removed_folder or p == removed_folder)]
+        
         self.update_folder_list_display()
         self.log_status(f"Removed folder: {removed_folder}")
 
@@ -1041,16 +1268,53 @@ class JellyRancherClean(QMainWindow):
 
         if reply == QMessageBox.StandardButton.Yes:
             self.selected_folders.clear()
+            self.excluded_subfolders.clear()  # Clear exclusions too
             self.update_folder_list_display()
             self.log_status("Cleared all folders")
 
     def update_folder_list_display(self):
-        """Refresh the folder list widget display."""
-        self.selected_folders_list.clear()
-
-        for folder in self.selected_folders:
-            self.selected_folders_list.addItem(str(folder))
-
+        """Refresh the folder table display with inclusion/exclusion info."""
+        self.selected_folders_table.setRowCount(len(self.selected_folders))
+        
+        for row, folder in enumerate(self.selected_folders):
+            # Column 0: Folder path
+            path_item = QTableWidgetItem(str(folder))
+            path_item.setFlags(path_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            self.selected_folders_table.setItem(row, 0, path_item)
+            
+            # Get exclusions for this folder
+            folder_exclusions = [p for p in self.excluded_subfolders if p.parent == folder or p == folder]
+            
+            # Count included vs excluded items
+            try:
+                all_items = list(folder.iterdir())
+                excluded_count = len(folder_exclusions)
+                included_count = len(all_items) - excluded_count
+                
+                # Column 1: Included items count
+                included_item = QTableWidgetItem(f"{included_count} items")
+                included_item.setFlags(included_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                self.selected_folders_table.setItem(row, 1, included_item)
+                
+                # Column 2: Excluded items (show names if any)
+                if folder_exclusions:
+                    excluded_names = ", ".join([p.name for p in folder_exclusions[:3]])
+                    if len(folder_exclusions) > 3:
+                        excluded_names += f" (+{len(folder_exclusions) - 3} more)"
+                    excluded_item = QTableWidgetItem(excluded_names)
+                else:
+                    excluded_item = QTableWidgetItem("(none)")
+                excluded_item.setFlags(excluded_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                excluded_item.setToolTip("\n".join([str(p) for p in folder_exclusions]))
+                self.selected_folders_table.setItem(row, 2, excluded_item)
+                
+            except Exception as e:
+                # If we can't read the folder, show error
+                included_item = QTableWidgetItem("(error)")
+                excluded_item = QTableWidgetItem("(error)")
+                self.selected_folders_table.setItem(row, 1, included_item)
+                self.selected_folders_table.setItem(row, 2, excluded_item)
+        
         # Update status
         count = len(self.selected_folders)
         if count == 0:
@@ -1082,6 +1346,9 @@ class JellyRancherClean(QMainWindow):
 
         self.log_status(f"Starting scan of {len(self.selected_folders)} folder(s)...")
 
+        # Record scan start time for elapsed-time display
+        self.scan_start_time = datetime.now()
+
         # Show progress bar
         self.scan_progress.setVisible(True)
         self.scan_progress.setValue(0)
@@ -1095,7 +1362,8 @@ class JellyRancherClean(QMainWindow):
         self.scan_worker = MultiScanWorker(
             self.selected_folders.copy(),
             recursive=True,
-            jellyfin_client=self.jellyfin_client
+            jellyfin_client=self.jellyfin_client,
+            excluded_subfolders=self.excluded_subfolders.copy()
         )
         self.scan_worker.progress.connect(self._on_scan_progress)
         self.scan_worker.finished.connect(self._on_multiscan_finished)
@@ -1105,11 +1373,28 @@ class JellyRancherClean(QMainWindow):
     def _on_scan_progress(self, message: str, current: int, total: int):
         """Handle scan progress updates."""
         if total > 0:
+            # Determinate progress (we know the total)
             progress = int((current / total) * 100)
+            self.scan_progress.setMaximum(100)
             self.scan_progress.setValue(progress)
-            self.scan_status.setText(f"{message} ({current}/{total})")
+            # Elapsed time since scan start
+            if self.scan_start_time:
+                elapsed = (datetime.now() - self.scan_start_time).total_seconds()
+                elapsed_str = f"{elapsed:.1f}s elapsed"
+                self.scan_status.setText(f"{message} ({current}/{total}) | {elapsed_str}")
+            else:
+                self.scan_status.setText(f"{message} ({current}/{total})")
         else:
-            self.scan_status.setText(message)
+            # Indeterminate progress (no total available) - use busy indicator
+            self.scan_progress.setMaximum(0)  # Makes it a busy indicator
+            self.scan_progress.setValue(0)
+            # No total available, just show message and elapsed time if known
+            if self.scan_start_time:
+                elapsed = (datetime.now() - self.scan_start_time).total_seconds()
+                elapsed_str = f"{elapsed:.1f}s elapsed"
+                self.scan_status.setText(f"{message} ({current} files) | {elapsed_str}")
+            else:
+                self.scan_status.setText(f"{message} ({current} files)")
 
     def _on_scan_finished(self, file_records: list, folder_structure: dict, session_id: int):
         """Handle scan completion."""
@@ -1185,10 +1470,19 @@ class JellyRancherClean(QMainWindow):
         total_size = sum(r.size_bytes for r in file_records)
         folder_count = len(self.selected_folders)
         jellyfin_matches = sum(1 for r in file_records if r.jellyfin_matched)
-        
+
+        # Compute total elapsed time and average time per file (if we recorded start)
+        elapsed_str = ""
+        per_file_str = ""
+        if self.scan_start_time and file_records:
+            elapsed_seconds = (datetime.now() - self.scan_start_time).total_seconds()
+            elapsed_str = f" in {elapsed_seconds:.1f}s"
+            per_file = elapsed_seconds / len(file_records)
+            per_file_str = f" (~{per_file*1000:.1f} ms/file)"
+
         status_text = (
             f"✓ Scan complete: {len(file_records)} files ({self._format_size(total_size)}) "
-            f"from {folder_count} folders."
+            f"from {folder_count} folders{elapsed_str}{per_file_str}."
         )
         
         if self.jellyfin_client and self.jellyfin_client.is_configured():
@@ -1319,6 +1613,93 @@ class JellyRancherClean(QMainWindow):
     # WORKFLOW STEP 3: LLM PROPOSAL
     # =========================================================================
     
+    def refresh_poe_models(self):
+        """Refresh the list of available Poe models."""
+        try:
+            from scripts.ai.ravenmaven_client import PoeClient
+            import os
+            
+            api_key = os.getenv('OPENAI_API_KEY')
+            if not api_key:
+                QMessageBox.warning(
+                    self,
+                    "No API Key",
+                    "OPENAI_API_KEY environment variable not set.\nCannot fetch models."
+                )
+                return
+            
+            self.llm_output.append("Fetching available models from Poe.com...")
+            QApplication.processEvents()  # Update UI
+            
+            client = PoeClient(api_key=api_key)
+            models = client.get_available_models(use_cache=False)  # Force refresh
+            
+            # Update combo box
+            self.llm_model_combo.clear()
+            for model in models:
+                self.llm_model_combo.addItem(model, model)
+            
+            self.llm_output.append(f"✅ Loaded {len(models)} models\n")
+            self.log_status(f"Refreshed Poe models: {len(models)} available")
+            
+        except Exception as e:
+            self.llm_output.append(f"❌ Failed to fetch models: {e}\n")
+            logger.error(f"Failed to refresh Poe models: {e}", exc_info=True)
+    
+    def preview_llm_prompt(self):
+        """Preview the LLM prompt that will be sent."""
+        if not self.folder_structure:
+            QMessageBox.warning(
+                self,
+                "No Folder Structure",
+                "Please complete Steps 1-2 (scan folders) before previewing the prompt."
+            )
+            return
+        
+        try:
+            from scripts.ai.llm_structure_analyzer import LLMStructureAnalyzer
+            
+            # Generate the prompt (without sending it)
+            analyzer = LLMStructureAnalyzer()
+            prompt = analyzer._build_prompt(self.folder_structure, self.scanned_files)
+            
+            # Show in a dialog
+            dialog = QDialog(self)
+            dialog.setWindowTitle("LLM Prompt Preview")
+            dialog.resize(800, 600)
+            
+            layout = QVBoxLayout(dialog)
+            
+            info_label = QLabel(f"Prompt length: {len(prompt):,} characters")
+            layout.addWidget(info_label)
+            
+            prompt_text = QTextEdit()
+            prompt_text.setPlainText(prompt)
+            prompt_text.setReadOnly(True)
+            layout.addWidget(prompt_text)
+            
+            btn_layout = QHBoxLayout()
+            btn_copy = QPushButton("📋 Copy to Clipboard")
+            btn_copy.clicked.connect(lambda: QApplication.clipboard().setText(prompt))
+            btn_layout.addWidget(btn_copy)
+            
+            btn_close = QPushButton("Close")
+            btn_close.clicked.connect(dialog.accept)
+            btn_layout.addWidget(btn_close)
+            btn_layout.addStretch()
+            
+            layout.addLayout(btn_layout)
+            
+            dialog.exec()
+            
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Preview Error",
+                f"Failed to generate prompt preview:\n\n{e}"
+            )
+            logger.error(f"Failed to preview prompt: {e}", exc_info=True)
+    
     def step_3_llm_proposal(self):
         """Step 3: Get LLM reorganization proposal."""
         # Don't start if already running
@@ -1365,11 +1746,14 @@ class JellyRancherClean(QMainWindow):
                 return
 
         # Start LLM analysis worker
+        # Get selected model from combo box
+        selected_model = self.llm_model_combo.currentData() or "Claude-Sonnet-4.5"
+        
         self.llm_worker = LLMAnalysisWorker(
             folder_structure=self.folder_structure,
             scanned_files=self.scanned_files,
             api_key=api_key,
-            model="Claude-Sonnet-4.5"
+            model=selected_model
         )
 
         # Connect signals

@@ -38,6 +38,7 @@ class AppConfigManager:
         "duplicate_keep_strategy": "jellyfin_first",
         "subtitle_auto_approve": True,
         "md5_verify_operations": True,
+        "md5_calculate_during_scan": False,  # Disabled by default for speed
     }
 
     def __init__(self, config_path: str = "data/app_config.json", logger: Optional[logging.Logger] = None):
@@ -196,6 +197,16 @@ class AppConfigManager:
     def is_md5_verify_operations(self) -> bool:
         """Check if MD5 verification is enabled."""
         return self.config.get('md5_verify_operations', True)
+    
+    def set_md5_calculate_during_scan(self, enabled: bool):
+        """Enable/disable MD5 calculation during initial scan (impacts speed)."""
+        self.config['md5_calculate_during_scan'] = enabled
+        self.save_config()
+        self.logger.info(f"MD5 calculation during scan: {enabled}")
+    
+    def is_md5_calculate_during_scan(self) -> bool:
+        """Check if MD5 should be calculated during scan."""
+        return self.config.get('md5_calculate_during_scan', False)
 
     # --- Validation ---
 

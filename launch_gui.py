@@ -1,38 +1,58 @@
 #!/usr/bin/env python3
 """
-JellyRancher - Unified Media Organization Platform GUI Launcher
+JellyRancher - Clean 9-Point Workflow GUI Launcher
 
-Launches the professional PyQt5 interface for media organization.
+Launches the PyQt6-based `jelly_rancher_clean.py` GUI, preferring the
+project virtual environment (.venv) when available.
 
 Usage:
     python launch_gui.py
-
-This is the primary entry point for the JellyRancher GUI.
 """
 
 import sys
-import os
+import subprocess
 from pathlib import Path
 
-# Get the project root directory
-project_root = Path(__file__).parent
 
-# Add scripts paths to sys.path
-sys.path.insert(0, str(project_root / "scripts"))
-sys.path.insert(0, str(project_root / "scripts" / "core"))
-sys.path.insert(0, str(project_root / "scripts" / "_common"))
-sys.path.insert(0, str(project_root / "scripts" / "core" / "tools" / "ravenmaven"))
-sys.path.insert(0, str(project_root / "scripts" / "core" / "tools" / "code_cop" / "tools" / "audit"))
+def _get_venv_python(project_root: Path) -> Path | None:
+    """Return the .venv Python interpreter if it exists, else None."""
+    if sys.platform.startswith("win"):
+        candidate = project_root / ".venv" / "Scripts" / "python.exe"
+    else:
+        candidate = project_root / ".venv" / "bin" / "python"
+    return candidate if candidate.exists() else None
 
-# Launch the UI
+
+def main():
+    project_root = Path(__file__).parent.resolve()
+
+    # Ensure project root is on sys.path so we can import jelly_rancher_clean
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+
+    venv_python = _get_venv_python(project_root)
+
+    # If we're already running inside the venv, just import and run directly.
+    if venv_python is not None and Path(sys.executable).resolve() == venv_python:
+        from jelly_rancher_clean import main as gui_main  # type: ignore[import]
+        gui_main()
+        return
+
+    # If a venv Python exists but we're not using it, re-launch under the venv.
+    if venv_python is not None:
+        subprocess.call(
+            [str(venv_python), str(project_root / "jelly_rancher_clean.py")]
+        )
+        return
+
+    # Fallback: no venv found, run with current interpreter but warn.
+    print(
+        "Warning: .venv Python not found. "
+        "Running jelly_rancher_clean.py with the current interpreter."
+    )
+    from jelly_rancher_clean import main as gui_main  # type: ignore[import]
+    gui_main()
+
+
 if __name__ == "__main__":
-    try:
-        from scripts.core.jelly_rancher_main import main
-        main()
-    except ImportError as e:
-        print(f"Error: Missing dependency - {e}")
-        print("Please ensure PyQt5 is installed: pip install PyQt5")
-        sys.exit(1)
-    except Exception as e:
-        print(f"Error launching GUI: {e}")
-        sys.exit(1)
+    main()

@@ -104,7 +104,9 @@ class FileScanner:
         extensions: Optional[Set[str]] = None,
         include_subtitles: bool = True,
         include_metadata: bool = True,
-        progress_callback: Optional[Callable[[str, int, int], None]] = None
+        progress_callback: Optional[Callable[[str, int, int], None]] = None,
+        exclude_paths: Optional[Set[Path]] = None,
+        calculate_md5: bool = False,
     ):
         """
         Initialize the file scanner.
@@ -116,6 +118,8 @@ class FileScanner:
             include_metadata: Whether to include metadata files (NFO, images)
             progress_callback: Optional callback function(message, current, total)
                              for progress reporting
+            exclude_paths: Set of paths to exclude from scanning
+            calculate_md5: Whether to calculate MD5 hashes during scan (slower but useful for duplicates)
         """
         self.extensions = extensions or self.DEFAULT_VIDEO_EXTENSIONS.copy()
 
@@ -126,8 +130,11 @@ class FileScanner:
 
         self.progress_callback = progress_callback
         self.statistics = ScanStatistics()
+        # Normalize exclusion paths (used to skip subfolders/files)
+        self.exclude_paths: Set[Path] = {p.resolve() for p in exclude_paths} if exclude_paths else set()
+        self.calculate_md5 = calculate_md5
 
-        logger.info(f"FileScanner initialized with {len(self.extensions)} extensions")
+        logger.info(f"FileScanner initialized with {len(self.extensions)} extensions (MD5: {calculate_md5})")
 
     def scan_folder(
         self,
@@ -190,66 +197,138 @@ class FileScanner:
         return file_records
 
     def _scan_recursive(self, folder_path: Path) -> List[FileRecord]:
-        """Recursively scan folder and all subdirectories."""
+        """
+        Recursively scan folder and all subdirectories.
+        
+        OPTIMIZED: Single-pass traversal with immediate feedback.
+        No more double-scanning or per-extension iteration.
+        """
         file_records = []
-
-        # First pass: count total files for progress reporting
-        total_files = sum(1 for ext in self.extensions for _ in folder_path.rglob(f'*{ext}'))
         processed = 0
 
-        logger.debug(f"Found approximately {total_files} files to scan")
+        logger.debug(f"Starting optimized single-pass recursive scan of {folder_path}")
 
-        # Second pass: process files
-        for ext in self.extensions:
-            try:
-                for file_path in folder_path.rglob(f'*{ext}'):
-                    record = self._process_file(file_path)
+        try:
+            # SINGLE PASS: Walk the tree once, filter as we go
+            for item_path in folder_path.rglob('*'):
+                try:
+                    # Skip directories
+                    if not item_path.is_file():
+                        continue
+                    
+                    # Filter by extension
+                    if item_path.suffix.lower() not in self.extensions:
+                        continue
+                    
+                    # Skip excluded paths
+                    if self._is_excluded(item_path):
+                        continue
+                    
+                    # Process the file
+                    record = self._process_file(item_path)
                     if record:
                         file_records.append(record)
+                        processed += 1
+                        
+                        # Progress callback - immediate feedback, no total needed
+                        if self.progress_callback and processed % 10 == 0:
+                            self.progress_callback(
+                                f"Scanning: {item_path.name}",
+                                processed,
+                                0  # No total available in single-pass, show count only
+                            )
+                
+                except (PermissionError, OSError) as e:
+                    # Skip inaccessible files/folders
+                    logger.debug(f"Skipping inaccessible path {item_path}: {e}")
+                    continue
+                    
+        except Exception as e:
+            error_msg = f"Error during recursive scan: {e}"
+            logger.error(error_msg, exc_info=True)
+            self.statistics.errors.append(error_msg)
 
-                    processed += 1
-
-                    # Progress callback
-                    if self.progress_callback and processed % 10 == 0:
-                        self.progress_callback(
-                            f"Scanning: {file_path.name}",
-                            processed,
-                            total_files
-                        )
-            except Exception as e:
-                error_msg = f"Error scanning for extension {ext}: {e}"
-                logger.warning(error_msg)
-                self.statistics.errors.append(error_msg)
-
+        logger.info(f"Single-pass scan complete: found {processed} files")
         return file_records
 
     def _scan_single_folder(self, folder_path: Path) -> List[FileRecord]:
-        """Scan only the specified folder (non-recursive)."""
+        """
+        Scan only the specified folder (non-recursive).
+        
+        OPTIMIZED: Single-pass with extension filtering.
+        """
         file_records = []
+        processed = 0
 
         try:
-            all_files = [f for f in folder_path.iterdir() if f.is_file()]
-            total_files = len(all_files)
-
-            for idx, file_path in enumerate(all_files):
-                if file_path.suffix.lower() in self.extensions:
-                    record = self._process_file(file_path)
+            for item_path in folder_path.iterdir():
+                try:
+                    # Skip directories
+                    if not item_path.is_file():
+                        continue
+                    
+                    # Filter by extension
+                    if item_path.suffix.lower() not in self.extensions:
+                        continue
+                    
+                    # Skip excluded paths
+                    if self._is_excluded(item_path):
+                        continue
+                    
+                    # Process the file
+                    record = self._process_file(item_path)
                     if record:
                         file_records.append(record)
-
-                # Progress callback
-                if self.progress_callback and idx % 10 == 0:
-                    self.progress_callback(
-                        f"Scanning: {file_path.name}",
-                        idx,
-                        total_files
-                    )
+                        processed += 1
+                        
+                        # Progress callback
+                        if self.progress_callback and processed % 10 == 0:
+                            self.progress_callback(
+                                f"Scanning: {item_path.name}",
+                                processed,
+                                0
+                            )
+                
+                except (PermissionError, OSError) as e:
+                    logger.debug(f"Skipping inaccessible file {item_path}: {e}")
+                    continue
+                    
         except Exception as e:
             error_msg = f"Error scanning folder {folder_path}: {e}"
             logger.warning(error_msg)
             self.statistics.errors.append(error_msg)
 
         return file_records
+
+    def _is_excluded(self, file_path: Path) -> bool:
+        """
+        Check whether a file or its parent folder is under any excluded path.
+
+        Args:
+            file_path: File path to check
+
+        Returns:
+            True if the file should be excluded from scanning.
+        """
+        if not self.exclude_paths:
+            return False
+
+        try:
+            file_path_resolved = file_path.resolve()
+        except Exception:
+            file_path_resolved = file_path
+
+        for excluded in self.exclude_paths:
+            try:
+                # Python 3.9+: Path.is_relative_to
+                if file_path_resolved.is_relative_to(excluded):
+                    return True
+            except Exception:
+                # Fallback for unexpected path issues
+                if str(file_path_resolved).startswith(str(excluded)):
+                    return True
+
+        return False
 
     def _process_file(self, file_path: Path) -> Optional[FileRecord]:
         """
@@ -265,15 +344,16 @@ class FileScanner:
             # Get file statistics
             stat = file_path.stat()
 
-            # Calculate MD5 hash for integrity / duplicate detection
+            # Calculate MD5 hash ONLY if enabled (major performance impact)
             md5_hash: Optional[str] = None
-            try:
-                md5_hash = FileHasher.calculate_md5(file_path)
-            except (FileNotFoundError, PermissionError, OSError) as e:
-                # If we can't hash the file, log the issue but still keep the record
-                error_msg = f"Cannot calculate MD5 for {file_path}: {e}"
-                logger.debug(error_msg)
-                self.statistics.errors.append(error_msg)
+            if self.calculate_md5:
+                try:
+                    md5_hash = FileHasher.calculate_md5(file_path)
+                except (FileNotFoundError, PermissionError, OSError) as e:
+                    # If we can't hash the file, log the issue but still keep the record
+                    error_msg = f"Cannot calculate MD5 for {file_path}: {e}"
+                    logger.debug(error_msg)
+                    self.statistics.errors.append(error_msg)
 
             # Create record
             record = FileRecord(

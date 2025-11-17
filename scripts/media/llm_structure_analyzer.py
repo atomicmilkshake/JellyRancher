@@ -257,13 +257,20 @@ IMPORTANT: Return ONLY the JSON object, no additional text before or after.
             response_text = response_text.strip()
             
             # Remove markdown code blocks if present
+            # Strip markdown code fences if present (handles ```json, ```JSON, or just ```)
+            response_text = response_text.strip()
             if response_text.startswith('```'):
-                # Find the first newline after ```
-                start = response_text.find('\n') + 1
-                # Find the closing ```
-                end = response_text.rfind('```')
-                if end > start:
-                    response_text = response_text[start:end].strip()
+                # Find the first newline after the opening fence (skip language identifier)
+                first_newline = response_text.find('\n')
+                if first_newline != -1:
+                    start = first_newline + 1
+                    # Find the closing ```
+                    end = response_text.rfind('```')
+                    if end > start:
+                        response_text = response_text[start:end].strip()
+                    else:
+                        # No closing fence found, just remove opening
+                        response_text = response_text[start:].strip()
             
             # Parse JSON
             result = json.loads(response_text)
