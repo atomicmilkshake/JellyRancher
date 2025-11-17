@@ -21,6 +21,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
+import sqlite3
 
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -566,12 +567,38 @@ class JellyRancherStudio(QMainWindow):
             QMessageBox.information(self, "No Project", "Please create or open a project first.")
             return
         
+        # Get most recent action plan
+        action_plan_id = self._get_latest_action_plan_id()
+        
         # Create and open execution view
-        execution_view = ExecutionView(self.current_project, self.project_manager, self)
+        execution_view = ExecutionView(self.current_project, self.project_manager, action_plan_id, self)
         self.tab_widget.addTab(execution_view, f"⚙️ Execute - {self.current_project.name}")
         self.tab_widget.setCurrentWidget(execution_view)
         
         logger.info(f"Opened execution view for project: {self.current_project.name}")
+    
+    def _get_latest_action_plan_id(self) -> Optional[int]:
+        """Get the most recent action plan ID for the current project."""
+        try:
+            import sqlite3
+            conn = sqlite3.connect("data/media_library.db")
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT id FROM project_action_plans
+                WHERE project_id = ?
+                ORDER BY created_at DESC
+                LIMIT 1
+            ''', (self.current_project.id,))
+            
+            row = cursor.fetchone()
+            conn.close()
+            
+            return row[0] if row else None
+            
+        except Exception as e:
+            logger.error(f"Failed to get latest action plan: {e}")
+            return None
     
     # ========================================================================
     # Other Actions
