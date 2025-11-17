@@ -33,6 +33,10 @@ from PyQt6.QtGui import QAction, QFont, QIcon
 
 from scripts.core.project_manager import ProjectManager, Project, ProjectState
 from scripts._common.logger import MasterLogger
+from scripts.ui.scan_view import ScanView
+from scripts.ui.analysis_view import AnalysisView
+from scripts.ui.review_view import ReviewView
+from scripts.ui.execution_view import ExecutionView
 
 # Initialize logging
 logger = logging.getLogger(__name__)
@@ -522,8 +526,12 @@ class JellyRancherStudio(QMainWindow):
             QMessageBox.information(self, "No Project", "Please create or open a project first.")
             return
         
-        # TODO: Open scan view in Phase 32B
-        QMessageBox.information(self, "Scan", "Scan view coming in Phase 32B!")
+        # Create and open scan view
+        scan_view = ScanView(self.current_project, self.project_manager, self)
+        self.tab_widget.addTab(scan_view, f"📁 Scan - {self.current_project.name}")
+        self.tab_widget.setCurrentWidget(scan_view)
+        
+        logger.info(f"Opened scan view for project: {self.current_project.name}")
     
     def action_analyze(self):
         """Start analysis workflow."""
@@ -531,8 +539,12 @@ class JellyRancherStudio(QMainWindow):
             QMessageBox.information(self, "No Project", "Please create or open a project first.")
             return
         
-        # TODO: Open analysis view in Phase 32B
-        QMessageBox.information(self, "Analyze", "Analysis view coming in Phase 32B!")
+        # Create and open analysis view
+        analysis_view = AnalysisView(self.current_project, self.project_manager, self)
+        self.tab_widget.addTab(analysis_view, f"🤖 Analysis - {self.current_project.name}")
+        self.tab_widget.setCurrentWidget(analysis_view)
+        
+        logger.info(f"Opened analysis view for project: {self.current_project.name}")
     
     def action_review(self):
         """Start review workflow."""
@@ -540,8 +552,12 @@ class JellyRancherStudio(QMainWindow):
             QMessageBox.information(self, "No Project", "Please create or open a project first.")
             return
         
-        # TODO: Open review view in Phase 32B
-        QMessageBox.information(self, "Review", "Review view coming in Phase 32B!")
+        # Create and open review view
+        review_view = ReviewView(self.current_project, self.project_manager, self)
+        self.tab_widget.addTab(review_view, f"📋 Review - {self.current_project.name}")
+        self.tab_widget.setCurrentWidget(review_view)
+        
+        logger.info(f"Opened review view for project: {self.current_project.name}")
     
     def action_execute(self):
         """Start execution workflow."""
@@ -549,8 +565,12 @@ class JellyRancherStudio(QMainWindow):
             QMessageBox.information(self, "No Project", "Please create or open a project first.")
             return
         
-        # TODO: Open execution view in Phase 32B
-        QMessageBox.information(self, "Execute", "Execution view coming in Phase 32B!")
+        # Create and open execution view
+        execution_view = ExecutionView(self.current_project, self.project_manager, self)
+        self.tab_widget.addTab(execution_view, f"⚙️ Execute - {self.current_project.name}")
+        self.tab_widget.setCurrentWidget(execution_view)
+        
+        logger.info(f"Opened execution view for project: {self.current_project.name}")
     
     # ========================================================================
     # Other Actions
