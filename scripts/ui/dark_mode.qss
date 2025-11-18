@@ -196,7 +196,32 @@ QGroupBox::title {
 }
 
 /* Checkboxes */
-/* Removed custom QCheckBox styling to ensure native OS rendering */
+QCheckBox {
+    color: #e0e0e0;
+    spacing: 8px;
+}
+
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #666666;
+    background-color: #252525;
+    border-radius: 2px;
+}
+
+QCheckBox::indicator:hover {
+    border-color: #4a9eff;
+}
+
+QCheckBox::indicator:checked {
+    image: url(scripts/ui/resources/checkbox_checked_white.svg);
+    border-color: #4a9eff;
+}
+
+QCheckBox::indicator:disabled {
+    background-color: #1a1a1a;
+    border-color: #404040;
+}
 
 /* Radio buttons */
 QRadioButton {

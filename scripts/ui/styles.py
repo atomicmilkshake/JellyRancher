@@ -357,7 +357,32 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 /* CHECKBOXES */
 /* =================================================================== */
 
-/* Removed custom QCheckBox styling to ensure native OS rendering */
+QCheckBox {
+    color: #2c3e50;
+    spacing: 8px;
+}
+
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #bdc3c7;
+    background-color: white;
+    border-radius: 2px;
+}
+
+QCheckBox::indicator:hover {
+    border-color: #1f6fb2;
+}
+
+QCheckBox::indicator:checked {
+    image: url(scripts/ui/resources/checkbox_checked.svg);
+    border-color: #1f6fb2;
+}
+
+QCheckBox::indicator:disabled {
+    background-color: #ecf0f1;
+    border-color: #bdc3c7;
+}
 
 /* =================================================================== */
 /* LABELS */

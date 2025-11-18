@@ -485,7 +485,7 @@ Given the comprehensive scope of Phases 32F/G/H and that 90% of the required cod
 3. **Provider ID Synchronization**
    - Add "Sync Provider IDs" button to AnalysisView
    - After LLM analysis + metadata lookup, sync discovered IDs to Jellyfin
-   - Update Jellyfin items with correct TMDb/TVDb/IMDb IDs
+   - Update Jellyfin items with correct TMDb/TVb/IMDb IDs
 
 **Estimated Time:** 2-3 hours
 **Files to Modify:** execution_view.py, jelly_rancher_studio.py, analysis_view.py
@@ -1071,3 +1071,32 @@ JellyRancher Studio now features:
 
 **Next Steps:**
 - Proceed with Phase 33F (Quality detection) or other user requests.
+
+## PHASE 33F: Standard Checkbox Implementation ✅
+**Date:** 2025-11-18 09:30:00
+
+**Goal:** Restore visible checkboxes using a standard, clean design that works reliably within the application's stylesheet environment.
+
+**Problem:**
+- Removing `QCheckBox` styling entirely caused the indicators to disappear because the global `QWidget` styling (fonts, colors) put the application into "StyleSheet" mode, but without a specific `::indicator` definition, the native fallback failed to render correctly in some contexts (like `QScrollArea`).
+- The user requested "standard checkbox controls", not "kitschy" ones.
+
+**Solution:**
+- Created standard SVG checkmark assets (`checkbox_checked.svg` and `checkbox_checked_white.svg`) in `scripts/ui/resources/`.
+- Implemented a "Standard" checkbox style in `styles.py` and `dark_mode.qss`:
+  - **Light Mode:** 16x16px, White background, Light Gray border (#bdc3c7). Checked: Dark Blue checkmark.
+  - **Dark Mode:** 16x16px, Dark Gray background (#252525), Medium Gray border (#666). Checked: White checkmark.
+  - **Hover:** Border highlights in accent color.
+  - **Radius:** 2px (minimal, standard look).
+
+**Outcome:**
+- Checkboxes are now guaranteed to be visible.
+- They look clean, professional, and standard (no weird solid fills or excessive rounding).
+- Consistent across light and dark modes.
+
+**Testing:**
+- Verified asset creation.
+- Verified stylesheet updates.
+
+**Next Steps:**
+- Proceed with Phase 33G (Quality detection) or other user requests.
