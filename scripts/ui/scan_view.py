@@ -50,30 +50,91 @@ class FolderContentSelectionDialog(QDialog):
         self.setWindowTitle(f"Select contents to include in scan")
         self.setMinimumSize(600, 400)
         
-        # Apply high-contrast checkbox styling for dialog
+        # Apply comprehensive dialog styling with white background for list
         dialog_stylesheet = """
+            /* Dialog container */
+            FolderContentSelectionDialog {
+                background-color: #ecf0f1;
+            }
+            
+            /* Labels */
+            QLabel {
+                color: #2c3e50;
+                background-color: transparent;
+            }
+            
+            /* Scroll area - WHITE background for item list */
+            QScrollArea {
+                background-color: white;
+                border: 1px solid #bdc3c7;
+            }
+            
+            QScrollArea QWidget {
+                background-color: white;
+            }
+            
+            /* Checkboxes in the scroll area */
             QCheckBox {
                 color: #2c3e50;
+                background-color: white;
                 spacing: 8px;
+                padding: 4px;
             }
+            
             QCheckBox::indicator {
-                width: 20px;
-                height: 20px;
+                width: 18px;
+                height: 18px;
                 border: 2px solid #1f6fb2;
                 border-radius: 4px;
                 background-color: white;
             }
+            
             QCheckBox::indicator:checked {
                 background-color: #1f6fb2;
                 border-color: #1f6fb2;
             }
+            
             QCheckBox::indicator:unchecked {
                 background-color: white;
                 border-color: #1f6fb2;
             }
+            
             QCheckBox::indicator:hover {
                 border: 2px solid #155a9a;
                 background-color: #f0f7ff;
+            }
+            
+            /* Buttons */
+            QPushButton {
+                background-color: #1f6fb2;
+                color: white;
+                border: 1px solid #155a9a;
+                padding: 6px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            
+            QPushButton:hover {
+                background-color: #155a9a;
+            }
+            
+            QPushButton:pressed {
+                background-color: #0f3d5a;
+            }
+            
+            /* Scrollbar styling */
+            QScrollBar:vertical {
+                background-color: white;
+                width: 12px;
+            }
+            
+            QScrollBar::handle:vertical {
+                background-color: #bdc3c7;
+                border-radius: 6px;
+            }
+            
+            QScrollBar::handle:vertical:hover {
+                background-color: #95a5a6;
             }
         """
         self.setStyleSheet(dialog_stylesheet)
