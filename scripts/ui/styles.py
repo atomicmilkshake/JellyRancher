@@ -357,13 +357,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 /* CHECKBOXES */
 /* =================================================================== */
 
-QCheckBox {
-    color: #2c3e50;
-    spacing: 8px;
-}
-
-/* Standard OS checkboxes are preferred over custom styling */
-
+/* Removed custom QCheckBox styling to ensure native OS rendering */
 
 /* =================================================================== */
 /* LABELS */

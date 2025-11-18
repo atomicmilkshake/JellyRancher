@@ -196,13 +196,7 @@ QGroupBox::title {
 }
 
 /* Checkboxes */
-QCheckBox {
-    color: #e0e0e0;
-    spacing: 8px;
-}
-
-/* Standard OS checkboxes are preferred over custom styling */
-
+/* Removed custom QCheckBox styling to ensure native OS rendering */
 
 /* Radio buttons */
 QRadioButton {

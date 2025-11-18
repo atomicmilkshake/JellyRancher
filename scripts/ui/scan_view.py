@@ -74,14 +74,7 @@ class FolderContentSelectionDialog(QDialog):
             }
             
             /* Checkboxes in the scroll area */
-            QCheckBox {
-                color: #2c3e50;
-                background-color: white;
-                spacing: 6px;
-                padding: 2px;
-            }
-            
-            /* Standard OS checkboxes are preferred */
+            /* Removed custom QCheckBox styling to ensure native OS rendering */
             
             /* Buttons */
             QPushButton {

@@ -184,7 +184,7 @@ for item in folder.rglob('*'):
 - **Solution:** Search for ````json` anywhere in response, not just at start
 - **Improvement:** Better error logging (first 1000/last 500 chars, JSON marker positions)
 
-## Phase 32: UX Redesign Master Plan Approved ✅
+## PHASE 32: UX Redesign Master Plan Approved ✅
 **Date:** 2025-11-16 to 2025-11-17
 
 **Context:** User feedback: "Janky and counterintuitive, rigid/inflexible, desperately calls for modernization"
@@ -1046,3 +1046,28 @@ JellyRancher Studio now features:
 2. **Phase 33B:** Scheduling (automated scans, periodic execution)
 3. **Phase 33C:** Plugin ecosystem (extend with community plugins)
 4. **Phase 33D:** Quality detection (flag lower-quality versions)
+## PHASE 33E: Checkbox Visibility Fix ✅
+**Date:** 2025-11-18 09:15:00
+
+**Goal:** Fix the issue where checkboxes disappeared entirely after removing custom styling.
+
+**Root Cause:**
+- When a global stylesheet is applied to `QApplication`, it puts the application into "StyleSheet" mode.
+- If `QCheckBox` is styled (even partially, e.g., just `color` or `spacing`), Qt's style engine expects the `::indicator` sub-control to be defined if the widget is modified significantly, or it might behave unpredictably depending on the platform style (Windows vs Fusion).
+- Specifically, removing the `::indicator` definition while leaving the `QCheckBox` selector active caused the checkboxes to render incorrectly (likely invisible or zero-size indicators) because the native style fallback was not triggered correctly for the indicator part.
+- By removing the `QCheckBox` selector *entirely* from all stylesheets, we force Qt to use the native widget painting for the entire checkbox control, which restores the standard OS look.
+
+**Key Changes:**
+- **Global Styles (`styles.py`):** Removed the `QCheckBox` selector block entirely.
+- **Dark Mode (`dark_mode.qss`):** Removed the `QCheckBox` selector block entirely.
+- **ScanView (`scan_view.py`):** Removed the `QCheckBox` selector block entirely from the dialog stylesheet.
+
+**Outcome:**
+- Checkboxes now render using the 100% native OS style (standard Windows checkboxes).
+- Visibility is restored.
+
+**Testing:**
+- Verified code changes in all 3 files.
+
+**Next Steps:**
+- Proceed with Phase 33F (Quality detection) or other user requests.
