@@ -615,7 +615,7 @@ Complete end-to-end workflow:
 - ✅ Jellyfin library refreshes automatically after execution
 - ✅ Collections can be created from Studio
 - ✅ Provider IDs sync to Jellyfin
-- ✅ Jellyfin status visible in Studio
+- ✅ Jellyfin status visible in ExecutionView
 
 **Phase 32G Complete When:**
 - ✅ Metadata enrichment functional in AnalysisView
@@ -659,7 +659,7 @@ Complete end-to-end workflow:
    - ✅ Already has all required methods:
      - `create_collection(name, item_ids)` - Create Jellyfin collections
      - `add_to_collection(collection_id, item_ids)` - Add items to collections
-     - `get_collections()` - Retrieve all collections
+     - `get_collections()` - List all collections
      - `update_provider_ids(item_id, provider_ids)` - Sync TMDb/TVDb/IMDb IDs
      - `refresh_library_by_path(library_path)` - Targeted library refresh
    - ✅ All methods tested and verified working
@@ -1004,3 +1004,27 @@ JellyRancher Studio now features:
 2. **Phase 33B:** Scheduling (automated scans, periodic execution)
 3. **Phase 33C:** Plugin ecosystem (extend with community plugins)
 4. **Phase 33D:** Quality detection (flag lower-quality versions)
+
+---
+
+## PHASE 33C: Standard UI Controls ✅
+**Date:** 2025-11-18 08:45:00
+
+**Goal:** Replace custom "Web 3.0" checkbox styling with standard OS-native controls to improve usability and aesthetics based on user feedback.
+
+**Key Changes:**
+- **Global Stylesheet (`styles.py`):** Removed all `QCheckBox::indicator` styling. Checkboxes now render using the native OS style (clean, standard square with checkmark).
+- **Dark Mode Stylesheet (`dark_mode.qss`):** Removed `QCheckBox::indicator` styling. Checkboxes now use the native OS style, which remains high-contrast and standard.
+- **FolderContentSelectionDialog (`scan_view.py`):** Removed inline `QCheckBox` styling that was overriding global styles with a custom blue-box look.
+
+**Outcome:**
+- All checkboxes in the application now look like standard Windows checkboxes.
+- "Kitschy" rounded corners and solid fills are gone.
+- Improved consistency with native OS controls.
+
+**Testing:**
+- Verified code changes in `styles.py`, `dark_mode.qss`, and `scan_view.py`.
+- Confirmed no other inline styles exist via grep search.
+
+**Next Steps:**
+- Continue with Phase 33D (Quality detection) or other user requests.

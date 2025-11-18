@@ -81,26 +81,7 @@ class FolderContentSelectionDialog(QDialog):
                 padding: 2px;
             }
             
-            QCheckBox::indicator {
-                width: 16px;
-                height: 16px;
-                border: 1px solid #999;
-                background-color: white;
-            }
-            
-            QCheckBox::indicator:checked {
-                background-color: #0055cc;
-                border-color: #0055cc;
-            }
-            
-            QCheckBox::indicator:unchecked {
-                background-color: white;
-                border-color: #999;
-            }
-            
-            QCheckBox::indicator:hover {
-                border: 1px solid #333;
-            }
+            /* Standard OS checkboxes are preferred */
             
             /* Buttons */
             QPushButton {

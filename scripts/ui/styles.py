@@ -362,34 +362,8 @@ QCheckBox {
     spacing: 8px;
 }
 
-QCheckBox::indicator {
-    width: 20px;
-    height: 20px;
-    border: 2px solid #1f6fb2;
-    border-radius: 4px;
-    background-color: white;
-    margin: 2px;
-}
+/* Standard OS checkboxes are preferred over custom styling */
 
-QCheckBox::indicator:checked {
-    background-color: #1f6fb2;
-    border-color: #1f6fb2;
-}
-
-QCheckBox::indicator:unchecked {
-    background-color: white;
-    border-color: #1f6fb2;
-}
-
-QCheckBox::indicator:hover {
-    border: 2px solid #155a9a;
-    background-color: #f0f7ff;
-}
-
-QCheckBox::indicator:disabled {
-    background-color: #ecf0f1;
-    border-color: #bdc3c7;
-}
 
 /* =================================================================== */
 /* LABELS */

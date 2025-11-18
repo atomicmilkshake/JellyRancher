@@ -201,35 +201,8 @@ QCheckBox {
     spacing: 8px;
 }
 
-QCheckBox::indicator {
-    width: 20px;
-    height: 20px;
-    border: 2px solid #4a9eff;
-    border-radius: 4px;
-    background-color: #252525;
-    margin: 2px;
-}
+/* Standard OS checkboxes are preferred over custom styling */
 
-QCheckBox::indicator:checked {
-    background-color: #4a9eff;
-    border-color: #4a9eff;
-}
-
-QCheckBox::indicator:unchecked {
-    background-color: #252525;
-    border-color: #4a9eff;
-}
-
-QCheckBox::indicator:hover {
-    border: 2px solid #6db3ff;
-    background-color: #2a2a2a;
-}
-
-QCheckBox::indicator:disabled {
-    background-color: #1a1a1a;
-    border-color: #404040;
-    color: #606060;
-}
 
 /* Radio buttons */
 QRadioButton {
