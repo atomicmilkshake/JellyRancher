@@ -1,4 +1,46 @@
-\n## PHASE 33B: Accessibility Polish ✅
+\n## PHASE 33D: UI Layout Fixes ✅
+**Date:** 2025-11-18 09:00:00
+
+**Goal:** Fix layout issues where tables were being compressed to unusable heights, specifically the "Selected Folders" table in ScanView.
+
+**Key Changes:**
+- **ScanView (`scan_view.py`):** Added `setMinimumHeight(150)` to `folder_table` to ensure at least 3-4 rows are always visible.
+- **ScanView (`scan_view.py`):** Added `setMinimumHeight(200)` to `results_table` to prevent squashing.
+- **ReviewView (`review_view.py`):** Added `setMinimumHeight(200)` to `operations_table` to ensure the main review interface remains usable even in small windows.
+
+**Outcome:**
+- The "Selected Folders" list now maintains a proper height, allowing users to see the folders they have added.
+- General application resilience to window resizing is improved.
+
+**Testing:**
+- Verified code changes in `scan_view.py` and `review_view.py`.
+
+**Next Steps:**
+- Await further user feedback or proceed with Phase 33E (Quality detection).
+
+## PHASE 33C: Standard UI Controls ✅
+**Date:** 2025-11-18 08:45:00
+
+**Goal:** Replace custom "Web 3.0" checkbox styling with standard OS-native controls to improve usability and aesthetics based on user feedback.
+
+**Key Changes:**
+- **Global Stylesheet (`styles.py`):** Removed all `QCheckBox::indicator` styling. Checkboxes now render using the native OS style (clean, standard square with checkmark).
+- **Dark Mode Stylesheet (`dark_mode.qss`):** Removed `QCheckBox::indicator` styling. Checkboxes now use the native OS style, which remains high-contrast and standard.
+- **FolderContentSelectionDialog (`scan_view.py`):** Removed inline `QCheckBox` styling that was overriding global styles with a custom blue-box look.
+
+**Outcome:**
+- All checkboxes in the application now look like standard Windows checkboxes.
+- "Kitschy" rounded corners and solid fills are gone.
+- Improved consistency with native OS controls.
+
+**Testing:**
+- Verified code changes in `styles.py`, `dark_mode.qss`, and `scan_view.py`.
+- Confirmed no other inline styles exist via grep search.
+
+**Next Steps:**
+- Continue with Phase 33D (Quality detection) or other user requests.
+
+## PHASE 33B: Accessibility Polish ✅
 **Date:** 2025-11-18 08:24:37
 
 **Goal:** Remove the lingering File ▸ Open Project stub and audit every text/background pairing so Studio meets baseline contrast expectations in both themes.
@@ -1004,27 +1046,3 @@ JellyRancher Studio now features:
 2. **Phase 33B:** Scheduling (automated scans, periodic execution)
 3. **Phase 33C:** Plugin ecosystem (extend with community plugins)
 4. **Phase 33D:** Quality detection (flag lower-quality versions)
-
----
-
-## PHASE 33C: Standard UI Controls ✅
-**Date:** 2025-11-18 08:45:00
-
-**Goal:** Replace custom "Web 3.0" checkbox styling with standard OS-native controls to improve usability and aesthetics based on user feedback.
-
-**Key Changes:**
-- **Global Stylesheet (`styles.py`):** Removed all `QCheckBox::indicator` styling. Checkboxes now render using the native OS style (clean, standard square with checkmark).
-- **Dark Mode Stylesheet (`dark_mode.qss`):** Removed `QCheckBox::indicator` styling. Checkboxes now use the native OS style, which remains high-contrast and standard.
-- **FolderContentSelectionDialog (`scan_view.py`):** Removed inline `QCheckBox` styling that was overriding global styles with a custom blue-box look.
-
-**Outcome:**
-- All checkboxes in the application now look like standard Windows checkboxes.
-- "Kitschy" rounded corners and solid fills are gone.
-- Improved consistency with native OS controls.
-
-**Testing:**
-- Verified code changes in `styles.py`, `dark_mode.qss`, and `scan_view.py`.
-- Confirmed no other inline styles exist via grep search.
-
-**Next Steps:**
-- Continue with Phase 33D (Quality detection) or other user requests.

@@ -328,6 +328,7 @@ class ScanView(QWidget):
         
         # Folder table
         self.folder_table = QTableWidget()
+        self.folder_table.setMinimumHeight(150)  # Ensure at least a few rows are visible
         self.folder_table.setColumnCount(3)
         self.folder_table.setHorizontalHeaderLabels(["Folder Path", "Included Items", "Excluded Items"])
         self.folder_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
@@ -441,6 +442,7 @@ class ScanView(QWidget):
         
         # Results table
         self.results_table = QTableWidget()
+        self.results_table.setMinimumHeight(200)  # Ensure results are visible
         self.results_table.setColumnCount(6)
         self.results_table.setHorizontalHeaderLabels([
             "Filename", "Path", "Size (MB)", "Type", "MD5", "Metadata"

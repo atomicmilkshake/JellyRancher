@@ -146,6 +146,7 @@ class ReviewView(QWidget):
         table_layout = QVBoxLayout()
         
         self.operations_table = QTableWidget()
+        self.operations_table.setMinimumHeight(200)  # Ensure operations are visible
         self.operations_table.setColumnCount(10)
         self.operations_table.setHorizontalHeaderLabels([
             "☑", "Type", "Current Path", "Proposed Path", "Confidence",
