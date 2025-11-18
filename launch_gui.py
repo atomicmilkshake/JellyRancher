@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-JellyRancher - Clean 9-Point Workflow GUI Launcher
+JellyRancher Studio Launcher
 
-Launches the PyQt6-based `jelly_rancher_clean.py` GUI, preferring the
+Launches the PyQt6-based `jelly_rancher_studio.py` GUI, preferring the
 project virtual environment (.venv) when available.
 
 Usage:
@@ -26,7 +26,7 @@ def _get_venv_python(project_root: Path) -> Path | None:
 def main():
     project_root = Path(__file__).parent.resolve()
 
-    # Ensure project root is on sys.path so we can import jelly_rancher_clean
+    # Ensure project root is on sys.path so we can import jelly_rancher_studio
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
 
@@ -34,23 +34,23 @@ def main():
 
     # If we're already running inside the venv, just import and run directly.
     if venv_python is not None and Path(sys.executable).resolve() == venv_python:
-        from jelly_rancher_clean import main as gui_main  # type: ignore[import]
+        from jelly_rancher_studio import main as gui_main  # type: ignore[import]
         gui_main()
         return
 
     # If a venv Python exists but we're not using it, re-launch under the venv.
     if venv_python is not None:
         subprocess.call(
-            [str(venv_python), str(project_root / "jelly_rancher_clean.py")]
+            [str(venv_python), str(project_root / "jelly_rancher_studio.py")]
         )
         return
 
     # Fallback: no venv found, run with current interpreter but warn.
     print(
         "Warning: .venv Python not found. "
-        "Running jelly_rancher_clean.py with the current interpreter."
+        "Running jelly_rancher_studio.py with the current interpreter."
     )
-    from jelly_rancher_clean import main as gui_main  # type: ignore[import]
+    from jelly_rancher_studio import main as gui_main  # type: ignore[import]
     gui_main()
 
 

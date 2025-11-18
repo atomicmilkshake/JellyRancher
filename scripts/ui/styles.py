@@ -57,7 +57,7 @@ QMenu::item {
 }
 
 QMenu::item:selected {
-    background-color: #3498db;
+    background-color: #1f6fb2;
     color: white;
 }
 
@@ -107,7 +107,7 @@ QTabBar::tab {
 
 QTabBar::tab:selected {
     background-color: white;
-    border-bottom: 2px solid #3498db;
+    border-bottom: 2px solid #1f6fb2;
 }
 
 QTabBar::tab:hover {
@@ -124,7 +124,7 @@ QTabBar::close-button {
 /* =================================================================== */
 
 QPushButton {
-    background-color: #3498db;
+    background-color: #1f6fb2;
     color: white;
     border: none;
     padding: 6px 16px;
@@ -133,16 +133,16 @@ QPushButton {
 }
 
 QPushButton:hover {
-    background-color: #2980b9;
+    background-color: #1b63a0;
 }
 
 QPushButton:pressed {
-    background-color: #21618c;
+    background-color: #154776;
 }
 
 QPushButton:disabled {
     background-color: #bdc3c7;
-    color: #7f8c8d;
+    color: #3b4650;
 }
 
 /* =================================================================== */
@@ -173,7 +173,7 @@ QGroupBox::title {
 QTableWidget {
     background-color: white;
     alternate-background-color: #f8f9fa;
-    selection-background-color: #3498db;
+    selection-background-color: #1f6fb2;
     selection-color: white;
     border: 1px solid #bdc3c7;
     border-radius: 4px;
@@ -185,7 +185,7 @@ QTableWidget::item {
 }
 
 QTableWidget::item:selected {
-    background-color: #3498db;
+    background-color: #1f6fb2;
     color: white;
 }
 
@@ -210,7 +210,7 @@ QTreeWidget {
     background-color: white;
     border: 1px solid #bdc3c7;
     border-radius: 4px;
-    selection-background-color: #3498db;
+    selection-background-color: #1f6fb2;
     selection-color: white;
 }
 
@@ -219,7 +219,7 @@ QTreeWidget::item {
 }
 
 QTreeWidget::item:selected {
-    background-color: #3498db;
+    background-color: #1f6fb2;
     color: white;
 }
 
@@ -240,12 +240,12 @@ QTextEdit, QPlainTextEdit {
     border: 1px solid #bdc3c7;
     border-radius: 4px;
     padding: 4px;
-    selection-background-color: #3498db;
+    selection-background-color: #1f6fb2;
     selection-color: white;
 }
 
 QTextEdit:focus, QPlainTextEdit:focus {
-    border: 1px solid #3498db;
+    border: 1px solid #1f6fb2;
 }
 
 QLineEdit {
@@ -253,12 +253,12 @@ QLineEdit {
     border: 1px solid #bdc3c7;
     border-radius: 4px;
     padding: 6px;
-    selection-background-color: #3498db;
+    selection-background-color: #1f6fb2;
     selection-color: white;
 }
 
 QLineEdit:focus {
-    border: 1px solid #3498db;
+    border: 1px solid #1f6fb2;
 }
 
 /* =================================================================== */
@@ -274,7 +274,7 @@ QComboBox {
 }
 
 QComboBox:hover {
-    border: 1px solid #3498db;
+    border: 1px solid #1f6fb2;
 }
 
 QComboBox::drop-down {
@@ -289,7 +289,7 @@ QComboBox::down-arrow {
 QComboBox QAbstractItemView {
     background-color: white;
     border: 1px solid #bdc3c7;
-    selection-background-color: #3498db;
+    selection-background-color: #1f6fb2;
     selection-color: white;
 }
 
@@ -305,7 +305,7 @@ QProgressBar {
 }
 
 QProgressBar::chunk {
-    background-color: #3498db;
+    background-color: #1f6fb2;
     border-radius: 3px;
 }
 
@@ -364,18 +364,18 @@ QCheckBox {
 QCheckBox::indicator {
     width: 18px;
     height: 18px;
-    border: 2px solid #bdc3c7;
+    border: 2px solid #566573;
     border-radius: 3px;
     background-color: white;
 }
 
 QCheckBox::indicator:checked {
-    background-color: #3498db;
-    border-color: #3498db;
+    background-color: #1f6fb2;
+    border-color: #1f6fb2;
 }
 
 QCheckBox::indicator:hover {
-    border-color: #3498db;
+    border-color: #1f6fb2;
 }
 
 /* =================================================================== */
@@ -395,11 +395,11 @@ QLabel[class="title"] {
 
 QLabel[class="subtitle"] {
     font-size: 12pt;
-    color: #7f8c8d;
+    color: #566573;
 }
 
 QLabel[class="status"] {
-    color: #7f8c8d;
+    color: #566573;
     font-style: italic;
     padding: 5px;
 }

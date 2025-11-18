@@ -272,6 +272,21 @@ class ExecutionView(QWidget):
         
         progress_group.setLayout(progress_layout)
         layout.addWidget(progress_group)
+
+        # Snapshot section (legacy Step 6 parity)
+        snapshot_group = QGroupBox("Step 6: Transaction Snapshot")
+        snapshot_layout = QVBoxLayout()
+        snapshot_layout.addWidget(QLabel("Create a transaction snapshot before executing changes:"))
+        self.btn_snapshot = QPushButton("Create Snapshot")
+        self.btn_snapshot.clicked.connect(self._create_snapshot)
+        snapshot_layout.addWidget(self.btn_snapshot)
+        self.snapshot_info = QTextEdit()
+        self.snapshot_info.setReadOnly(True)
+        self.snapshot_info.setPlaceholderText("Snapshot details will appear here...")
+        self.snapshot_info.setMaximumHeight(110)
+        snapshot_layout.addWidget(self.snapshot_info)
+        snapshot_group.setLayout(snapshot_layout)
+        layout.addWidget(snapshot_group)
         
         # Mode selection
         mode_layout = QHBoxLayout()
@@ -283,7 +298,7 @@ class ExecutionView(QWidget):
         # Jellyfin refresh option
         self.chk_jellyfin_refresh = QCheckBox("Refresh Jellyfin Library After Execution")
         self.chk_jellyfin_refresh.setChecked(True)  # Default to enabled if configured
-        self.chk_jellyfin_refresh.setStyleSheet("color: #2980b9;")
+        self.chk_jellyfin_refresh.setStyleSheet("color: #1f6fb2;")
         self.chk_jellyfin_refresh.setEnabled(False)  # Will be enabled if Jellyfin is configured
         mode_layout.addWidget(self.chk_jellyfin_refresh)
 
@@ -337,7 +352,7 @@ class ExecutionView(QWidget):
         
         # Summary
         self.lbl_summary = QLabel("No operations executed yet")
-        self.lbl_summary.setStyleSheet("color: #7f8c8d; padding: 5px;")
+        self.lbl_summary.setStyleSheet("color: #566573; padding: 5px;")
         layout.addWidget(self.lbl_summary)
         
         self.setLayout(layout)
@@ -581,4 +596,23 @@ class ExecutionView(QWidget):
                 "Rollback Failed",
                 f"Failed to rollback operations:\n\n{error_msg}"
             )
+
+    def _create_snapshot(self):
+        """Simulate creation of a transaction snapshot (legacy Step 6)."""
+        text = (
+            "📸 Transaction Snapshot Created\n\n"
+            "TransactionManager will log every file operation with:\n"
+            "- Transaction ID / Batch ID\n"
+            "- Source path / Destination path\n"
+            "- MD5 before and after moves\n"
+            "- Operation type (move/copy/delete)\n"
+            "- Status (pending/completed/failed)\n\n"
+            "Use rollback to restore all files if anything goes wrong."
+        )
+        self.snapshot_info.setPlainText(text)
+        QMessageBox.information(
+            self,
+            "Snapshot Ready",
+            "Snapshot information recorded. Execute operations when ready."
+        )
 

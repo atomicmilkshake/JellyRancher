@@ -8,21 +8,26 @@ Allows users to select folders, configure scan options, and view results.
 
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict
 from datetime import datetime
+from collections import defaultdict
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QTableWidget, QTableWidgetItem, QProgressBar, QFileDialog,
     QMessageBox, QGroupBox, QCheckBox, QHeaderView, QDialog,
-    QScrollArea, QLineEdit
+    QScrollArea, QLineEdit, QTreeWidget, QTreeWidgetItem
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QColor
 
 from scripts.core.file_scanner import FileScanner, FileRecord, ScanStatistics
 from scripts.core.project_manager import ProjectManager, Project
 from scripts.core.app_config import AppConfigManager
+from scripts.core.inventory_repository import InventoryRepository
+from scripts.core.jellyfin_client import JellyfinClient
+from scripts.core.jellyfin_config import JellyfinConfigManager
+from scripts.core.workers import MultiScanWorker
 import sqlite3
 import json
 
@@ -153,61 +158,6 @@ class FolderContentSelectionDialog(QDialog):
         return excluded
 
 
-class ScanWorker(QThread):
-    """Background worker thread for folder scanning."""
-    
-    progress = pyqtSignal(int, int, str, float)  # current, total, status, elapsed
-    finished = pyqtSignal(list, object)  # files, statistics
-    error = pyqtSignal(str)
-    
-    def __init__(
-        self,
-        folders: List[Path],
-        excluded_paths: List[Path],
-        calculate_md5: bool = False
-    ):
-        super().__init__()
-        self.folders = folders
-        self.excluded_paths = excluded_paths
-        self.calculate_md5 = calculate_md5
-        self.start_time = None
-    
-    def run(self):
-        """Execute the scan in background thread."""
-        try:
-            self.start_time = datetime.now()
-            
-            scanner = FileScanner(
-                extensions=['.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v'],
-                calculate_md5=self.calculate_md5
-            )
-            
-            # Progress callback
-            def on_progress(current: int, total: int, current_file: str):
-                elapsed = (datetime.now() - self.start_time).total_seconds()
-                self.progress.emit(current, total, current_file, elapsed)
-            
-            # Scan all folders
-            all_files = []
-            for folder in self.folders:
-                files = scanner.scan_folder(
-                    folder,
-                    recursive=True,
-                    excluded_paths=self.excluded_paths,
-                    progress_callback=on_progress
-                )
-                all_files.extend(files)
-            
-            # Get statistics
-            stats = scanner.get_statistics()
-            
-            self.finished.emit(all_files, stats)
-            
-        except Exception as e:
-            logger.error(f"Scan error: {e}", exc_info=True)
-            self.error.emit(str(e))
-
-
 class ScanView(QWidget):
     """
     Scan View - Folder selection and file scanning interface.
@@ -229,16 +179,45 @@ class ScanView(QWidget):
         self.project = project
         self.project_manager = project_manager
         self.app_config = AppConfigManager()
+        self.inventory_repo = InventoryRepository()
+        self.jellyfin_client = self._create_jellyfin_client()
         
         self.selected_folders: List[Path] = []
         self.excluded_paths: List[Path] = []
         self.scanned_files: List[FileRecord] = []
         self.scan_statistics: Optional[ScanStatistics] = None
         self.current_scan_session_id: Optional[int] = None
+        self.inventory_session_ids: List[int] = []
+        self.folder_structure: Dict[Path, Dict[str, Any]] = {}
+        self.duplicate_groups: Dict[str, List[FileRecord]] = {}
+        self.scan_start_time: Optional[datetime] = None
         
         self._init_ui()
         self.setAcceptDrops(True)  # Enable drag-and-drop
         logger.info(f"ScanView initialized for project: {project.name}")
+    
+    def _create_jellyfin_client(self) -> Optional[JellyfinClient]:
+        """Create a Jellyfin client if configuration is available."""
+        try:
+            config_mgr = JellyfinConfigManager()
+            config = config_mgr.load_config()
+            if (
+                config
+                and config.get("enabled")
+                and config.get("server_url")
+                and config.get("api_key")
+            ):
+                client = JellyfinClient(
+                    server_url=config["server_url"],
+                    api_key=config["api_key"],
+                )
+                if client.test_connection():
+                    logger.info("Jellyfin client initialized for ScanView")
+                    return client
+                logger.warning("Jellyfin connection test failed; disabling integration")
+        except Exception as exc:
+            logger.warning("Unable to initialize Jellyfin client: %s", exc)
+        return None
     
     def _init_ui(self):
         """Initialize the UI."""
@@ -267,6 +246,10 @@ class ScanView(QWidget):
         # Results section
         results_group = self._create_results_section()
         layout.addWidget(results_group, 1)  # Stretch to fill space
+
+        # Overview section (hierarchy + duplicates)
+        overview_group = self._create_overview_section()
+        layout.addWidget(overview_group)
         
         self.setLayout(layout)
     
@@ -296,6 +279,10 @@ class ScanView(QWidget):
         self.btn_remove_folder = QPushButton("- Remove Selected")
         self.btn_remove_folder.clicked.connect(self._remove_folder)
         button_layout.addWidget(self.btn_remove_folder)
+
+        self.btn_clear_folders = QPushButton("Clear All")
+        self.btn_clear_folders.clicked.connect(self._clear_folders)
+        button_layout.addWidget(self.btn_clear_folders)
         
         button_layout.addStretch()
         layout.addLayout(button_layout)
@@ -318,7 +305,7 @@ class ScanView(QWidget):
         
         # Estimated time label
         self.lbl_estimate = QLabel("Estimated time: ~30 seconds for 1,000 files")
-        self.lbl_estimate.setStyleSheet("color: #7f8c8d; font-style: italic;")
+        self.lbl_estimate.setStyleSheet("color: #566573; font-style: italic;")
         layout.addWidget(self.lbl_estimate)
         
         group.setLayout(layout)
@@ -344,17 +331,18 @@ class ScanView(QWidget):
         self.btn_scan.setMinimumHeight(40)
         self.btn_scan.setStyleSheet("""
             QPushButton {
-                background-color: #3498db;
+                background-color: #1f6fb2;
                 color: white;
                 font-size: 14px;
                 font-weight: bold;
                 border-radius: 4px;
             }
             QPushButton:hover {
-                background-color: #2980b9;
+                background-color: #1b63a0;
             }
             QPushButton:disabled {
                 background-color: #bdc3c7;
+                color: #3b4650;
             }
         """)
         layout.addWidget(self.btn_scan)
@@ -401,11 +389,120 @@ class ScanView(QWidget):
         
         # Summary label
         self.lbl_summary = QLabel("No files scanned yet")
-        self.lbl_summary.setStyleSheet("color: #7f8c8d; padding: 5px;")
+        self.lbl_summary.setStyleSheet("color: #566573; padding: 5px;")
         layout.addWidget(self.lbl_summary)
         
         group.setLayout(layout)
         return group
+    
+    def _create_overview_section(self) -> QGroupBox:
+        """Create hierarchical overview and duplicate summary section."""
+        group = QGroupBox("Folder Overview & Duplicate Detection")
+        layout = QVBoxLayout()
+
+        btn_refresh = QPushButton("Generate Overview")
+        btn_refresh.clicked.connect(self._update_overview)
+        layout.addWidget(btn_refresh)
+
+        self.overview_tree = QTreeWidget()
+        self.overview_tree.setHeaderLabels(["Folder", "Files", "Size (MB)", "Jellyfin Matches", "Details"])
+        self.overview_tree.setColumnWidth(0, 400)
+        self.overview_tree.setColumnWidth(3, 160)
+        layout.addWidget(self.overview_tree)
+
+        self.duplicate_summary_label = QLabel("MD5 duplicate groups: not computed yet.")
+        layout.addWidget(self.duplicate_summary_label)
+
+        self.duplicate_tree = QTreeWidget()
+        self.duplicate_tree.setHeaderLabels(["MD5 Hash", "File Count", "Example Paths"])
+        self.duplicate_tree.setColumnWidth(0, 260)
+        self.duplicate_tree.setColumnWidth(1, 80)
+        layout.addWidget(self.duplicate_tree)
+
+        group.setLayout(layout)
+        return group
+
+    def _update_overview(self):
+        """Generate hierarchical overview and duplicate summary."""
+        if not self.folder_structure:
+            QMessageBox.information(
+                self,
+                "No Data",
+                "No folder structure available. Run a scan before generating the overview.",
+            )
+            return
+
+        folder_to_files = defaultdict(list)
+        for record in self.scanned_files:
+            folder_to_files[record.parent_folder].append(record)
+
+        self.overview_tree.clear()
+        for folder_path, data in sorted(self.folder_structure.items()):
+            path_str = str(folder_path)
+            size_mb = data["total_size"] / (1024 * 1024)
+            files_in_folder = folder_to_files.get(folder_path, [])
+            jellyfin_matches = sum(
+                1 for f in files_in_folder if getattr(f, "jellyfin_matched", False)
+            )
+            jellyfin_match_str = (
+                str(jellyfin_matches) if self.jellyfin_client else "N/A"
+            )
+
+            sorted_types = sorted(data["file_types"].items(), key=lambda x: x[1], reverse=True)
+            details = ", ".join([f"{ext}: {count}" for ext, count in sorted_types[:4]])
+
+            item = QTreeWidgetItem(
+                [
+                    path_str,
+                    str(data["file_count"]),
+                    f"{size_mb:.1f}",
+                    jellyfin_match_str,
+                    details,
+                ]
+            )
+
+            if self.jellyfin_client:
+                if jellyfin_matches == data["file_count"]:
+                    item.setBackground(3, QColor(200, 255, 200))
+                elif jellyfin_matches > 0:
+                    item.setBackground(3, QColor(255, 255, 200))
+
+            self.overview_tree.addTopLevelItem(item)
+
+        # Duplicate detection
+        self.duplicate_tree.clear()
+        self.duplicate_groups = {}
+        md5_map = defaultdict(list)
+        for record in self.scanned_files:
+            md5_value = getattr(record, "md5_hash", None)
+            if md5_value:
+                md5_map[md5_value].append(record)
+
+        for md5_value, records in md5_map.items():
+            if len(records) < 2:
+                continue
+            self.duplicate_groups[md5_value] = records
+
+        if not self.duplicate_groups:
+            self.duplicate_summary_label.setText("MD5 duplicate groups: none detected.")
+        else:
+            total_files = sum(len(v) for v in self.duplicate_groups.values())
+            self.duplicate_summary_label.setText(
+                f"MD5 duplicate groups: {len(self.duplicate_groups)} groups, {total_files} files."
+            )
+
+            for md5_value, records in sorted(
+                self.duplicate_groups.items(), key=lambda x: len(x[1]), reverse=True
+            ):
+                example_paths = [str(rec.absolute_path) for rec in records[:3]]
+                item = QTreeWidgetItem(
+                    [
+                        md5_value,
+                        str(len(records)),
+                        "; ".join(example_paths),
+                    ]
+                )
+                self.duplicate_tree.addTopLevelItem(item)
     
     def _add_folder(self):
         """Add a folder to scan list."""
@@ -428,26 +525,8 @@ class ScanView(QWidget):
             # Add to selected folders
             self.selected_folders.append(folder_path)
             self.excluded_paths.extend(excluded)
-            
-            # Update table
-            row = self.folder_table.rowCount()
-            self.folder_table.insertRow(row)
-            
-            self.folder_table.setItem(row, 0, QTableWidgetItem(str(folder_path)))
-            
-            # Count included/excluded
-            try:
-                total_items = len(list(folder_path.iterdir()))
-                excluded_count = len(excluded)
-                included_count = total_items - excluded_count
-            except:
-                included_count = "?"
-                excluded_count = "?"
-            
-            self.folder_table.setItem(row, 1, QTableWidgetItem(str(included_count)))
-            self.folder_table.setItem(row, 2, QTableWidgetItem(str(excluded_count)))
-            
-            logger.info(f"Added folder: {folder_path} ({included_count} included, {excluded_count} excluded)")
+            self._append_folder_row(folder_path, excluded)
+            logger.info(f"Added folder: {folder_path} ({len(excluded)} items excluded)")
     
     def _remove_folder(self):
         """Remove selected folder from scan list."""
@@ -455,8 +534,49 @@ class ScanView(QWidget):
         if current_row >= 0:
             folder_path = Path(self.folder_table.item(current_row, 0).text())
             self.selected_folders.remove(folder_path)
+            self.excluded_paths = [
+                p for p in self.excluded_paths if not (p.parent == folder_path or p == folder_path)
+            ]
             self.folder_table.removeRow(current_row)
             logger.info(f"Removed folder: {folder_path}")
+
+    def _clear_folders(self):
+        """Clear all selected folders and exclusions."""
+        if not self.selected_folders:
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Clear All Folders",
+            f"Remove all {len(self.selected_folders)} folder(s) from the list?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        self.selected_folders.clear()
+        self.excluded_paths.clear()
+        self.folder_table.setRowCount(0)
+        logger.info("Cleared all selected folders")
+    
+    def _append_folder_row(self, folder_path: Path, excluded: List[Path]):
+        """Append folder information to the table."""
+        row = self.folder_table.rowCount()
+        self.folder_table.insertRow(row)
+
+        self.folder_table.setItem(row, 0, QTableWidgetItem(str(folder_path)))
+
+        try:
+            total_items = len(list(folder_path.iterdir()))
+            excluded_count = len(excluded)
+            included_count = total_items - excluded_count
+        except Exception:
+            included_count = "?"
+            excluded_count = "?"
+
+        self.folder_table.setItem(row, 1, QTableWidgetItem(str(included_count)))
+        self.folder_table.setItem(row, 2, QTableWidgetItem(str(excluded_count)))
     
     def _start_scan(self):
         """Start the scan process."""
@@ -464,6 +584,8 @@ class ScanView(QWidget):
             QMessageBox.warning(self, "No Folders", "Please add at least one folder to scan.")
             return
         
+        self.scan_start_time = datetime.now()
+
         # Disable UI during scan
         self.btn_scan.setEnabled(False)
         self.btn_add_folder.setEnabled(False)
@@ -473,74 +595,110 @@ class ScanView(QWidget):
         self.results_table.setRowCount(0)
         self.scanned_files = []
         
-        # Create and start worker
-        calculate_md5 = self.chk_md5.isChecked()
-        self.scan_worker = ScanWorker(
-            self.selected_folders,
-            self.excluded_paths,
-            calculate_md5
+        # Create and start multi-scan worker
+        self.scan_worker = MultiScanWorker(
+            self.selected_folders.copy(),
+            recursive=True,
+            jellyfin_client=self.jellyfin_client,
+            excluded_subfolders=self.excluded_paths.copy()
         )
         
         self.scan_worker.progress.connect(self._on_scan_progress)
-        self.scan_worker.finished.connect(self._on_scan_finished)
+        self.scan_worker.finished.connect(self._on_multiscan_finished)
         self.scan_worker.error.connect(self._on_scan_error)
         
         self.scan_worker.start()
         
         logger.info(f"Started scan of {len(self.selected_folders)} folders")
     
-    def _on_scan_progress(self, current: int, total: int, status: str, elapsed: float):
-        """Handle scan progress updates."""
+    def _on_scan_progress(self, message: str, current: int, total: int):
+        """Handle scan progress updates from MultiScanWorker."""
+        elapsed = 0.0
+        if self.scan_start_time:
+            elapsed = (datetime.now() - self.scan_start_time).total_seconds()
+
         if total > 0:
             self.progress_bar.setMaximum(total)
             self.progress_bar.setValue(current)
             percent = (current / total) * 100
-            avg_time = elapsed / current if current > 0 else 0
+            avg_time = (elapsed / current) if current > 0 else 0
             self.lbl_status.setText(
-                f"Scanning: {current}/{total} files ({percent:.1f}%) - "
-                f"Elapsed: {elapsed:.1f}s - Avg: {avg_time:.2f}s/file"
+                f"{message} ({current}/{total}) - {percent:.1f}% | "
+                f"Elapsed: {elapsed:.1f}s | Avg: {avg_time:.2f}s/file"
             )
         else:
-            # Indeterminate progress
             self.progress_bar.setMaximum(0)
-            self.lbl_status.setText(f"Scanning: {current} files found - Elapsed: {elapsed:.1f}s")
+            if current > 0:
+                self.lbl_status.setText(f"{message} ({current} files) | {elapsed:.1f}s elapsed")
+            else:
+                self.lbl_status.setText(f"{message} | {elapsed:.1f}s elapsed")
     
-    def _on_scan_finished(self, files: List[FileRecord], stats: ScanStatistics):
-        """Handle scan completion."""
-        self.scanned_files = files
+    def _on_multiscan_finished(
+        self,
+        file_records: List[FileRecord],
+        folder_structure: dict,
+        session_ids: List[int],
+    ):
+        """Handle completion of the MultiScanWorker."""
+        self.scanned_files = file_records
+        self.folder_structure = folder_structure
+        self.inventory_session_ids = session_ids
+
+        stats = ScanStatistics()
+        stats.total_files = len(file_records)
+        stats.total_size_bytes = sum(r.size_bytes for r in file_records)
+        if self.scan_start_time:
+            stats.scan_duration_seconds = (datetime.now() - self.scan_start_time).total_seconds()
         self.scan_statistics = stats
-        
+
         # Re-enable UI
         self.btn_scan.setEnabled(True)
         self.btn_add_folder.setEnabled(True)
         self.btn_remove_folder.setEnabled(True)
         self.btn_export.setEnabled(True)
-        
-        # Update progress
-        self.progress_bar.setValue(self.progress_bar.maximum())
-        self.lbl_status.setText(f"Scan complete: {len(files)} files found")
-        
+        self.progress_bar.setMaximum(100)
+        self.progress_bar.setValue(100)
+        self.progress_bar.setVisible(False)
+
         # Populate results table
-        self._populate_results_table(files)
-        
-        # Update summary
-        total_size_gb = stats.total_size_bytes / (1024**3)
-        self.lbl_summary.setText(
-            f"Showing {len(files)} files | Total: {total_size_gb:.2f} GB | "
-            f"Scan time: {stats.scan_duration_seconds:.1f}s"
+        self._populate_results_table(file_records)
+
+        # Update summary/details
+        total_size_gb = stats.total_size_bytes / (1024 ** 3) if stats.total_size_bytes else 0
+        folder_count = len(self.selected_folders)
+        jellyfin_matches = sum(1 for r in file_records if getattr(r, "jellyfin_matched", False))
+        elapsed_str = (
+            f"{stats.scan_duration_seconds:.1f}s"
+            if stats.scan_duration_seconds
+            else "n/a"
         )
-        
-        # Save to database
-        self._save_scan_to_database(files, stats)
-        
-        logger.info(f"Scan completed: {len(files)} files, {total_size_gb:.2f} GB")
-        
+        self.lbl_summary.setText(
+            f"Scanned {len(file_records)} files ({total_size_gb:.2f} GB) "
+            f"from {folder_count} folder(s) in {elapsed_str}. "
+            f"Jellyfin matches: {jellyfin_matches}"
+        )
+        self.lbl_status.setText("Scan complete.")
+
+        # Refresh overview + duplicates
+        self._update_overview()
+
+        # Persist session metadata
+        self._save_scan_to_database(file_records, stats, session_ids)
+
+        logger.info(
+            "Scan completed: %d files, %.2f GB, %d Jellyfin matches",
+            len(file_records),
+            total_size_gb,
+            jellyfin_matches,
+        )
+
         QMessageBox.information(
             self,
             "Scan Complete",
-            f"Successfully scanned {len(files)} files!\n\n"
+            f"Successfully scanned {len(file_records)} files!\n\n"
             f"Total size: {total_size_gb:.2f} GB\n"
-            f"Scan time: {stats.scan_duration_seconds:.1f}s"
+            f"Jellyfin matches: {jellyfin_matches}\n"
+            f"Elapsed: {elapsed_str}",
         )
     
     def _on_scan_error(self, error_msg: str):
@@ -548,6 +706,8 @@ class ScanView(QWidget):
         self.btn_scan.setEnabled(True)
         self.btn_add_folder.setEnabled(True)
         self.btn_remove_folder.setEnabled(True)
+        self.progress_bar.setVisible(False)
+        self.scan_worker = None
         
         self.lbl_status.setText(f"Scan failed: {error_msg}")
         
@@ -631,7 +791,12 @@ class ScanView(QWidget):
                 QMessageBox.critical(self, "Export Error", f"Failed to export:\n{e}")
                 logger.error(f"Export error: {e}")
     
-    def _save_scan_to_database(self, files: List[FileRecord], stats: ScanStatistics):
+    def _save_scan_to_database(
+        self,
+        files: List[FileRecord],
+        stats: Optional[ScanStatistics] = None,
+        session_ids: Optional[List[int]] = None,
+    ):
         """Save scan session to database."""
         try:
             import sqlite3
@@ -645,6 +810,11 @@ class ScanView(QWidget):
                 'folders': [str(f) for f in self.selected_folders],
                 'excluded_paths': [str(p) for p in self.excluded_paths]
             }
+            if session_ids:
+                scan_options['inventory_session_ids'] = session_ids
+            
+            total_size = stats.total_size_bytes if stats else sum(r.size_bytes for r in files)
+            total_files = stats.total_files if stats else len(files)
             
             cursor.execute('''
                 INSERT INTO project_scan_sessions 
@@ -654,8 +824,8 @@ class ScanView(QWidget):
                 self.project.id,
                 datetime.now().isoformat(),
                 datetime.now().isoformat(),
-                len(files),
-                stats.total_size_bytes,
+                total_files,
+                total_size,
                 json.dumps(scan_options)
             ))
             
@@ -690,22 +860,16 @@ class ScanView(QWidget):
                 if path.is_dir():
                     dropped_paths.append(path)
 
-            if dropped_paths:
-                # Auto-open content selection dialog with dropped paths
-                from PyQt6.QtWidgets import QInputDialog
-
-                for folder_path in dropped_paths:
-                    # Add the folder
+            for folder_path in dropped_paths:
+                if folder_path in self.selected_folders:
+                    continue
+                dialog = FolderContentSelectionDialog(folder_path, self)
+                if dialog.exec() == QDialog.DialogCode.Accepted:
+                    excluded = dialog.get_excluded_paths()
                     self.selected_folders.append(folder_path)
-
-                    # Update the folder table
-                    self.tbl_folders.setRowCount(len(self.selected_folders))
-                    for i, path in enumerate(self.selected_folders):
-                        self.tbl_folders.setItem(i, 0, QTableWidgetItem(str(path)))
-                        self.tbl_folders.setItem(i, 1, QTableWidgetItem("All"))
-                        self.tbl_folders.setItem(i, 2, QTableWidgetItem("None"))
-
-                logger.info(f"Added {len(dropped_paths)} folder(s) via drag-and-drop")
+                    self.excluded_paths.extend(excluded)
+                    self._append_folder_row(folder_path, excluded)
+                    logger.info(f"Added folder via drag-and-drop: {folder_path}")
         else:
             event.ignore()
 

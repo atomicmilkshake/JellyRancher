@@ -618,7 +618,7 @@ Instead of hard-blocking users, provide **smart guidance**:
 ### Color Palette
 ```
 Primary:   #2c3e50  (Dark blue-gray) - Headers, primary buttons
-Secondary: #3498db  (Bright blue) - Links, accents
+Secondary: #1f6fb2  (Deep azure) - Links, accents
 Success:   #27ae60  (Green) - Approved, completed
 Warning:   #f39c12  (Orange) - Pending, caution
 Danger:    #e74c3c  (Red) - Rejected, errors
@@ -628,7 +628,7 @@ Background: #ecf0f1  (Light gray)
 Surface:    #ffffff  (White)
 Border:     #bdc3c7  (Medium gray)
 Text:       #2c3e50  (Dark)
-Text-Light: #7f8c8d  (Gray)
+Text-Light: #566573  (Slate gray)
 ```
 
 ### Typography

@@ -1,3 +1,39 @@
+\n## PHASE 33B: Accessibility Polish ✅
+**Date:** 2025-11-18 08:24:37
+
+**Goal:** Remove the lingering File ▸ Open Project stub and audit every text/background pairing so Studio meets baseline contrast expectations in both themes.
+
+**Key Enhancements:**
+- **OpenProjectDialog:** Added a searchable, double-clickable chooser (name/description/state/last-opened) plus filtering so File ▸ Open Project now truly loads the selected record (no placeholders). Recent-project logic stays intact.
+- **Contrast sweep (light theme):** Replaced the low-contrast #3498db accent (ratio 3.15:1 vs white) with #1f6fb2 for buttons, selections, hover/pressed states, combo borders, etc., and darkened muted text from #7f8c8d → #566573 to keep subtitles/status text ≥5:1 on white/ice backgrounds. Disabled controls now use #3b4650 on #bdc3c7.
+- **Contrast sweep (dark theme):** Bumped disabled-text color to #c0c0c0 (vs #3a3a3a background) and verified all other pairings already exceeded 4.5:1.
+- **Inline UI updates:** Synced Scan/Analysis/Review/Execution labels and the welcome subtitle to the new palette, refreshed Jellyfin checkbox accent, and documented the palette shift inside `docs/UX_REDESIGN_MASTER_PLAN.md` for future contributors.
+- **Dialog contrast fix:** Updated QCheckBox indicator border in light theme from #bdc3c7 to #566573 to ensure visibility of unchecked states in FolderContentSelectionDialog and other checkbox-heavy interfaces.
+
+**Obstacle → Breakthrough:** Initial audit showed multiple ratios under 4.5:1 (e.g., white text on #3498db buttons, subtitled copy on #ecf0f1). Rather than bolt on ad-hoc fixes, I defined a new shared accent (#1f6fb2) and neutral slate (#566573), then propagated them via the global QSS plus every inline stylesheet so we retain consistency without regressing brand feel.
+
+**Testing:**
+- `.venv\\Scripts\\Activate.ps1; python launch_gui.py`
+
+**Next Steps:**
+- Monitor for any custom widgets still using legacy hard-coded colors (e.g., legacy dialogs under `archive/`).
+- Consider centralizing palette constants to avoid hand-editing future widgets and to make WCAG regression tests scriptable.
+
+## PHASE 33A: Studio Superset Alignment ✅
+**Date:** 2025-11-17 21:50:20
+
+**Goal:** Refactor JellyRancher Studio so it fully subsumes every feature from `jelly_rancher_clean.py` while preserving the project-centric UX delivered in Phase 32.
+
+**Key Enhancements:**
+- **ScanView parity:** Added a "Clear All" control, kept exclusion UX, and wired the `scan_completed` signal so the Project Explorer refreshes immediately after each inventory run.
+- **AnalysisView parity:** Restored prompt generation via `LLMStructureAnalyzer`, added a dedicated canonical metadata panel, and re-enabled TMDB/OMDb enrichment with persisted results.
+- **ReviewView parity:** Reintroduced Load/Export/Dry-Run buttons (with working CSV export and preview dialogs), fixed bulk approve/reject logic, and improved filter handling for HIGH/MEDIUM confidence operations.
+- **ExecutionView parity:** Added the legacy Step 6 snapshot messaging to keep transaction-log expectations clear before running the TransactionManager-backed execution workflow.
+- **Studio shell:** Connected all view signals to refresh the Project Explorer/status bar and enabled double-click navigation so each section opens the appropriate Scan/Analysis/Review/Execution workspace.
+
+**Outcome:** JellyRancher Studio now delivers the complete 9-point workflow (Scan → Overview → LLM → Metadata → Review → Snapshot → Execute → Subtitles) as a true superset of the legacy GUI, ready for the upcoming Phase 33B+ feature work.
+
+**Follow-up (2025-11-18 01:54:23):** Updated `launch_gui.py` so `python launch_gui.py` now launches `jelly_rancher_studio.py` (preferring the `.venv` interpreter when available), making the Studio experience the default entry point.
 # JellyRancher Agent Journal (COMPRESSED)
 **Backup Created:** `backups/agent-journal_2025-11-17_083016.md` (1,993 lines)
 **Compression Date:** 2025-11-17 08:30:16

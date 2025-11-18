@@ -198,7 +198,8 @@ class InventoryRepository:
     def add_file_records(
         self,
         session_id: int,
-        file_records: List[FileRecord]
+        file_records: List[FileRecord],
+        update_existing: bool = False
     ):
         """
         Add file records to inventory.
@@ -212,7 +213,9 @@ class InventoryRepository:
         with self._get_connection() as conn:
             cursor = conn.cursor()
 
-            # Prepare data for batch insert
+            # Prepare data for batch insert. The update_existing flag is accepted
+            # for API parity with older callers but SQLite's INSERT OR REPLACE
+            # already updates existing rows, so no special handling is needed.
             import json
             records = [
                 (

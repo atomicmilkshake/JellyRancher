@@ -19,7 +19,7 @@ Usage:
 import sys
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 import sqlite3
 
@@ -27,7 +27,8 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QSplitter, QTreeWidget, QTreeWidgetItem, QTabWidget, QLabel,
     QMenuBar, QMenu, QStatusBar, QPushButton, QMessageBox, QDialog,
-    QLineEdit, QTextEdit, QDialogButtonBox, QComboBox
+    QLineEdit, QTextEdit, QDialogButtonBox, QComboBox, QTableWidget,
+    QTableWidgetItem, QAbstractItemView
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QFont, QIcon
@@ -38,6 +39,7 @@ from scripts.ui.scan_view import ScanView
 from scripts.ui.analysis_view import AnalysisView
 from scripts.ui.review_view import ReviewView
 from scripts.ui.execution_view import ExecutionView
+from scripts.ui.subtitles_view import SubtitlesView
 from scripts.core.dialogs.jellyfin_settings_dialog import JellyfinSettingsDialog
 from scripts.ui.styles import apply_stylesheet
 
@@ -88,6 +90,106 @@ class NewProjectDialog(QDialog):
             'name': self.name_input.text().strip(),
             'description': self.description_input.toPlainText().strip()
         }
+
+
+class OpenProjectDialog(QDialog):
+    """Dialog for selecting and opening an existing project."""
+
+    def __init__(self, project_manager: 'ProjectManager', parent=None):
+        super().__init__(parent)
+        self.project_manager = project_manager
+        self.setWindowTitle("Open Project")
+        self.resize(700, 450)
+        self.setModal(True)
+
+        self.projects = self.project_manager.list_projects()
+        self.filtered_projects = list(self.projects)
+        self.selected_project: Optional[Project] = None
+
+        layout = QVBoxLayout()
+
+        layout.addWidget(QLabel("Search Projects:"))
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Filter by name or description...")
+        self.search_input.textChanged.connect(self._filter_projects)
+        layout.addWidget(self.search_input)
+
+        self.table = QTableWidget()
+        self.table.setColumnCount(4)
+        self.table.setHorizontalHeaderLabels(["Name", "Description", "State", "Last Opened"])
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.setAlternatingRowColors(True)
+        self.table.cellDoubleClicked.connect(self._handle_double_click)
+        layout.addWidget(self.table)
+
+        self.empty_label = QLabel("No projects found. Create a new project first.")
+        self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.empty_label)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self._handle_accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+        self.setLayout(layout)
+        self._populate_table(self.filtered_projects)
+
+    def _populate_table(self, projects: List[Project]):
+        self.table.setRowCount(len(projects))
+        for row, project in enumerate(projects):
+            name_item = QTableWidgetItem(project.name)
+            name_item.setData(Qt.ItemDataRole.UserRole, project.id)
+            self.table.setItem(row, 0, name_item)
+
+            desc_text = project.description or ""
+            desc_item = QTableWidgetItem(desc_text)
+            self.table.setItem(row, 1, desc_item)
+
+            state_item = QTableWidgetItem(project.state.title())
+            self.table.setItem(row, 2, state_item)
+
+            last_opened = project.last_opened or ""
+            self.table.setItem(row, 3, QTableWidgetItem(last_opened))
+
+        has_projects = bool(projects)
+        self.table.setEnabled(has_projects)
+        self.empty_label.setVisible(not has_projects)
+        if has_projects:
+            self.table.resizeColumnsToContents()
+            self.table.selectRow(0)
+
+    def _filter_projects(self, text: str):
+        query = text.strip().lower()
+        if not query:
+            self.filtered_projects = list(self.projects)
+        else:
+            self.filtered_projects = [
+                project for project in self.projects
+                if query in project.name.lower()
+                or query in (project.description or "").lower()
+            ]
+        self._populate_table(self.filtered_projects)
+
+    def _handle_double_click(self, row: int, _column: int):
+        self._select_row(row)
+
+    def _handle_accept(self):
+        row = self.table.currentRow()
+        self._select_row(row)
+
+    def _select_row(self, row: int):
+        if 0 <= row < len(self.filtered_projects):
+            self.selected_project = self.filtered_projects[row]
+            self.accept()
+        elif not self.filtered_projects:
+            QMessageBox.information(self, "No Projects", "No projects are available to open.")
+
+    def get_selected_project(self) -> Optional[Project]:
+        return self.selected_project
 
 
 class JellyRancherStudio(QMainWindow):
@@ -273,6 +375,10 @@ class JellyRancherStudio(QMainWindow):
         self.btn_execute.clicked.connect(self.action_execute)
         btn_layout.addWidget(self.btn_execute)
         
+        self.btn_subtitles = QPushButton("▶ Manage Subtitles")
+        self.btn_subtitles.clicked.connect(self.action_subtitles)
+        btn_layout.addWidget(self.btn_subtitles)
+        
         layout.addLayout(btn_layout)
         
         widget.setLayout(layout)
@@ -306,7 +412,7 @@ class JellyRancherStudio(QMainWindow):
         # Subtitle
         subtitle = QLabel("Your professional media library management workspace")
         subtitle.setFont(QFont("Segoe UI", 12))
-        subtitle.setStyleSheet("color: #7f8c8d; padding-bottom: 40px;")
+        subtitle.setStyleSheet("color: #566573; padding-bottom: 40px;")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(subtitle)
         
@@ -440,8 +546,53 @@ class JellyRancherStudio(QMainWindow):
     
     def _on_explorer_item_double_clicked(self, item: QTreeWidgetItem, column: int):
         """Handle double-click on explorer item."""
-        # TODO: Open appropriate view based on item type
-        logger.info(f"Double-clicked: {item.text(0)}")
+        parent = item.parent()
+        if not parent:
+            return
+
+        section = parent.text(0)
+        if section.startswith("📁 Scans"):
+            self.action_scan()
+        elif section.startswith("🤖 Analyses"):
+            self.action_analyze()
+        elif section.startswith("📋 Action Plans"):
+            self.action_review()
+        elif section.startswith("⚙️ Execution"):
+            self.action_execute()
+        elif section.startswith("📊 Reports"):
+            QMessageBox.information(self, "Reports", "Reports view is coming soon.")
+        else:
+            logger.info(f"Explorer item double-clicked: {item.text(0)}")
+
+    def _refresh_current_project(self, current_view: Optional[str] = None):
+        """Reload project metadata and refresh explorer tree."""
+        if not self.current_project:
+            return
+        refreshed = self.project_manager.load_project(project_id=self.current_project.id)
+        if refreshed:
+            self.current_project = refreshed
+            self._update_project_explorer()
+            if current_view and self.current_project.id:
+                try:
+                    state = ProjectState(project_id=self.current_project.id, current_view=current_view)
+                    self.project_manager.save_project_state(state)
+                except Exception as exc:
+                    logger.warning("Failed to persist project state: %s", exc)
+
+    def _on_scan_completed(self, scan_id: int):
+        """Handle scan completion signal from ScanView."""
+        self.status_label.setText(f"Scan session saved (ID #{scan_id})")
+        self._refresh_current_project("scan")
+
+    def _on_analysis_saved(self, analysis_id: int):
+        """Handle analysis/metadata completion."""
+        self.status_label.setText(f"Analysis saved (ID #{analysis_id})")
+        self._refresh_current_project("analysis")
+
+    def _on_action_plan_ready(self, action_plan_id: int):
+        """Handle action plan readiness from ReviewView."""
+        self.status_label.setText(f"Action plan ready (ID #{action_plan_id})")
+        self._refresh_current_project("review")
     
     # ========================================================================
     # Project Management Actions
@@ -469,20 +620,14 @@ class JellyRancherStudio(QMainWindow):
                 QMessageBox.critical(self, "Error", str(e))
     
     def open_project(self):
-        """Open an existing project (show selection dialog)."""
-        # TODO: Implement project selection dialog
-        projects = self.project_manager.list_projects()
-        
-        if not projects:
-            QMessageBox.information(self, "No Projects", "No projects found. Create a new project first.")
-            return
-        
-        # For now, just show a simple message
-        QMessageBox.information(
-            self,
-            "Open Project",
-            f"Found {len(projects)} projects. Full selection dialog coming in Phase 32B."
-        )
+        """Open an existing project using the selection dialog."""
+        dialog = OpenProjectDialog(self.project_manager, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            project = dialog.get_selected_project()
+            if project and project.id:
+                self.load_project(project.id)
+            else:
+                QMessageBox.warning(self, "No Selection", "Select a project to open.")
     
     def load_project(self, project_id: int):
         """Load a project by ID."""
@@ -548,6 +693,7 @@ class JellyRancherStudio(QMainWindow):
         
         # Create and open scan view
         scan_view = ScanView(self.current_project, self.project_manager, self)
+        scan_view.scan_completed.connect(self._on_scan_completed)
         self.tab_widget.addTab(scan_view, f"📁 Scan - {self.current_project.name}")
         self.tab_widget.setCurrentWidget(scan_view)
         
@@ -561,6 +707,8 @@ class JellyRancherStudio(QMainWindow):
         
         # Create and open analysis view
         analysis_view = AnalysisView(self.current_project, self.project_manager, self)
+        analysis_view.analysis_saved.connect(self._on_analysis_saved)
+        analysis_view.metadata_built.connect(self._on_analysis_saved)
         self.tab_widget.addTab(analysis_view, f"🤖 Analysis - {self.current_project.name}")
         self.tab_widget.setCurrentWidget(analysis_view)
         
@@ -574,6 +722,7 @@ class JellyRancherStudio(QMainWindow):
         
         # Create and open review view
         review_view = ReviewView(self.current_project, self.project_manager, self)
+        review_view.operations_ready.connect(self._on_action_plan_ready)
         self.tab_widget.addTab(review_view, f"📋 Review - {self.current_project.name}")
         self.tab_widget.setCurrentWidget(review_view)
         
@@ -594,6 +743,17 @@ class JellyRancherStudio(QMainWindow):
         self.tab_widget.setCurrentWidget(execution_view)
         
         logger.info(f"Opened execution view for project: {self.current_project.name}")
+    
+    def action_subtitles(self):
+        """Open subtitles workflow view."""
+        if not self.current_project:
+            QMessageBox.information(self, "No Project", "Please create or open a project first.")
+            return
+
+        subtitles_view = SubtitlesView(self.current_project, self.project_manager, self)
+        self.tab_widget.addTab(subtitles_view, f"💬 Subtitles - {self.current_project.name}")
+        self.tab_widget.setCurrentWidget(subtitles_view)
+        logger.info(f"Opened subtitles view for project: {self.current_project.name}")
     
     def _get_latest_action_plan_id(self) -> Optional[int]:
         """Get the most recent action plan ID for the current project."""
@@ -660,12 +820,12 @@ class JellyRancherStudio(QMainWindow):
         """Setup keyboard shortcuts for all major actions."""
         from PyQt6.QtGui import QKeySequence
 
-        # File menu shortcuts
-        QAction("New Project", self, shortcut=QKeySequence.New, triggered=self.new_project)
-        QAction("Open Project", self, shortcut=QKeySequence.Open, triggered=self.open_project)
-        QAction("Save Project", self, shortcut=QKeySequence.Save, triggered=self._auto_save)
-        QAction("Settings", self, shortcut=QKeySequence.Preferences, triggered=self.show_settings)
-        QAction("Exit", self, shortcut=QKeySequence.Quit, triggered=self.close)
+        # File menu shortcuts - PyQt6 uses StandardKey enum
+        QAction("New Project", self, shortcut=QKeySequence(QKeySequence.StandardKey.New), triggered=self.new_project)
+        QAction("Open Project", self, shortcut=QKeySequence(QKeySequence.StandardKey.Open), triggered=self.open_project)
+        QAction("Save Project", self, shortcut=QKeySequence(QKeySequence.StandardKey.Save), triggered=self._auto_save)
+        QAction("Settings", self, shortcut=QKeySequence(QKeySequence.StandardKey.Preferences), triggered=self.show_settings)
+        QAction("Exit", self, shortcut=QKeySequence(QKeySequence.StandardKey.Quit), triggered=self.close)
 
     def toggle_dark_mode(self, checked: bool):
         """Toggle dark mode on/off."""
@@ -716,11 +876,8 @@ class JellyRancherStudio(QMainWindow):
 
 def main():
     """Main entry point."""
-    # Setup logging
-    MasterLogger.initialize(
-        log_dir=Path("data/logs"),
-        app_name="jelly_rancher_studio"
-    )
+    # Setup logging - MasterLogger is a singleton that auto-initializes
+    master_logger = MasterLogger()
     
     logger.info("=" * 70)
     logger.info("JellyRancher Studio Starting")

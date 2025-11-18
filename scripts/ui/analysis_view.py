@@ -9,8 +9,10 @@ Allows users to analyze folder structure and get reorganization recommendations.
 import logging
 import sqlite3
 import json
+import os
 from datetime import datetime
 from pathlib import Path
+from typing import List, Optional
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QTextEdit,
     QComboBox, QMessageBox, QGroupBox, QHBoxLayout, QProgressBar,
@@ -20,113 +22,13 @@ from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 from scripts.core.project_manager import ProjectManager, Project
-from scripts.media.llm_structure_analyzer import LLMStructureAnalyzer
+from scripts.core.file_scanner import FileScanner, FileRecord
+from scripts.core.inventory_repository import InventoryRepository
 from scripts.ai.ravenmaven_client import PoeClient
-from scripts.media.media_metadata_lookup import MediaMetadataLookup
-from scripts.media.nfo_generator import NFOGenerator
+from scripts.core.workers import LLMAnalysisWorker, MetadataLookupWorker
+from scripts.media.llm_structure_analyzer import LLMStructureAnalyzer
 
 logger = logging.getLogger(__name__)
-
-
-class LLMAnalysisWorker(QThread):
-    """Background worker for LLM analysis."""
-
-    finished = pyqtSignal(str, dict)  # response_text, parsed_json
-    error = pyqtSignal(str)
-    progress = pyqtSignal(str)  # status message
-
-    def __init__(self, model: str, folder_structure: dict):
-        super().__init__()
-        self.model = model
-        self.folder_structure = folder_structure
-
-    def run(self):
-        """Execute LLM analysis in background."""
-        try:
-            self.progress.emit("Initializing LLM analyzer...")
-
-            analyzer = LLMStructureAnalyzer()
-
-            self.progress.emit(f"Sending request to {self.model}...")
-
-            # Run analysis
-            result = analyzer.analyze_structure(
-                self.folder_structure,
-                model_name=self.model
-            )
-
-            self.progress.emit("Analysis complete!")
-
-            # Extract response and parsed data
-            response_text = result.get('raw_response', 'No response')
-            parsed_json = result.get('parsed_response', {})
-
-            self.finished.emit(response_text, parsed_json)
-
-        except Exception as e:
-            logger.error(f"LLM analysis error: {e}", exc_info=True)
-            self.error.emit(str(e))
-
-
-class MetadataEnrichmentWorker(QThread):
-    """Background worker for metadata enrichment."""
-
-    finished = pyqtSignal(dict)  # enriched metadata dict
-    error = pyqtSignal(str)
-    progress = pyqtSignal(str, int, int)  # status, current, total
-
-    def __init__(self, parsed_json: dict):
-        super().__init__()
-        self.parsed_json = parsed_json
-
-    def run(self):
-        """Execute metadata enrichment in background."""
-        try:
-            metadata_lookup = MediaMetadataLookup()
-            enriched = {'movies': [], 'tv_shows': []}
-
-            # Extract detected items from LLM analysis
-            detections = self.parsed_json.get('detected_media', {})
-            movies = detections.get('movies', [])
-            shows = detections.get('tv_shows', [])
-
-            total = len(movies) + len(shows)
-            current = 0
-
-            # Enrich movies
-            for movie in movies:
-                current += 1
-                try:
-                    title = movie.get('title')
-                    year = movie.get('year')
-                    self.progress.emit(f"Looking up: {title}", current, total)
-
-                    result = metadata_lookup.lookup_movie(title, year)
-                    if result:
-                        enriched['movies'].append(result)
-                except Exception as e:
-                    logger.warning(f"Failed to enrich movie {title}: {e}")
-
-            # Enrich TV shows
-            for show in shows:
-                current += 1
-                try:
-                    title = show.get('title')
-                    year = show.get('year')
-                    self.progress.emit(f"Looking up: {title}", current, total)
-
-                    result = metadata_lookup.lookup_tv_show(title, year)
-                    if result:
-                        enriched['tv_shows'].append(result)
-                except Exception as e:
-                    logger.warning(f"Failed to enrich show {title}: {e}")
-
-            self.progress.emit("Enrichment complete!", total, total)
-            self.finished.emit(enriched)
-
-        except Exception as e:
-            logger.error(f"Metadata enrichment error: {e}", exc_info=True)
-            self.error.emit(str(e))
 
 
 class AnalysisView(QWidget):
@@ -141,6 +43,10 @@ class AnalysisView(QWidget):
     - Save to database
     """
     
+    # Signals notify Studio to refresh project explorer/state when new data exists
+    analysis_saved = pyqtSignal(int)
+    metadata_built = pyqtSignal(int)
+
     def __init__(self, project: Project, project_manager: ProjectManager, parent=None):
         super().__init__(parent)
 
@@ -150,7 +56,12 @@ class AnalysisView(QWidget):
         self.folder_structure = None
         self.current_parsed_json = None  # Store parsed JSON for enrichment
         self.enrichment_worker = None
-        self.nfo_generator = NFOGenerator()
+        self.canonical_database = None
+        self.inventory_repo = InventoryRepository()
+        self.scanned_files: List[FileRecord] = []
+        self.detected_media: List[dict] = []
+        self.llm_analysis: Optional[dict] = None
+        self.metadata_worker = None
 
         self._init_ui()
         self._load_scan_data()
@@ -247,7 +158,7 @@ class AnalysisView(QWidget):
         layout.addWidget(self.progress_bar)
         
         self.lbl_status = QLabel("")
-        self.lbl_status.setStyleSheet("color: #7f8c8d; font-style: italic;")
+        self.lbl_status.setStyleSheet("color: #566573; font-style: italic;")
         layout.addWidget(self.lbl_status)
         
         # Results
@@ -261,6 +172,16 @@ class AnalysisView(QWidget):
         
         results_group.setLayout(results_layout)
         layout.addWidget(results_group, 1)
+
+        metadata_group = QGroupBox("Canonical Metadata Database")
+        metadata_layout = QVBoxLayout()
+        metadata_layout.addWidget(QLabel("TMDB/OMDb lookup results:"))
+        self.metadata_output = QTextEdit()
+        self.metadata_output.setReadOnly(True)
+        self.metadata_output.setPlaceholderText("Click 'Enrich Metadata' to build the canonical database...")
+        metadata_layout.addWidget(self.metadata_output)
+        metadata_group.setLayout(metadata_layout)
+        layout.addWidget(metadata_group)
         
         self.setLayout(layout)
     
@@ -284,21 +205,29 @@ class AnalysisView(QWidget):
                 scan_id, total_files, options_json = row
                 options = json.loads(options_json) if options_json else {}
                 folders = options.get('folders', [])
-                
-                self.lbl_status.setText(
-                    f"Ready to analyze {total_files} files from {len(folders)} folder(s)"
-                )
-                
-                # Build folder structure for LLM
-                self.folder_structure = {
-                    'project_name': self.project.name,
-                    'total_files': total_files,
-                    'folders': folders,
-                    'scan_id': scan_id
-                }
-                
-                self.btn_run.setEnabled(True)
-                self.btn_preview.setEnabled(True)
+                inventory_sessions = options.get('inventory_session_ids', [])
+
+                self.scanned_files = []
+                for session_id in inventory_sessions:
+                    self.scanned_files.extend(self.inventory_repo.get_all_files(session_id))
+
+                if not self.scanned_files:
+                    self.lbl_status.setText(
+                        "Scan data found but inventory is unavailable. Please run a new scan."
+                    )
+                    self.btn_run.setEnabled(False)
+                    self.btn_preview.setEnabled(False)
+                else:
+                    scanner = FileScanner()
+                    self.folder_structure = scanner.get_folder_structure(self.scanned_files)
+                    self.folder_structure['project_name'] = self.project.name
+                    self.folder_structure['scan_id'] = scan_id
+                    self.folder_structure['total_files'] = len(self.scanned_files)
+                    self.lbl_status.setText(
+                        f"Ready to analyze {len(self.scanned_files)} files from {len(folders)} folder(s)"
+                    )
+                    self.btn_run.setEnabled(True)
+                    self.btn_preview.setEnabled(True)
             else:
                 self.lbl_status.setText("No scan data found. Please run a scan first.")
                 self.btn_run.setEnabled(False)
@@ -410,7 +339,11 @@ class AnalysisView(QWidget):
         self.progress_bar.setVisible(True)
         
         # Start worker
-        self.analysis_worker = LLMAnalysisWorker(model, self.folder_structure)
+        self.analysis_worker = LLMAnalysisWorker(
+            folder_structure=self.folder_structure,
+            scanned_files=self.scanned_files,
+            model=model,
+        )
         self.analysis_worker.progress.connect(self._on_analysis_progress)
         self.analysis_worker.finished.connect(self._on_analysis_finished)
         self.analysis_worker.error.connect(self._on_analysis_error)
@@ -422,33 +355,90 @@ class AnalysisView(QWidget):
         """Handle analysis progress updates."""
         self.lbl_status.setText(status)
     
-    def _on_analysis_finished(self, response_text: str, parsed_json: dict):
+    def _on_analysis_finished(self, analysis_result: dict):
         """Handle analysis completion."""
-        # Re-enable UI
         self.btn_run.setEnabled(True)
         self.btn_preview.setEnabled(True)
         self.model_combo.setEnabled(True)
-        self.btn_enrich.setEnabled(True)  # Enable enrichment button
+        self.btn_enrich.setEnabled(True)
         self.progress_bar.setVisible(False)
 
-        # Store parsed JSON for enrichment
-        self.current_parsed_json = parsed_json
+        self.llm_analysis = analysis_result
+        self.current_parsed_json = analysis_result
+        self.detected_media = analysis_result.get("detected_media", [])
 
-        # Display results
-        self.results_text.setPlainText(response_text)
-        self.lbl_status.setText("Analysis complete! Click 'Enrich Metadata' to look up external APIs.")
+        # Display structured summary similar to legacy workflow
+        output_lines = []
+        output_lines.append("=" * 80)
+        output_lines.append("LLM ANALYSIS COMPLETE")
+        output_lines.append("=" * 80 + "\n")
 
-        # Save to database
-        self._save_analysis_to_database(response_text, parsed_json)
+        output_lines.append(f"DETECTED MEDIA ({len(self.detected_media)} items):")
+        output_lines.append("-" * 80)
+        for media in self.detected_media[:10]:
+            media_type = media.get("type", "unknown").upper()
+            title = media.get("title", "Unknown")
+            year = media.get("year_estimate", "?")
+            confidence = media.get("confidence", "unknown")
+            output_lines.append(f"  [{media_type}] {title} ({year}) - Confidence: {confidence}")
+            if media.get("notes"):
+                output_lines.append(f"           Notes: {media['notes']}")
+        if len(self.detected_media) > 10:
+            output_lines.append(f"  ... and {len(self.detected_media) - 10} more")
+        output_lines.append("")
 
+        plan = analysis_result.get("reorganization_plan", {})
+        plan_summary = plan.get("summary", "No summary provided")
+        output_lines.append("REORGANIZATION PLAN:")
+        output_lines.append("-" * 80)
+        output_lines.append(plan_summary)
+        output_lines.append("")
+
+        folder_changes = plan.get("folder_changes", [])
+        if folder_changes:
+            output_lines.append(f"PROPOSED CHANGES ({len(folder_changes)} folders):")
+            output_lines.append("-" * 80)
+            for change in folder_changes[:10]:
+                output_lines.append(f"  {change.get('action', 'unknown').upper()}: {change.get('current_path', 'unknown')}")
+                output_lines.append(f"    → {change.get('proposed_path', 'unknown')}")
+                output_lines.append(f"    Reason: {change.get('reason', 'No reason provided')}")
+                output_lines.append("")
+            if len(folder_changes) > 10:
+                output_lines.append(f"  ... and {len(folder_changes) - 10} more changes")
+
+        multi_part = analysis_result.get("multi_part_episodes", [])
+        if multi_part:
+            output_lines.append("")
+            output_lines.append(f"MULTI-PART EPISODES ({len(multi_part)}):")
+            output_lines.append("-" * 80)
+            for episode in multi_part:
+                show = episode.get("show_title", "Unknown")
+                season = episode.get("season_number", "?")
+                episodes = episode.get("episode_numbers", [])
+                title = episode.get("combined_episode_title", "Unknown")
+                output_lines.append(f"  {show} - S{season:02d}E{episodes} - {title}")
+                output_lines.append(f"    Reason: {episode.get('reason', 'No reason provided')}")
+
+        output_lines.append("")
+        output_lines.append("LLM REASONING:")
+        output_lines.append("-" * 80)
+        reasoning = analysis_result.get("reasoning", "No reasoning provided")
+        output_lines.append(reasoning)
+        output_lines.append("")
+        output_lines.append("=" * 80)
+
+        self.results_text.setPlainText("\n".join(output_lines))
+        self.lbl_status.setText("Analysis complete! Click 'Enrich Metadata' to query TMDB/OMDb.")
+
+        self._save_analysis_to_database(output_lines, analysis_result)
         logger.info("LLM analysis completed successfully")
 
         QMessageBox.information(
             self,
             "Analysis Complete",
             f"Analysis completed successfully!\n\n"
-            f"Found {len(parsed_json.get('recommendations', []))} recommendations.\n\n"
-            f"Click 'Enrich Metadata' to query TMDB/TVDB for additional details."
+            f"Detected {len(self.detected_media)} media items.\n"
+            f"Click 'Enrich Metadata' for canonical data.",
         )
     
     def _on_analysis_error(self, error_msg: str):
@@ -468,7 +458,7 @@ class AnalysisView(QWidget):
         
         logger.error(f"LLM analysis error: {error_msg}")
     
-    def _save_analysis_to_database(self, response_text: str, parsed_json: dict):
+    def _save_analysis_to_database(self, display_content, parsed_json: dict):
         """Save analysis results to database."""
         try:
             conn = sqlite3.connect("data/media_library.db")
@@ -494,7 +484,7 @@ class AnalysisView(QWidget):
                 scan_id,
                 model,
                 datetime.now().isoformat(),
-                response_text,
+                "\n".join(display_content) if isinstance(display_content, list) else display_content,
                 json.dumps(parsed_json),
                 confidence,
                 issues_found
@@ -505,125 +495,147 @@ class AnalysisView(QWidget):
             conn.close()
             
             logger.info(f"Saved analysis to database: ID={self.current_analysis_id}")
+            if self.current_analysis_id:
+                self.analysis_saved.emit(self.current_analysis_id)
             
         except Exception as e:
             logger.error(f"Failed to save analysis to database: {e}", exc_info=True)
 
     def _enrich_metadata(self):
         """Start metadata enrichment process."""
-        if not self.current_parsed_json:
-            QMessageBox.warning(self, "No Data", "No analysis results to enrich. Please run analysis first.")
+        if not self.detected_media:
+            QMessageBox.warning(
+                self, "No Data", "No detected media available. Run analysis first."
+            )
             return
 
         reply = QMessageBox.question(
             self,
-            "Enrich Metadata",
-            "Query TMDB and TVDB for metadata enrichment?\n\n"
-            "This will look up detected movies and TV shows to get:\n"
-            "- Accurate titles and years\n"
-            "- Posters and artwork\n"
-            "- Episode information\n\n"
-            "This may take 30-60 seconds depending on API availability.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            "Build Canonical Metadata",
+            "Query TMDB/OMDb for canonical metadata?\n\n"
+            "This will resolve official titles, years, season/episode structure,\n"
+            "and identify multi-part episodes that require NFO files.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
 
         if reply != QMessageBox.StandardButton.Yes:
             return
 
-        # Disable UI during enrichment
         self.btn_enrich.setEnabled(False)
         self.btn_run.setEnabled(False)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
 
-        # Start worker
-        self.enrichment_worker = MetadataEnrichmentWorker(self.current_parsed_json)
-        self.enrichment_worker.progress.connect(self._on_enrichment_progress)
-        self.enrichment_worker.finished.connect(self._on_enrichment_finished)
-        self.enrichment_worker.error.connect(self._on_enrichment_error)
-        self.enrichment_worker.start()
+        tmdb_key = os.getenv("TMDB_API_KEY")
+        omdb_key = os.getenv("OMDB_API_KEY")
+
+        self.metadata_worker = MetadataLookupWorker(
+            detected_media=self.detected_media,
+            scanned_files=self.scanned_files,
+            tmdb_api_key=tmdb_key,
+            omdb_api_key=omdb_key,
+        )
+        self.metadata_worker.progress.connect(self._on_metadata_progress)
+        self.metadata_worker.finished.connect(self._on_metadata_finished)
+        self.metadata_worker.error.connect(self._on_metadata_error)
+        self.metadata_worker.start()
 
         logger.info("Started metadata enrichment")
 
-    def _on_enrichment_progress(self, status: str, current: int, total: int):
-        """Handle enrichment progress updates."""
+    def _on_metadata_progress(self, status: str, current: int, total: int):
+        """Handle metadata lookup progress updates."""
         self.lbl_status.setText(status)
         if total > 0:
             self.progress_bar.setMaximum(total)
             self.progress_bar.setValue(current)
 
-    def _on_enrichment_finished(self, enriched_data: dict):
-        """Handle enrichment completion."""
+    def _on_metadata_finished(self, canonical_db: dict):
+        """Handle metadata lookup completion."""
         self.btn_enrich.setEnabled(True)
         self.btn_run.setEnabled(True)
         self.progress_bar.setVisible(False)
+        self.canonical_database = canonical_db
 
-        # Display enriched results
-        display_text = "ENRICHED METADATA RESULTS\n"
-        display_text += "=" * 50 + "\n\n"
+        lines = []
+        lines.append("CANONICAL METADATA DATABASE")
+        lines.append("=" * 60 + "\n")
 
-        if enriched_data.get('movies'):
-            display_text += f"MOVIES ({len(enriched_data['movies'])})\n"
-            display_text += "-" * 30 + "\n"
-            for movie in enriched_data['movies']:
-                title = movie.get('title', 'Unknown')
-                year = movie.get('year', '?')
-                tmdb_id = movie.get('tmdb_id', '?')
-                display_text += f"• {title} ({year}) - TMDb: {tmdb_id}\n"
-            display_text += "\n"
+        lines.append(f"Movies: {len(canonical_db.get('movies', []))}")
+        for movie in canonical_db.get("movies", [])[:10]:
+            title = movie.get("title", "Unknown")
+            year = movie.get("year", "????")
+            tmdb_id = movie.get("tmdb_id", "N/A")
+            lines.append(f"  • {title} ({year}) [TMDb: {tmdb_id}]")
+        lines.append("")
 
-        if enriched_data.get('tv_shows'):
-            display_text += f"TV SHOWS ({len(enriched_data['tv_shows'])})\n"
-            display_text += "-" * 30 + "\n"
-            for show in enriched_data['tv_shows']:
-                title = show.get('title', 'Unknown')
-                year = show.get('year', '?')
-                tvdb_id = show.get('tvdb_id', '?')
-                display_text += f"• {title} ({year}) - TVDb: {tvdb_id}\n"
-            display_text += "\n"
+        lines.append(f"TV Shows: {len(canonical_db.get('tv_shows', []))}")
+        for show in canonical_db.get("tv_shows", [])[:10]:
+            title = show.get("title", "Unknown")
+            year = show.get("year", "????")
+            tmdb_id = show.get("tmdb_id", "N/A")
+            num_seasons = show.get("number_of_seasons", 0)
+            num_episodes = show.get("number_of_episodes", 0)
+            lines.append(
+                f"  • {title} ({year}) - {num_seasons} seasons, {num_episodes} episodes [TMDb: {tmdb_id}]"
+            )
+        lines.append("")
 
-        self.results_text.setPlainText(display_text)
+        multi_part = canonical_db.get("multi_part_episodes", [])
+        if multi_part:
+            lines.append(f"Multi-Part Episodes Needing NFOs: {len(multi_part)}")
+            for mp in multi_part[:5]:
+                lines.append(
+                    f"  • {mp['show_title']} - S{mp['season_number']:02d}E{mp['episode_number']:02d} - {mp['episode_name']}"
+                )
+            lines.append("")
+
+        if canonical_db.get("lookup_failures"):
+            lines.append(f"Lookup Failures: {len(canonical_db['lookup_failures'])}")
+            for failure in canonical_db["lookup_failures"][:5]:
+                lines.append(f"  • {failure.get('title', 'Unknown')} ({failure.get('type', '?')})")
+            lines.append("")
+
+        self.metadata_output.setPlainText("\n".join(lines))
         self.lbl_status.setText("Metadata enrichment complete!")
 
-        # Save enriched metadata to database
         try:
             conn = sqlite3.connect("data/media_library.db")
             cursor = conn.cursor()
-
-            cursor.execute('''
+            cursor.execute(
+                '''
                 UPDATE project_analyses
                 SET metadata_json = ?
                 WHERE id = ?
-            ''', (json.dumps(enriched_data), self.current_analysis_id))
-
+                ''',
+                (json.dumps(canonical_db), self.current_analysis_id),
+            )
             conn.commit()
             conn.close()
-
-            logger.info("Saved enriched metadata to database")
+            logger.info("Saved canonical metadata to database")
+            if self.current_analysis_id:
+                self.metadata_built.emit(self.current_analysis_id)
         except Exception as e:
-            logger.error(f"Failed to save enriched metadata: {e}")
+            logger.error(f"Failed to save canonical metadata: {e}")
 
         QMessageBox.information(
             self,
-            "Enrichment Complete",
+            "Metadata Complete",
             f"Metadata enrichment complete!\n\n"
-            f"Found {len(enriched_data.get('movies', []))} movies and "
-            f"{len(enriched_data.get('tv_shows', []))} TV shows."
+            f"Movies: {len(canonical_db.get('movies', []))}\n"
+            f"TV Shows: {len(canonical_db.get('tv_shows', []))}\n"
+            f"Multi-part episodes: {len(multi_part)}",
         )
 
-    def _on_enrichment_error(self, error_msg: str):
-        """Handle enrichment errors."""
+    def _on_metadata_error(self, error_msg: str):
+        """Handle metadata lookup errors."""
         self.btn_enrich.setEnabled(True)
         self.btn_run.setEnabled(True)
         self.progress_bar.setVisible(False)
-
-        self.lbl_status.setText(f"Enrichment failed: {error_msg}")
-
+        self.lbl_status.setText(f"Metadata lookup failed: {error_msg}")
         QMessageBox.critical(
             self,
-            "Enrichment Error",
-            f"Metadata enrichment failed:\n\n{error_msg}"
+            "Metadata Error",
+            f"Metadata lookup failed:\n\n{error_msg}",
         )
-
         logger.error(f"Metadata enrichment error: {error_msg}")
 

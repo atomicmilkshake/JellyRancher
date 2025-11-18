@@ -10,17 +10,22 @@ import logging
 import sqlite3
 import json
 from datetime import datetime
+from typing import List
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QTableWidget,
     QTableWidgetItem, QMessageBox, QGroupBox, QHBoxLayout,
     QLineEdit, QHeaderView, QCheckBox, QDialog, QTextEdit,
-    QDialogButtonBox, QComboBox
+    QDialogButtonBox, QComboBox, QFileDialog
 )
 from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt, pyqtSignal
 
 from scripts.core.project_manager import ProjectManager, Project
 from scripts.core.action_plan import ProposedOperation, ActionType, Confidence
+from scripts.core.inventory_repository import InventoryRepository
+from scripts.core.app_config import AppConfigManager
+from scripts.core.file_scanner import FileRecord
+from scripts.core.workers import ActionPlanWorker
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +52,12 @@ class ReviewView(QWidget):
         self.project_manager = project_manager
         self.operations = []  # List of ProposedOperation objects
         self.current_action_plan_id = None
+        self.inventory_repo = InventoryRepository()
+        self.scanned_files: List[FileRecord] = []
+        self.llm_analysis = None
+        self.canonical_database = None
+        self.action_plan_worker = None
+        self.app_config = AppConfigManager()
         
         self._init_ui()
         self._load_analysis_data()
@@ -90,6 +101,22 @@ class ReviewView(QWidget):
         
         # Bulk action buttons
         button_layout = QHBoxLayout()
+
+        self.btn_load_plan = QPushButton("Load Action Plan")
+        self.btn_load_plan.clicked.connect(self.step_5_review)
+        button_layout.addWidget(self.btn_load_plan)
+
+        self.btn_export = QPushButton("Export to CSV")
+        self.btn_export.clicked.connect(self._export_to_csv)
+        self.btn_export.setEnabled(False)
+        button_layout.addWidget(self.btn_export)
+
+        self.btn_dry_run = QPushButton("Dry Run Preview")
+        self.btn_dry_run.clicked.connect(self._dry_run_preview)
+        self.btn_dry_run.setEnabled(False)
+        button_layout.addWidget(self.btn_dry_run)
+        
+        button_layout.addStretch()
         
         self.btn_select_all = QPushButton("Select All")
         self.btn_select_all.clicked.connect(self._select_all)
@@ -109,7 +136,6 @@ class ReviewView(QWidget):
         self.btn_preview.clicked.connect(self._preview_changes)
         button_layout.addWidget(self.btn_preview)
         
-        button_layout.addStretch()
         layout.addLayout(button_layout)
         
         # Search functionality
@@ -120,24 +146,28 @@ class ReviewView(QWidget):
         table_layout = QVBoxLayout()
         
         self.operations_table = QTableWidget()
-        self.operations_table.setColumnCount(7)
+        self.operations_table.setColumnCount(10)
         self.operations_table.setHorizontalHeaderLabels([
-            "☑", "Type", "Current Path", "Proposed Path", "Confidence", "MD5", "Approve"
+            "☑", "Type", "Current Path", "Proposed Path", "Confidence",
+            "Jellyfin Status", "Current MD5", "Proposed MD5", "Notes", "Approve"
         ])
         self.operations_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.operations_table.setColumnWidth(0, 30)
         self.operations_table.setColumnWidth(1, 80)
         self.operations_table.setColumnWidth(2, 250)
         self.operations_table.setColumnWidth(3, 250)
-        self.operations_table.setColumnWidth(4, 90)
-        self.operations_table.setColumnWidth(5, 80)
-        self.operations_table.setColumnWidth(6, 70)
+        self.operations_table.setColumnWidth(4, 100)
+        self.operations_table.setColumnWidth(5, 140)
+        self.operations_table.setColumnWidth(6, 120)
+        self.operations_table.setColumnWidth(7, 120)
+        self.operations_table.setColumnWidth(8, 220)
+        self.operations_table.setColumnWidth(9, 80)
         self.operations_table.setSortingEnabled(True)
         table_layout.addWidget(self.operations_table)
         
         # Summary
         self.lbl_summary = QLabel("No operations to review")
-        self.lbl_summary.setStyleSheet("color: #7f8c8d; padding: 5px;")
+        self.lbl_summary.setStyleSheet("color: #566573; padding: 5px;")
         table_layout.addWidget(self.lbl_summary)
         
         table_group.setLayout(table_layout)
@@ -164,102 +194,131 @@ class ReviewView(QWidget):
         self.setLayout(layout)
     
     def _load_analysis_data(self):
-        """Load most recent analysis and generate action plan."""
+        """Load most recent analysis metadata for this project."""
         try:
             conn = sqlite3.connect("data/media_library.db")
             cursor = conn.cursor()
-            
-            # Get most recent analysis for this project
-            cursor.execute('''
-                SELECT id, parsed_json, issues_found
+
+            cursor.execute(
+                '''
+                SELECT id, parsed_json, metadata_json
                 FROM project_analyses
                 WHERE project_id = ?
                 ORDER BY analysis_date DESC
                 LIMIT 1
-            ''', (self.project.id,))
-            
+                ''',
+                (self.project.id,),
+            )
+
             row = cursor.fetchone()
             if row:
-                analysis_id, parsed_json_str, issues_found = row
-                parsed_json = json.loads(parsed_json_str) if parsed_json_str else {}
-                
-                # Generate simple operations from LLM recommendations
-                recommendations = parsed_json.get('recommendations', [])
-                
-                for i, rec in enumerate(recommendations[:20]):  # Limit to 20 for demo
-                    # Create a simplified ProposedOperation
-                    op = ProposedOperation(
-                        record_id=f"op_{i}",
-                        action_type=ActionType.RENAME,  # Simplified for demo
-                        source_path=rec.get('current_path', f'/path/to/file_{i}.mkv'),
-                        destination_path=rec.get('proposed_path', f'/path/to/renamed_{i}.mkv'),
-                        confidence=Confidence.HIGH if rec.get('confidence', 0.8) > 0.9 else Confidence.MEDIUM,
-                        color_code='green' if rec.get('confidence', 0.8) > 0.9 else 'yellow',
-                        metadata=None,
-                        notes=rec.get('reason', 'LLM recommendation'),
-                        user_approved=False,
-                        jellyfin_status="New"
-                    )
-                    self.operations.append(op)
-                
-                # If no recommendations, create demo data
-                if not self.operations:
-                    logger.info("No LLM recommendations found, creating demo operations")
-                    self._create_demo_operations()
-                
-                # Populate table
-                self._populate_table()
-                
-                logger.info(f"Loaded {len(self.operations)} operations from analysis {analysis_id}")
+                analysis_id, parsed_json_str, metadata_str = row
+                self.llm_analysis = json.loads(parsed_json_str) if parsed_json_str else None
+                self.canonical_database = json.loads(metadata_str) if metadata_str else None
+                logger.info("Loaded analysis %s for review view", analysis_id)
+                self.lbl_summary.setText(
+                    "LLM analysis loaded. Click 'Load Action Plan' to generate operations."
+                )
             else:
-                logger.info("No analysis found, creating demo operations")
-                self._create_demo_operations()
-                self._populate_table()
-            
+                self.lbl_summary.setText("No analysis found. Run LLM analysis first.")
+
             conn.close()
-            
+            self._load_scanned_files()
+
         except Exception as e:
             logger.error(f"Failed to load analysis data: {e}", exc_info=True)
-            self._create_demo_operations()
-            self._populate_table()
-    
-    def _create_demo_operations(self):
-        """Create demo operations for testing."""
-        demo_ops = [
-            {
-                'source': '/media/Movies/movie_2023.mkv',
-                'dest': '/media/Movies/Movie Title (2023).mkv',
-                'confidence': Confidence.HIGH,
-                'notes': 'Standardize naming convention'
-            },
-            {
-                'source': '/media/TV/show_s01e01.mkv',
-                'dest': '/media/TV/Show Name/Season 01/Show Name - S01E01 - Episode Title.mkv',
-                'confidence': Confidence.HIGH,
-                'notes': 'Organize into season folders'
-            },
-            {
-                'source': '/media/Movies/old_movie.avi',
-                'dest': '/media/Movies/Old Movie (1999).avi',
-                'confidence': Confidence.MEDIUM,
-                'notes': 'Add year to filename'
-            },
-        ]
-        
-        for i, demo in enumerate(demo_ops):
-            op = ProposedOperation(
-                record_id=f"demo_{i}",
-                action_type=ActionType.RENAME,
-                source_path=demo['source'],
-                destination_path=demo['dest'],
-                confidence=demo['confidence'],
-                color_code='green' if demo['confidence'] == Confidence.HIGH else 'yellow',
-                metadata=None,
-                notes=demo['notes'],
-                user_approved=False,
-                jellyfin_status="New"
+            self.lbl_summary.setText(f"Error loading analysis data: {e}")
+
+    def _load_scanned_files(self):
+        """Load scanned files from the inventory repository."""
+        try:
+            conn = sqlite3.connect("data/media_library.db")
+            cursor = conn.cursor()
+            cursor.execute(
+                '''
+                SELECT scan_options_json
+                FROM project_scan_sessions
+                WHERE project_id = ?
+                ORDER BY scan_start DESC
+                LIMIT 1
+                ''',
+                (self.project.id,),
             )
-            self.operations.append(op)
+            row = cursor.fetchone()
+            conn.close()
+
+            if not row:
+                logger.warning("No scan sessions found for project %s", self.project.name)
+                return
+
+            options = json.loads(row[0]) if row[0] else {}
+            session_ids = options.get("inventory_session_ids", [])
+            self.scanned_files = []
+            for session_id in session_ids:
+                self.scanned_files.extend(self.inventory_repo.get_all_files(session_id))
+
+            logger.info("Loaded %d scanned files for review", len(self.scanned_files))
+
+        except Exception as e:
+            logger.error("Failed to load scanned files: %s", e, exc_info=True)
+    
+    def step_5_review(self):
+        """Generate action plan using ActionPlanWorker."""
+        if not self.scanned_files:
+            self._load_scanned_files()
+        if not self.scanned_files:
+            QMessageBox.warning(self, "No Scan Data", "No scanned files available. Run a scan first.")
+            return
+        if not self.llm_analysis:
+            QMessageBox.warning(self, "No Analysis", "Run LLM analysis before generating an action plan.")
+            return
+        if not self.canonical_database:
+            QMessageBox.warning(self, "No Metadata", "Build the metadata database before generating an action plan.")
+            return
+        if self.action_plan_worker and self.action_plan_worker.isRunning():
+            QMessageBox.information(self, "In Progress", "Action plan generation is already running.")
+            return
+
+        self.lbl_summary.setText("Generating action plan...")
+        self.operations_table.setRowCount(0)
+        self.operations = []
+        self.btn_export.setEnabled(False)
+        self.btn_dry_run.setEnabled(False)
+
+        self.action_plan_worker = ActionPlanWorker(
+            scanned_files=self.scanned_files,
+            llm_analysis=self.llm_analysis,
+            canonical_database=self.canonical_database,
+            app_config=self.app_config,
+        )
+        self.action_plan_worker.finished.connect(self._on_action_plan_finished)
+        self.action_plan_worker.error.connect(self._on_action_plan_error)
+        self.action_plan_worker.start()
+        logger.info("Started ActionPlanWorker for project %s", self.project.name)
+
+    def _on_action_plan_finished(self, action_plan: List[ProposedOperation]):
+        """Handle completion of action plan generation."""
+        self.operations = action_plan
+        self._populate_table()
+        self.lbl_summary.setText(f"Generated {len(action_plan)} operations. Review and approve as needed.")
+        enable_actions = len(action_plan) > 0
+        self.btn_export.setEnabled(enable_actions)
+        self.btn_dry_run.setEnabled(enable_actions)
+        QMessageBox.information(
+            self,
+            "Action Plan Ready",
+            f"Action plan generated with {len(action_plan)} operations.",
+        )
+
+    def _on_action_plan_error(self, error_msg: str):
+        """Handle action plan generation errors."""
+        self.lbl_summary.setText(f"Action plan generation failed: {error_msg}")
+        QMessageBox.critical(
+            self,
+            "Action Plan Error",
+            f"Failed to generate action plan:\n\n{error_msg}",
+        )
+        logger.error("ActionPlanWorker error: %s", error_msg)
     
     def _populate_table(self):
         """Populate the operations table."""
@@ -271,7 +330,8 @@ class ReviewView(QWidget):
             self.operations_table.setCellWidget(row, 0, checkbox)
             
             # Type
-            type_item = QTableWidgetItem(op.action_type.value if hasattr(op.action_type, 'value') else str(op.action_type))
+            type_text = op.action_type.name if isinstance(op.action_type, ActionType) else str(op.action_type)
+            type_item = QTableWidgetItem(type_text)
             self.operations_table.setItem(row, 1, type_item)
             
             # Current Path
@@ -279,11 +339,11 @@ class ReviewView(QWidget):
             self.operations_table.setItem(row, 2, current_item)
             
             # Proposed Path
-            proposed_item = QTableWidgetItem(str(op.destination_path))
+            proposed_item = QTableWidgetItem(str(op.destination_path) if op.destination_path else "N/A")
             self.operations_table.setItem(row, 3, proposed_item)
             
             # Confidence
-            conf_str = op.confidence.value if hasattr(op.confidence, 'value') else str(op.confidence)
+            conf_str = op.confidence.name if isinstance(op.confidence, Confidence) else str(op.confidence)
             confidence_item = QTableWidgetItem(conf_str)
             if op.confidence == Confidence.HIGH:
                 confidence_item.setBackground(QColor(39, 174, 96, 50))  # Green
@@ -293,15 +353,32 @@ class ReviewView(QWidget):
                 confidence_item.setBackground(QColor(231, 76, 60, 50))  # Red
             self.operations_table.setItem(row, 4, confidence_item)
             
-            # MD5 (placeholder)
-            md5_item = QTableWidgetItem("N/A")
-            self.operations_table.setItem(row, 5, md5_item)
+            # Jellyfin status
+            status_item = QTableWidgetItem(op.jellyfin_status or "Unknown")
+            self.operations_table.setItem(row, 5, status_item)
             
+            # MD5 columns
+            current_md5 = op.current_md5 or "N/A"
+            proposed_md5 = op.proposed_md5 or "N/A"
+            current_md5_item = QTableWidgetItem(current_md5)
+            proposed_md5_item = QTableWidgetItem(proposed_md5)
+            self.operations_table.setItem(row, 6, current_md5_item)
+            self.operations_table.setItem(row, 7, proposed_md5_item)
+            
+            # Notes column
+            notes_text = op.notes or ""
+            notes_item = QTableWidgetItem(notes_text)
+            self.operations_table.setItem(row, 8, notes_item)
+
             # Approve checkbox
             approve_checkbox = QCheckBox()
-            approve_checkbox.setChecked(op.user_approved)
+            initial_approval = op.user_approved
+            if initial_approval is None:
+                initial_approval = op.confidence == Confidence.HIGH
+                op.user_approved = initial_approval
+            approve_checkbox.setChecked(initial_approval)
             approve_checkbox.stateChanged.connect(lambda state, r=row: self._on_approve_changed(r, state))
-            self.operations_table.setCellWidget(row, 6, approve_checkbox)
+            self.operations_table.setCellWidget(row, 9, approve_checkbox)
         
         # Update summary
         approved_count = sum(1 for op in self.operations if op.user_approved)
@@ -338,7 +415,7 @@ class ReviewView(QWidget):
         for row in range(self.operations_table.rowCount()):
             checkbox = self.operations_table.cellWidget(row, 0)
             if checkbox and checkbox.isChecked():
-                approve_checkbox = self.operations_table.cellWidget(row, 6)
+                approve_checkbox = self.operations_table.cellWidget(row, 9)
                 if approve_checkbox:
                     approve_checkbox.setChecked(True)
     
@@ -347,7 +424,7 @@ class ReviewView(QWidget):
         for row in range(self.operations_table.rowCount()):
             checkbox = self.operations_table.cellWidget(row, 0)
             if checkbox and checkbox.isChecked():
-                approve_checkbox = self.operations_table.cellWidget(row, 6)
+                approve_checkbox = self.operations_table.cellWidget(row, 9)
                 if approve_checkbox:
                     approve_checkbox.setChecked(False)
     
@@ -374,7 +451,7 @@ class ReviewView(QWidget):
 
             if filter_text == "Approved Only":
                 # Only show approved operations
-                approve_checkbox = self.operations_table.cellWidget(row, 6)
+                approve_checkbox = self.operations_table.cellWidget(row, 9)
                 if approve_checkbox:
                     show_row = approve_checkbox.isChecked()
 
@@ -382,21 +459,15 @@ class ReviewView(QWidget):
                 # Only show high confidence operations
                 confidence_item = self.operations_table.item(row, 4)
                 if confidence_item:
-                    try:
-                        confidence_pct = float(confidence_item.text().rstrip('%'))
-                        show_row = confidence_pct >= 90
-                    except ValueError:
-                        show_row = True
+                    text = confidence_item.text().upper()
+                    show_row = "HIGH" in text
 
             elif filter_text == "Manual Review (70-89%)":
                 # Show medium confidence operations
                 confidence_item = self.operations_table.item(row, 4)
                 if confidence_item:
-                    try:
-                        confidence_pct = float(confidence_item.text().rstrip('%'))
-                        show_row = 70 <= confidence_pct < 90
-                    except ValueError:
-                        show_row = True
+                    text = confidence_item.text().upper()
+                    show_row = "MEDIUM" in text or "MANUAL" in text
 
             elif filter_text == "Moves Only":
                 # Only show move operations
@@ -420,9 +491,28 @@ class ReviewView(QWidget):
             QMessageBox.warning(self, "No Operations", "No operations are approved for preview.")
             return
         
-        # Create preview dialog
+        self._show_preview_dialog(approved_ops, "Preview Changes")
+
+    def _dry_run_preview(self):
+        """Preview all operations regardless of approval for planning purposes."""
+        if not self.operations:
+            QMessageBox.information(
+                self,
+                "No Operations",
+                "No action plan has been generated yet."
+            )
+            return
+
+        self._show_preview_dialog(
+            self.operations,
+            "Dry Run Preview (All Operations)",
+            intro="This preview lists every proposed operation. Use dry run mode in the Execution Monitor to simulate the changes safely.\n\n"
+        )
+
+    def _show_preview_dialog(self, operations: List[ProposedOperation], title: str, intro: str = ""):
+        """Display a preview dialog for the provided operations."""
         dialog = QDialog(self)
-        dialog.setWindowTitle("Preview Changes")
+        dialog.setWindowTitle(title)
         dialog.resize(800, 600)
         
         layout = QVBoxLayout()
@@ -431,25 +521,74 @@ class ReviewView(QWidget):
         preview_text.setReadOnly(True)
         preview_text.setStyleSheet("font-family: 'Consolas', 'Courier New', monospace;")
         
-        # Build preview text
-        preview_content = f"Preview of {len(approved_ops)} Approved Operations:\n\n"
-        for i, op in enumerate(approved_ops, 1):
+        preview_content = intro or ""
+        preview_content += f"Preview of {len(operations)} Operations:\n\n"
+        for i, op in enumerate(operations, 1):
             preview_content += f"{i}. {op.action_type}\n"
             preview_content += f"   FROM: {op.source_path}\n"
             preview_content += f"   TO:   {op.destination_path}\n"
             preview_content += f"   Confidence: {op.confidence}\n"
-            preview_content += f"   Notes: {op.notes}\n\n"
+            preview_content += f"   Notes: {op.notes or '-'}\n\n"
         
         preview_text.setPlainText(preview_content)
         layout.addWidget(preview_text)
         
-        # Buttons
         button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         button_box.rejected.connect(dialog.close)
         layout.addWidget(button_box)
         
         dialog.setLayout(layout)
         dialog.exec()
+
+    def _export_to_csv(self):
+        """Export current operations to CSV."""
+        if not self.operations:
+            QMessageBox.information(self, "No Data", "No operations available to export.")
+            return
+
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Action Plan",
+            f"action_plan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            "CSV Files (*.csv)"
+        )
+
+        if not filename:
+            return
+
+        try:
+            import csv
+            with open(filename, "w", newline="", encoding="utf-8") as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow([
+                    "Type",
+                    "Current Path",
+                    "Proposed Path",
+                    "Confidence",
+                    "Jellyfin Status",
+                    "Current MD5",
+                    "Proposed MD5",
+                    "Notes",
+                    "Approved",
+                ])
+
+                for op in self.operations:
+                    writer.writerow([
+                        op.action_type.name if isinstance(op.action_type, ActionType) else str(op.action_type),
+                        str(op.source_path),
+                        str(op.destination_path) if op.destination_path else "",
+                        op.confidence.name if isinstance(op.confidence, Confidence) else str(op.confidence),
+                        op.jellyfin_status or "",
+                        op.current_md5 or "",
+                        op.proposed_md5 or "",
+                        op.notes or "",
+                        "YES" if op.user_approved else "NO",
+                    ])
+
+            QMessageBox.information(self, "Export Complete", f"Action plan exported to:\n{filename}")
+        except Exception as exc:
+            QMessageBox.critical(self, "Export Failed", f"Failed to export action plan:\n\n{exc}")
+            logger.error("Action plan export failed: %s", exc, exc_info=True)
     
     def _execute_operations(self):
         """Execute approved operations."""
@@ -513,16 +652,19 @@ class ReviewView(QWidget):
                 cursor.execute('''
                     INSERT INTO project_operations
                     (action_plan_id, operation_type, current_path, proposed_path,
-                     confidence, user_approved, notes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                     confidence, user_approved, notes, current_md5, proposed_md5, jellyfin_status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     self.current_action_plan_id,
-                    str(op.action_type),
+                    op.action_type.name if isinstance(op.action_type, ActionType) else str(op.action_type),
                     str(op.source_path),
-                    str(op.destination_path),
-                    str(op.confidence),
+                    str(op.destination_path) if op.destination_path else None,
+                    op.confidence.name if isinstance(op.confidence, Confidence) else str(op.confidence),
                     1 if op.user_approved else 0,
-                    op.notes
+                    op.notes,
+                    op.current_md5,
+                    op.proposed_md5,
+                    op.jellyfin_status
                 ))
             
             conn.commit()
