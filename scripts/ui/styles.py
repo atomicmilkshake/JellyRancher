@@ -358,15 +358,17 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 /* =================================================================== */
 
 QCheckBox {
-    spacing: 6px;
+    color: #2c3e50;
+    spacing: 8px;
 }
 
 QCheckBox::indicator {
-    width: 18px;
-    height: 18px;
-    border: 2px solid #566573;
-    border-radius: 3px;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #1f6fb2;
+    border-radius: 4px;
     background-color: white;
+    margin: 2px;
 }
 
 QCheckBox::indicator:checked {
@@ -374,8 +376,19 @@ QCheckBox::indicator:checked {
     border-color: #1f6fb2;
 }
 
-QCheckBox::indicator:hover {
+QCheckBox::indicator:unchecked {
+    background-color: white;
     border-color: #1f6fb2;
+}
+
+QCheckBox::indicator:hover {
+    border: 2px solid #155a9a;
+    background-color: #f0f7ff;
+}
+
+QCheckBox::indicator:disabled {
+    background-color: #ecf0f1;
+    border-color: #bdc3c7;
 }
 
 /* =================================================================== */

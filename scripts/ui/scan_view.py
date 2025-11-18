@@ -50,6 +50,34 @@ class FolderContentSelectionDialog(QDialog):
         self.setWindowTitle(f"Select contents to include in scan")
         self.setMinimumSize(600, 400)
         
+        # Apply high-contrast checkbox styling for dialog
+        dialog_stylesheet = """
+            QCheckBox {
+                color: #2c3e50;
+                spacing: 8px;
+            }
+            QCheckBox::indicator {
+                width: 20px;
+                height: 20px;
+                border: 2px solid #1f6fb2;
+                border-radius: 4px;
+                background-color: white;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #1f6fb2;
+                border-color: #1f6fb2;
+            }
+            QCheckBox::indicator:unchecked {
+                background-color: white;
+                border-color: #1f6fb2;
+            }
+            QCheckBox::indicator:hover {
+                border: 2px solid #155a9a;
+                background-color: #f0f7ff;
+            }
+        """
+        self.setStyleSheet(dialog_stylesheet)
+        
         self.init_ui()
     
     def init_ui(self):
