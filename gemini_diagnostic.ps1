@@ -151,3 +151,4 @@ Write-Host "  - Check for Gemini CLI updates: npm update -g @google/generative-a
 Write-Host "  - Report issues to Google: https://github.com/google/generative-ai-cli" -ForegroundColor White
 Write-Host ""
 
+

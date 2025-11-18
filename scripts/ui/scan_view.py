@@ -14,12 +14,12 @@ from collections import defaultdict
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QTableWidget, QTableWidgetItem, QProgressBar, QFileDialog,
+    QProgressBar, QFileDialog,
     QMessageBox, QGroupBox, QCheckBox, QHeaderView, QDialog,
-    QScrollArea, QLineEdit, QTreeWidget, QTreeWidgetItem
+    QScrollArea, QLineEdit
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QFont, QColor
+from PyQt6.QtGui import QFont
 
 from scripts.core.file_scanner import FileScanner, FileRecord, ScanStatistics
 from scripts.core.project_manager import ProjectManager, Project
@@ -233,6 +233,7 @@ class ScanView(QWidget):
     
     # Signals
     scan_completed = pyqtSignal(int)  # scan_session_id
+    results_ready = pyqtSignal(int)  # scan_session_id for results view
     
     def __init__(self, project: Project, project_manager: ProjectManager, parent=None):
         super().__init__(parent)
@@ -245,12 +246,9 @@ class ScanView(QWidget):
         
         self.selected_folders: List[Path] = []
         self.excluded_paths: List[Path] = []
-        self.scanned_files: List[FileRecord] = []
         self.scan_statistics: Optional[ScanStatistics] = None
         self.current_scan_session_id: Optional[int] = None
         self.inventory_session_ids: List[int] = []
-        self.folder_structure: Dict[Path, Dict[str, Any]] = {}
-        self.duplicate_groups: Dict[str, List[FileRecord]] = {}
         self.scan_start_time: Optional[datetime] = None
         
         self._init_ui()
@@ -303,14 +301,6 @@ class ScanView(QWidget):
         # Progress section
         progress_group = self._create_progress_section()
         layout.addWidget(progress_group)
-        
-        # Results section
-        results_group = self._create_results_section()
-        layout.addWidget(results_group, 1)  # Stretch to fill space
-
-        # Overview section (hierarchy + duplicates)
-        overview_group = self._create_overview_section()
-        layout.addWidget(overview_group)
         
         self.setLayout(layout)
     
@@ -409,79 +399,6 @@ class ScanView(QWidget):
         """)
         layout.addWidget(self.btn_scan)
         
-        group.setLayout(layout)
-        return group
-    
-    def _create_results_section(self) -> QGroupBox:
-        """Create the results section."""
-        group = QGroupBox("Scan Results")
-        layout = QVBoxLayout()
-        
-        # Search and filter bar
-        search_layout = QHBoxLayout()
-        
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Search files...")
-        self.search_input.textChanged.connect(self._filter_results)
-        search_layout.addWidget(QLabel("Search:"))
-        search_layout.addWidget(self.search_input)
-        
-        self.btn_export = QPushButton("Export Results")
-        self.btn_export.clicked.connect(self._export_results)
-        self.btn_export.setEnabled(False)
-        search_layout.addWidget(self.btn_export)
-        
-        layout.addLayout(search_layout)
-        
-        # Results table
-        self.results_table = QTableWidget()
-        self.results_table.setMinimumHeight(200)  # Ensure results are visible
-        self.results_table.setColumnCount(6)
-        self.results_table.setHorizontalHeaderLabels([
-            "Filename", "Path", "Size (MB)", "Type", "MD5", "Metadata"
-        ])
-        self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
-        self.results_table.setColumnWidth(0, 250)
-        self.results_table.setColumnWidth(1, 300)
-        self.results_table.setColumnWidth(2, 80)
-        self.results_table.setColumnWidth(3, 60)
-        self.results_table.setColumnWidth(4, 100)
-        self.results_table.setColumnWidth(5, 80)
-        self.results_table.setSortingEnabled(True)
-        layout.addWidget(self.results_table)
-        
-        # Summary label
-        self.lbl_summary = QLabel("No files scanned yet")
-        self.lbl_summary.setStyleSheet("color: #566573; padding: 5px;")
-        layout.addWidget(self.lbl_summary)
-        
-        group.setLayout(layout)
-        return group
-    
-    def _create_overview_section(self) -> QGroupBox:
-        """Create hierarchical overview and duplicate summary section."""
-        group = QGroupBox("Folder Overview & Duplicate Detection")
-        layout = QVBoxLayout()
-
-        btn_refresh = QPushButton("Generate Overview")
-        btn_refresh.clicked.connect(self._update_overview)
-        layout.addWidget(btn_refresh)
-
-        self.overview_tree = QTreeWidget()
-        self.overview_tree.setHeaderLabels(["Folder", "Files", "Size (MB)", "Jellyfin Matches", "Details"])
-        self.overview_tree.setColumnWidth(0, 400)
-        self.overview_tree.setColumnWidth(3, 160)
-        layout.addWidget(self.overview_tree)
-
-        self.duplicate_summary_label = QLabel("MD5 duplicate groups: not computed yet.")
-        layout.addWidget(self.duplicate_summary_label)
-
-        self.duplicate_tree = QTreeWidget()
-        self.duplicate_tree.setHeaderLabels(["MD5 Hash", "File Count", "Example Paths"])
-        self.duplicate_tree.setColumnWidth(0, 260)
-        self.duplicate_tree.setColumnWidth(1, 80)
-        layout.addWidget(self.duplicate_tree)
-
         group.setLayout(layout)
         return group
 
@@ -655,7 +572,6 @@ class ScanView(QWidget):
         self.btn_remove_folder.setEnabled(False)
         
         # Clear previous results
-        self.results_table.setRowCount(0)
         self.scanned_files = []
         
         # Create and start multi-scan worker
@@ -703,8 +619,6 @@ class ScanView(QWidget):
         session_ids: List[int],
     ):
         """Handle completion of the MultiScanWorker."""
-        self.scanned_files = file_records
-        self.folder_structure = folder_structure
         self.inventory_session_ids = session_ids
 
         stats = ScanStatistics()
@@ -718,15 +632,11 @@ class ScanView(QWidget):
         self.btn_scan.setEnabled(True)
         self.btn_add_folder.setEnabled(True)
         self.btn_remove_folder.setEnabled(True)
-        self.btn_export.setEnabled(True)
         self.progress_bar.setMaximum(100)
         self.progress_bar.setValue(100)
         self.progress_bar.setVisible(False)
 
-        # Populate results table
-        self._populate_results_table(file_records)
-
-        # Update summary/details
+        # Update status
         total_size_gb = stats.total_size_bytes / (1024 ** 3) if stats.total_size_bytes else 0
         folder_count = len(self.selected_folders)
         jellyfin_matches = sum(1 for r in file_records if getattr(r, "jellyfin_matched", False))
@@ -735,22 +645,18 @@ class ScanView(QWidget):
             if stats.scan_duration_seconds
             else "n/a"
         )
-        self.lbl_summary.setText(
-            f"Scanned {len(file_records)} files ({total_size_gb:.2f} GB) "
-            f"from {folder_count} folder(s) in {elapsed_str}. "
-            f"Jellyfin matches: {jellyfin_matches}"
-        )
         self.lbl_status.setText("Scan complete.")
-
-        # Refresh overview + duplicates
-        self._update_overview()
 
         # Persist session metadata
         self._save_scan_to_database(file_records, stats, session_ids)
 
+        # Emit signals
+        self.scan_completed.emit(self.current_scan_session_id)
+        self.results_ready.emit(self.current_scan_session_id)
+
         logger.info(
             "Scan completed: %d files, %.2f GB, %d Jellyfin matches",
-            len(file_records),
+            stats.total_files,
             total_size_gb,
             jellyfin_matches,
         )
@@ -758,7 +664,7 @@ class ScanView(QWidget):
         QMessageBox.information(
             self,
             "Scan Complete",
-            f"Successfully scanned {len(file_records)} files!\n\n"
+            f"Successfully scanned {stats.total_files} files!\n\n"
             f"Total size: {total_size_gb:.2f} GB\n"
             f"Jellyfin matches: {jellyfin_matches}\n"
             f"Elapsed: {elapsed_str}",
@@ -776,83 +682,6 @@ class ScanView(QWidget):
         
         QMessageBox.critical(self, "Scan Error", f"Scan failed:\n\n{error_msg}")
         logger.error(f"Scan error: {error_msg}")
-    
-    def _populate_results_table(self, files: List[FileRecord]):
-        """Populate the results table with scanned files."""
-        self.results_table.setRowCount(len(files))
-        
-        for row, file_record in enumerate(files):
-            # Filename
-            self.results_table.setItem(row, 0, QTableWidgetItem(file_record.absolute_path.name))
-            
-            # Path
-            self.results_table.setItem(row, 1, QTableWidgetItem(str(file_record.absolute_path.parent)))
-            
-            # Size (MB)
-            size_mb = file_record.size_bytes / (1024 * 1024)
-            self.results_table.setItem(row, 2, QTableWidgetItem(f"{size_mb:.1f}"))
-            
-            # Type
-            self.results_table.setItem(row, 3, QTableWidgetItem(file_record.extension))
-            
-            # MD5
-            md5_text = file_record.md5_hash[:8] + "..." if file_record.md5_hash else "N/A"
-            self.results_table.setItem(row, 4, QTableWidgetItem(md5_text))
-            
-            # Metadata
-            has_metadata = "✓" if self.chk_metadata.isChecked() else "-"
-            self.results_table.setItem(row, 5, QTableWidgetItem(has_metadata))
-    
-    def _filter_results(self, search_text: str):
-        """Filter results table based on search text."""
-        for row in range(self.results_table.rowCount()):
-            show_row = False
-            if not search_text:
-                show_row = True
-            else:
-                # Search in filename and path
-                for col in [0, 1]:
-                    item = self.results_table.item(row, col)
-                    if item and search_text.lower() in item.text().lower():
-                        show_row = True
-                        break
-            
-            self.results_table.setRowHidden(row, not show_row)
-    
-    def _export_results(self):
-        """Export scan results to CSV."""
-        if not self.scanned_files:
-            return
-        
-        filename, _ = QFileDialog.getSaveFileName(
-            self,
-            "Export Scan Results",
-            f"scan_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-            "CSV Files (*.csv)"
-        )
-        
-        if filename:
-            try:
-                import csv
-                with open(filename, 'w', newline='', encoding='utf-8') as f:
-                    writer = csv.writer(f)
-                    writer.writerow(["Filename", "Path", "Size (bytes)", "Extension", "MD5"])
-                    
-                    for file_record in self.scanned_files:
-                        writer.writerow([
-                            file_record.absolute_path.name,
-                            str(file_record.absolute_path.parent),
-                            file_record.size_bytes,
-                            file_record.extension,
-                            file_record.md5_hash or ""
-                        ])
-                
-                QMessageBox.information(self, "Export Complete", f"Results exported to:\n{filename}")
-                logger.info(f"Exported scan results to: {filename}")
-                
-            except Exception as e:
-                QMessageBox.critical(self, "Export Error", f"Failed to export:\n{e}")
-                logger.error(f"Export error: {e}")
     
     def _save_scan_to_database(
         self,
@@ -935,4 +764,3 @@ class ScanView(QWidget):
                     logger.info(f"Added folder via drag-and-drop: {folder_path}")
         else:
             event.ignore()
-
