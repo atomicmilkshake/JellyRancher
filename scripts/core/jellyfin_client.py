@@ -139,31 +139,47 @@ class JellyfinClient:
 
         Raises:
             ValueError: If no users found in Jellyfin
-            requests.exceptions.HTTPError: If API request fails
+            RuntimeError: If API request fails
         """
         if self.user_id:
             return self.user_id
 
-        # Get users and return first admin or first user
-        response = self.session.get(f"{self.server_url}/Users", timeout=10)
-        response.raise_for_status()
+        try:
+            # Get users and return first admin or first user
+            response = self.session.get(f"{self.server_url}/Users", timeout=10)
+            response.raise_for_status()
 
-        users = response.json()
+            users = response.json()
 
-        # Prefer admin user
-        for user in users:
-            if user.get('Policy', {}).get('IsAdministrator'):
-                self.user_id = user['Id']
-                self.logger.info(f"Using admin user: {user['Name']} (ID: {self.user_id})")
+            # Prefer admin user
+            for user in users:
+                if user.get('Policy', {}).get('IsAdministrator'):
+                    self.user_id = user['Id']
+                    self.logger.info(f"Using admin user: {user['Name']} (ID: {self.user_id})")
+                    return self.user_id
+
+            # Fallback to first user
+            if users:
+                self.user_id = users[0]['Id']
+                self.logger.info(f"Using first user: {users[0]['Name']} (ID: {self.user_id})")
                 return self.user_id
 
-        # Fallback to first user
-        if users:
-            self.user_id = users[0]['Id']
-            self.logger.info(f"Using first user: {users[0]['Name']} (ID: {self.user_id})")
-            return self.user_id
-
-        raise ValueError("No users found in Jellyfin")
+            raise ValueError("No users found in Jellyfin")
+        except requests.exceptions.Timeout:
+            self.logger.error("Timeout getting Jellyfin user ID")
+            raise RuntimeError("Jellyfin timeout")
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection error getting Jellyfin user ID: {e}")
+            raise RuntimeError(f"Jellyfin connection failed: {e}")
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"HTTP error getting Jellyfin user ID: {e}")
+            raise RuntimeError(f"Jellyfin API error: {e}")
+        except ValueError:
+            # Re-raise our custom error
+            raise
+        except Exception as e:
+            self.logger.error(f"Unexpected error getting Jellyfin user ID: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to get Jellyfin user ID: {e}")
 
     def get_all_items(
         self,
@@ -188,31 +204,47 @@ class JellyfinClient:
                 fields=["Path", "ProviderIds"]
             )
         """
-        user_id = self.get_user_id()
+        try:
+            user_id = self.get_user_id()
 
-        params = {
-            'Recursive': 'true',
-            'Fields': ','.join(fields or ['Path', 'ProviderIds', 'MediaSources'])
-        }
+            params = {
+                'Recursive': 'true',
+                'Fields': ','.join(fields or ['Path', 'ProviderIds', 'MediaSources'])
+            }
 
-        if item_types:
-            params['IncludeItemTypes'] = ','.join(item_types)
+            if item_types:
+                params['IncludeItemTypes'] = ','.join(item_types)
 
-        if limit:
-            params['Limit'] = limit
+            if limit:
+                params['Limit'] = limit
 
-        response = self.session.get(
-            f"{self.server_url}/Users/{user_id}/Items",
-            params=params,
-            timeout=30
-        )
-        response.raise_for_status()
+            response = self.session.get(
+                f"{self.server_url}/Users/{user_id}/Items",
+                params=params,
+                timeout=30
+            )
+            response.raise_for_status()
 
-        data = response.json()
-        items = data.get('Items', [])
+            data = response.json()
+            items = data.get('Items', [])
 
-        self.logger.info(f"Retrieved {len(items)} items from Jellyfin")
-        return items
+            self.logger.info(f"Retrieved {len(items)} items from Jellyfin")
+            return items
+        except RuntimeError:
+            # Re-raise errors from get_user_id
+            raise
+        except requests.exceptions.Timeout:
+            self.logger.error("Timeout retrieving items from Jellyfin")
+            raise RuntimeError("Jellyfin timeout")
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection error retrieving items from Jellyfin: {e}")
+            raise RuntimeError(f"Jellyfin connection failed: {e}")
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"HTTP error retrieving items from Jellyfin: {e}")
+            raise RuntimeError(f"Jellyfin API error: {e}")
+        except Exception as e:
+            self.logger.error(f"Unexpected error retrieving items from Jellyfin: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to retrieve items from Jellyfin: {e}")
 
     def find_item_by_path(self, file_path: Path) -> Optional[Dict]:
         """
@@ -228,23 +260,27 @@ class JellyfinClient:
             This method normalizes paths for cross-platform compatibility
             (Windows backslashes vs Linux forward slashes)
         """
-        # Normalize path for Windows/Linux compatibility
-        search_path = str(file_path.resolve()).replace('\\', '/')
-
-        # Query items with path field
         try:
+            # Normalize path for Windows/Linux compatibility
+            search_path = str(file_path.resolve()).replace('\\', '/')
+
+            # Query items with path field
             items = self.get_all_items(fields=['Path', 'ProviderIds'])
-        except Exception as e:
-            self.logger.error(f"Failed to query Jellyfin items: {e}")
+
+            for item in items:
+                item_path = item.get('Path', '').replace('\\', '/')
+                if item_path == search_path:
+                    self.logger.debug(f"Found Jellyfin match: {item.get('Name')} (ID: {item.get('Id')})")
+                    return item
+
+            self.logger.debug(f"No Jellyfin item found for path: {search_path}")
             return None
-
-        for item in items:
-            item_path = item.get('Path', '').replace('\\', '/')
-            if item_path == search_path:
-                self.logger.debug(f"Found Jellyfin match: {item.get('Name')} (ID: {item.get('Id')})")
-                return item
-
-        return None
+        except RuntimeError:
+            # Re-raise errors from get_all_items
+            raise
+        except Exception as e:
+            self.logger.error(f"Unexpected error finding item by path {file_path}: {e}", exc_info=True)
+            return None
 
     def get_item_by_id(self, item_id: str, fields: List[str] = None) -> Optional[Dict]:
         """
@@ -257,11 +293,11 @@ class JellyfinClient:
         Returns:
             Jellyfin item dict or None if not found
         """
-        params = {}
-        if fields:
-            params['Fields'] = ','.join(fields)
-
         try:
+            params = {}
+            if fields:
+                params['Fields'] = ','.join(fields)
+
             response = self.session.get(
                 f"{self.server_url}/Items/{item_id}",
                 params=params,
@@ -269,14 +305,20 @@ class JellyfinClient:
             )
             response.raise_for_status()
             return response.json()
+        except requests.exceptions.Timeout:
+            self.logger.error(f"Timeout getting item {item_id} from Jellyfin")
+            return None
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection error getting item {item_id}: {e}")
+            return None
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
                 self.logger.warning(f"Item not found: {item_id}")
             else:
-                self.logger.error(f"Failed to get item {item_id}: {e}")
+                self.logger.error(f"HTTP error getting item {item_id}: {e}")
             return None
         except Exception as e:
-            self.logger.error(f"Error getting item {item_id}: {e}")
+            self.logger.error(f"Unexpected error getting item {item_id}: {e}", exc_info=True)
             return None
 
     def get_provider_ids(self, item_id: str) -> Dict[str, str]:
@@ -290,11 +332,19 @@ class JellyfinClient:
             Dict mapping provider names to IDs
             Example: {"Tmdb": "123456", "Tvdb": "789", "Imdb": "tt9876543"}
         """
-        item = self.get_item_by_id(item_id, fields=['ProviderIds'])
+        try:
+            item = self.get_item_by_id(item_id, fields=['ProviderIds'])
 
-        if item:
-            return item.get('ProviderIds', {})
-        return {}
+            if item:
+                provider_ids = item.get('ProviderIds', {})
+                self.logger.debug(f"Retrieved provider IDs for item {item_id}: {list(provider_ids.keys())}")
+                return provider_ids
+            else:
+                self.logger.warning(f"Could not retrieve provider IDs for item {item_id}")
+                return {}
+        except Exception as e:
+            self.logger.error(f"Unexpected error getting provider IDs for item {item_id}: {e}", exc_info=True)
+            return {}
 
     def refresh_item(self, item_id: str, replace_metadata: bool = False) -> bool:
         """
@@ -307,12 +357,12 @@ class JellyfinClient:
         Returns:
             True if refresh triggered successfully
         """
-        params = {
-            'ReplaceAllMetadata': 'true' if replace_metadata else 'false',
-            'ReplaceAllImages': 'false'
-        }
-
         try:
+            params = {
+                'ReplaceAllMetadata': 'true' if replace_metadata else 'false',
+                'ReplaceAllImages': 'false'
+            }
+
             response = self.session.post(
                 f"{self.server_url}/Items/{item_id}/Refresh",
                 params=params,
@@ -322,8 +372,17 @@ class JellyfinClient:
 
             self.logger.info(f"Triggered refresh for item {item_id}")
             return True
+        except requests.exceptions.Timeout:
+            self.logger.error(f"Timeout refreshing item {item_id}")
+            return False
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection error refreshing item {item_id}: {e}")
+            return False
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"HTTP error refreshing item {item_id}: {e}")
+            return False
         except Exception as e:
-            self.logger.error(f"Failed to refresh item {item_id}: {e}")
+            self.logger.error(f"Unexpected error refreshing item {item_id}: {e}", exc_info=True)
             return False
 
     def refresh_library(self) -> bool:
@@ -342,8 +401,17 @@ class JellyfinClient:
 
             self.logger.info("Triggered full library refresh")
             return True
+        except requests.exceptions.Timeout:
+            self.logger.error("Timeout refreshing Jellyfin library")
+            return False
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection error refreshing library: {e}")
+            return False
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"HTTP error refreshing library: {e}")
+            return False
         except Exception as e:
-            self.logger.error(f"Failed to refresh library: {e}")
+            self.logger.error(f"Unexpected error refreshing library: {e}", exc_info=True)
             return False
 
     def get_libraries(self) -> List[Dict]:
@@ -358,9 +426,9 @@ class JellyfinClient:
             for lib in libraries:
                 print(f"{lib['Name']} - {lib['CollectionType']}")
         """
-        user_id = self.get_user_id()
-
         try:
+            user_id = self.get_user_id()
+
             response = self.session.get(
                 f"{self.server_url}/Users/{user_id}/Views",
                 timeout=10
@@ -372,8 +440,20 @@ class JellyfinClient:
 
             self.logger.info(f"Retrieved {len(libraries)} libraries")
             return libraries
+        except RuntimeError:
+            # Re-raise errors from get_user_id
+            raise
+        except requests.exceptions.Timeout:
+            self.logger.error("Timeout retrieving libraries from Jellyfin")
+            return []
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection error retrieving libraries: {e}")
+            return []
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"HTTP error retrieving libraries: {e}")
+            return []
         except Exception as e:
-            self.logger.error(f"Failed to get libraries: {e}")
+            self.logger.error(f"Unexpected error retrieving libraries: {e}", exc_info=True)
             return []
 
     def get_media_streams(self, item_id: str) -> List[Dict]:
@@ -386,14 +466,21 @@ class JellyfinClient:
         Returns:
             List of media stream dictionaries
         """
-        item = self.get_item_by_id(item_id, fields=['MediaStreams'])
+        try:
+            item = self.get_item_by_id(item_id, fields=['MediaStreams'])
 
-        if item and 'MediaSources' in item:
-            for source in item['MediaSources']:
-                if 'MediaStreams' in source:
-                    return source['MediaStreams']
+            if item and 'MediaSources' in item:
+                for source in item['MediaSources']:
+                    if 'MediaStreams' in source:
+                        streams = source['MediaStreams']
+                        self.logger.debug(f"Retrieved {len(streams)} media streams for item {item_id}")
+                        return streams
 
-        return []
+            self.logger.debug(f"No media streams found for item {item_id}")
+            return []
+        except Exception as e:
+            self.logger.error(f"Unexpected error getting media streams for item {item_id}: {e}", exc_info=True)
+            return []
 
     def has_subtitle_stream(self, item_id: str, language: str = 'eng') -> bool:
         """
@@ -406,13 +493,19 @@ class JellyfinClient:
         Returns:
             True if subtitle stream found
         """
-        streams = self.get_media_streams(item_id)
+        try:
+            streams = self.get_media_streams(item_id)
 
-        for stream in streams:
-            if stream.get('Type') == 'Subtitle' and stream.get('Language', '').lower() == language.lower():
-                return True
+            for stream in streams:
+                if stream.get('Type') == 'Subtitle' and stream.get('Language', '').lower() == language.lower():
+                    self.logger.debug(f"Found {language} subtitle stream for item {item_id}")
+                    return True
 
-        return False
+            self.logger.debug(f"No {language} subtitle stream found for item {item_id}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Unexpected error checking subtitle stream for item {item_id}: {e}", exc_info=True)
+            return False
 
     def create_collection(self, name: str, item_ids: List[str] = None) -> Optional[str]:
         """Create a new collection in Jellyfin."""
@@ -427,8 +520,17 @@ class JellyfinClient:
             collection_id = response.json().get('Id')
             self.logger.info(f"Created collection '{name}' (ID: {collection_id})")
             return collection_id
+        except requests.exceptions.Timeout:
+            self.logger.error(f"Timeout creating collection '{name}'")
+            return None
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection error creating collection '{name}': {e}")
+            return None
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"HTTP error creating collection '{name}': {e}")
+            return None
         except Exception as e:
-            self.logger.error(f"Failed to create collection '{name}': {e}")
+            self.logger.error(f"Unexpected error creating collection '{name}': {e}", exc_info=True)
             return None
 
     def add_to_collection(self, collection_id: str, item_ids: List[str]) -> bool:
@@ -442,8 +544,17 @@ class JellyfinClient:
             response.raise_for_status()
             self.logger.info(f"Added {len(item_ids)} items to collection {collection_id}")
             return True
+        except requests.exceptions.Timeout:
+            self.logger.error(f"Timeout adding items to collection {collection_id}")
+            return False
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection error adding items to collection {collection_id}: {e}")
+            return False
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"HTTP error adding items to collection {collection_id}: {e}")
+            return False
         except Exception as e:
-            self.logger.error(f"Failed to add items to collection {collection_id}: {e}")
+            self.logger.error(f"Unexpected error adding items to collection {collection_id}: {e}", exc_info=True)
             return False
 
     def get_collections(self) -> List[Dict]:
@@ -459,8 +570,20 @@ class JellyfinClient:
             collections = response.json().get('Items', [])
             self.logger.info(f"Retrieved {len(collections)} collections")
             return collections
+        except RuntimeError:
+            # Re-raise errors from get_user_id
+            raise
+        except requests.exceptions.Timeout:
+            self.logger.error("Timeout retrieving collections from Jellyfin")
+            return []
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection error retrieving collections: {e}")
+            return []
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"HTTP error retrieving collections: {e}")
+            return []
         except Exception as e:
-            self.logger.error(f"Failed to get collections: {e}")
+            self.logger.error(f"Unexpected error retrieving collections: {e}", exc_info=True)
             return []
 
     def update_provider_ids(self, item_id: str, provider_ids: Dict[str, str]) -> bool:
@@ -468,6 +591,7 @@ class JellyfinClient:
         try:
             item = self.get_item_by_id(item_id)
             if not item:
+                self.logger.warning(f"Item {item_id} not found for provider ID update")
                 return False
 
             current_providers = item.get('ProviderIds', {})
@@ -479,10 +603,19 @@ class JellyfinClient:
                 timeout=10
             )
             response.raise_for_status()
-            self.logger.info(f"Updated provider IDs for item {item_id}")
+            self.logger.info(f"Updated provider IDs for item {item_id}: {list(provider_ids.keys())}")
             return True
+        except requests.exceptions.Timeout:
+            self.logger.error(f"Timeout updating provider IDs for item {item_id}")
+            return False
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection error updating provider IDs for item {item_id}: {e}")
+            return False
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"HTTP error updating provider IDs for item {item_id}: {e}")
+            return False
         except Exception as e:
-            self.logger.error(f"Failed to update provider IDs for {item_id}: {e}")
+            self.logger.error(f"Unexpected error updating provider IDs for item {item_id}: {e}", exc_info=True)
             return False
 
     def refresh_library_by_path(self, library_path: str) -> bool:
@@ -497,13 +630,22 @@ class JellyfinClient:
                         timeout=10
                     )
                     response.raise_for_status()
-                    self.logger.info(f"Triggered refresh for path: {library_path}")
+                    self.logger.info(f"Triggered targeted refresh for path: {library_path}")
                     return True
 
-            self.logger.warning(f"No library found for path: {library_path}")
+            self.logger.warning(f"No library found for path: {library_path}, falling back to full refresh")
             return self.refresh_library()
+        except requests.exceptions.Timeout:
+            self.logger.error(f"Timeout refreshing library by path {library_path}")
+            return False
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection error refreshing library by path {library_path}: {e}")
+            return False
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"HTTP error refreshing library by path {library_path}: {e}")
+            return False
         except Exception as e:
-            self.logger.error(f"Failed to refresh path {library_path}: {e}")
+            self.logger.error(f"Unexpected error refreshing library by path {library_path}: {e}", exc_info=True)
             return False
 
 
