@@ -43,12 +43,38 @@ class InventoryRepository:
 
         Args:
             db_path: Path to SQLite database file (created if doesn't exist)
-        """
-        self.db_path = Path(db_path)
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"InventoryRepository initialized: {self.db_path}")
-        self._initialize_database()
+        Raises:
+            ValueError: If db_path is invalid
+            RuntimeError: If database initialization fails
+        """
+        try:
+            # Validate and convert path
+            if not db_path or not isinstance(db_path, str):
+                raise ValueError(f"Invalid db_path: {db_path}")
+            
+            self.db_path = Path(db_path)
+            
+            # Create parent directory with error handling
+            try:
+                self.db_path.parent.mkdir(parents=True, exist_ok=True)
+            except (PermissionError, OSError) as e:
+                raise RuntimeError(f"Cannot create database directory {self.db_path.parent}: {e}")
+
+            logger.info(f"InventoryRepository initialized: {self.db_path}")
+            
+            # Initialize database schema
+            try:
+                self._initialize_database()
+            except Exception as e:
+                raise RuntimeError(f"Database initialization failed: {e}")
+                
+        except (ValueError, RuntimeError) as e:
+            logger.error(f"Failed to initialize InventoryRepository: {e}", exc_info=True)
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error initializing InventoryRepository: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to initialize InventoryRepository: {e}")
 
     @contextmanager
     def _get_connection(self):
@@ -56,18 +82,58 @@ class InventoryRepository:
         Context manager for database connections.
 
         Ensures proper connection handling and automatic commit/rollback.
+
+        Yields:
+            sqlite3.Connection: Database connection with row factory
+
+        Raises:
+            sqlite3.Error: If database connection or operations fail
+            RuntimeError: If connection cannot be established
         """
-        conn = sqlite3.connect(str(self.db_path))
-        conn.row_factory = sqlite3.Row  # Access columns by name
+        conn = None
         try:
+            # Attempt to connect to database
+            try:
+                conn = sqlite3.connect(str(self.db_path))
+                conn.row_factory = sqlite3.Row  # Access columns by name
+            except sqlite3.Error as e:
+                raise RuntimeError(f"Cannot connect to database {self.db_path}: {e}")
+            
+            # Yield connection for use
             yield conn
-            conn.commit()
-        except Exception as e:
-            conn.rollback()
+            
+            # Commit if no exceptions occurred
+            try:
+                conn.commit()
+            except sqlite3.Error as e:
+                logger.error(f"Failed to commit transaction: {e}", exc_info=True)
+                raise
+                
+        except sqlite3.Error as e:
+            # Rollback on database errors
+            if conn:
+                try:
+                    conn.rollback()
+                except sqlite3.Error as rollback_error:
+                    logger.error(f"Rollback failed: {rollback_error}", exc_info=True)
             logger.error(f"Database error: {e}", exc_info=True)
             raise
+        except Exception as e:
+            # Rollback on unexpected errors
+            if conn:
+                try:
+                    conn.rollback()
+                except sqlite3.Error as rollback_error:
+                    logger.error(f"Rollback failed: {rollback_error}", exc_info=True)
+            logger.error(f"Unexpected database error: {e}", exc_info=True)
+            raise RuntimeError(f"Database operation failed: {e}")
         finally:
-            conn.close()
+            # Always close connection
+            if conn:
+                try:
+                    conn.close()
+                except sqlite3.Error as e:
+                    logger.warning(f"Error closing database connection: {e}")
 
     def _initialize_database(self):
         """Create database schema if it doesn't exist."""
@@ -139,23 +205,62 @@ class InventoryRepository:
 
         Returns:
             Scan session ID
-        """
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT INTO scan_sessions
-                (root_folder, scan_start, recursive, notes)
-                VALUES (?, ?, ?, ?)
-            ''', (
-                str(root_folder),
-                datetime.now().isoformat(),
-                recursive,
-                notes
-            ))
 
-            session_id = cursor.lastrowid
-            logger.info(f"Created scan session {session_id} for {root_folder}")
-            return session_id
+        Raises:
+            TypeError: If root_folder is invalid
+            sqlite3.Error: If database operation fails
+            RuntimeError: If session creation fails
+        """
+        try:
+            # Input validation
+            if not root_folder:
+                raise TypeError("root_folder cannot be None or empty")
+            
+            # Convert to Path if string
+            if isinstance(root_folder, str):
+                root_folder = Path(root_folder)
+            elif not isinstance(root_folder, Path):
+                raise TypeError(f"root_folder must be Path or str, got {type(root_folder)}")
+
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                
+                try:
+                    cursor.execute('''
+                        INSERT INTO scan_sessions
+                        (root_folder, scan_start, recursive, notes)
+                        VALUES (?, ?, ?, ?)
+                    ''', (
+                        str(root_folder),
+                        datetime.now().isoformat(),
+                        recursive,
+                        notes
+                    ))
+
+                    session_id = cursor.lastrowid
+                    
+                    if not session_id:
+                        raise RuntimeError("Failed to create scan session: no ID returned")
+                    
+                    logger.info(f"Created scan session {session_id} for {root_folder}")
+                    return session_id
+                    
+                except sqlite3.IntegrityError as e:
+                    logger.error(f"Database integrity error creating scan session: {e}", exc_info=True)
+                    raise RuntimeError(f"Failed to create scan session: {e}")
+                except sqlite3.Error as e:
+                    logger.error(f"Database error creating scan session: {e}", exc_info=True)
+                    raise
+                    
+        except (TypeError, ValueError) as e:
+            logger.error(f"Invalid input to create_scan_session: {e}", exc_info=True)
+            raise
+        except (sqlite3.Error, RuntimeError) as e:
+            logger.error(f"Failed to create scan session: {e}", exc_info=True)
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error creating scan session: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to create scan session: {e}")
 
     def finalize_scan_session(
         self,
@@ -209,38 +314,92 @@ class InventoryRepository:
         Args:
             session_id: Scan session ID
             file_records: List of FileRecord objects to insert
+            update_existing: Ignored (kept for API compatibility)
+
+        Raises:
+            TypeError: If inputs are invalid
+            ValueError: If session_id is invalid or file_records is empty
+            sqlite3.Error: If database operation fails
+            RuntimeError: If insert operation fails
         """
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
+        try:
+            # Input validation
+            if not isinstance(session_id, int) or session_id <= 0:
+                raise ValueError(f"Invalid session_id: {session_id}")
+            
+            if not isinstance(file_records, list):
+                raise TypeError(f"file_records must be a list, got {type(file_records)}")
+            
+            if not file_records:
+                logger.warning("add_file_records called with empty list")
+                return
 
-            # Prepare data for batch insert. The update_existing flag is accepted
-            # for API parity with older callers but SQLite's INSERT OR REPLACE
-            # already updates existing rows, so no special handling is needed.
             import json
-            records = [
-                (
-                    session_id,
-                    str(record.absolute_path),
-                    record.size_bytes,
-                    record.extension,
-                    str(record.parent_folder),
-                    record.scan_timestamp.isoformat(),
-                    record.md5_hash,
-                    record.jellyfin_id,
-                    json.dumps(record.jellyfin_provider_ids) if record.jellyfin_provider_ids else None
-                )
-                for record in file_records
-            ]
+            
+            # Prepare data with error isolation per record
+            records = []
+            errors = 0
+            
+            for record in file_records:
+                try:
+                    if not isinstance(record, FileRecord):
+                        logger.warning(f"Skipping invalid record type: {type(record)}")
+                        errors += 1
+                        continue
+                    
+                    records.append((
+                        session_id,
+                        str(record.absolute_path),
+                        record.size_bytes,
+                        record.extension,
+                        str(record.parent_folder),
+                        record.scan_timestamp.isoformat(),
+                        record.md5_hash,
+                        record.jellyfin_id,
+                        json.dumps(record.jellyfin_provider_ids) if record.jellyfin_provider_ids else None
+                    ))
+                except (AttributeError, TypeError) as e:
+                    logger.warning(f"Error preparing file record: {e}")
+                    errors += 1
+                    continue
 
-            # Batch insert (includes Jellyfin fields from Phase 20)
-            cursor.executemany('''
-                INSERT OR REPLACE INTO files
-                (scan_session_id, absolute_path, size_bytes, extension,
-                 parent_folder, scan_timestamp, md5_hash, jellyfin_id, jellyfin_provider_ids)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', records)
+            if not records:
+                raise RuntimeError("No valid records to insert")
 
-            logger.info(f"Inserted {len(records)} file records for session {session_id}")
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                
+                try:
+                    # Batch insert (includes Jellyfin fields from Phase 20)
+                    cursor.executemany('''
+                        INSERT OR REPLACE INTO files
+                        (scan_session_id, absolute_path, size_bytes, extension,
+                         parent_folder, scan_timestamp, md5_hash, jellyfin_id, jellyfin_provider_ids)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', records)
+                    
+                    inserted = cursor.rowcount
+                    logger.info(f"Inserted {len(records)} file records for session {session_id} ({errors} errors)")
+                    
+                    if inserted == 0:
+                        logger.warning("No rows were inserted")
+                        
+                except sqlite3.IntegrityError as e:
+                    logger.error(f"Database integrity error inserting records: {e}", exc_info=True)
+                    raise RuntimeError(f"Failed to insert file records: {e}")
+                except sqlite3.Error as e:
+                    logger.error(f"Database error inserting records: {e}", exc_info=True)
+                    raise
+                    
+        except (TypeError, ValueError) as e:
+            logger.error(f"Invalid input to add_file_records: {e}", exc_info=True)
+            raise
+        except (sqlite3.Error, RuntimeError) as e:
+            logger.error(f"Failed to add file records: {e}", exc_info=True)
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error adding file records: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to add file records: {e}")
 
     def get_all_files(
         self,
@@ -253,44 +412,91 @@ class InventoryRepository:
             session_id: Optional session ID filter
 
         Returns:
-            List of FileRecord objects
+            List of FileRecord objects (empty list if no files found)
+
+        Raises:
+            ValueError: If session_id is invalid
+            sqlite3.Error: If database query fails
+            RuntimeError: If record reconstruction fails
         """
-        import json
+        try:
+            import json
+            
+            # Input validation
+            if session_id is not None and (not isinstance(session_id, int) or session_id <= 0):
+                raise ValueError(f"Invalid session_id: {session_id}")
 
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
 
-            if session_id:
-                cursor.execute('''
-                    SELECT absolute_path, size_bytes, extension, parent_folder,
-                           scan_timestamp, md5_hash, jellyfin_id, jellyfin_provider_ids
-                    FROM files
-                    WHERE scan_session_id = ?
-                    ORDER BY absolute_path
-                ''', (session_id,))
-            else:
-                cursor.execute('''
-                    SELECT absolute_path, size_bytes, extension, parent_folder,
-                           scan_timestamp, md5_hash, jellyfin_id, jellyfin_provider_ids
-                    FROM files
-                    ORDER BY absolute_path
-                ''')
+                try:
+                    if session_id:
+                        cursor.execute('''
+                            SELECT absolute_path, size_bytes, extension, parent_folder,
+                                   scan_timestamp, md5_hash, jellyfin_id, jellyfin_provider_ids
+                            FROM files
+                            WHERE scan_session_id = ?
+                            ORDER BY absolute_path
+                        ''', (session_id,))
+                    else:
+                        cursor.execute('''
+                            SELECT absolute_path, size_bytes, extension, parent_folder,
+                                   scan_timestamp, md5_hash, jellyfin_id, jellyfin_provider_ids
+                            FROM files
+                            ORDER BY absolute_path
+                        ''')
 
-            rows = cursor.fetchall()
+                    rows = cursor.fetchall()
+                    
+                except sqlite3.Error as e:
+                    logger.error(f"Database error querying files: {e}", exc_info=True)
+                    raise
 
-            return [
-                FileRecord(
-                    absolute_path=Path(row['absolute_path']),
-                    size_bytes=row['size_bytes'],
-                    extension=row['extension'],
-                    parent_folder=Path(row['parent_folder']),
-                    scan_timestamp=datetime.fromisoformat(row['scan_timestamp']),
-                    md5_hash=row['md5_hash'],
-                    jellyfin_id=row['jellyfin_id'],
-                    jellyfin_provider_ids=json.loads(row['jellyfin_provider_ids']) if row['jellyfin_provider_ids'] else None
-                )
-                for row in rows
-            ]
+            # Reconstruct FileRecord objects with error isolation
+            file_records = []
+            errors = 0
+            
+            for row in rows:
+                try:
+                    # Parse JSON provider IDs
+                    provider_ids = None
+                    if row['jellyfin_provider_ids']:
+                        try:
+                            provider_ids = json.loads(row['jellyfin_provider_ids'])
+                        except json.JSONDecodeError as e:
+                            logger.warning(f"Failed to parse provider IDs: {e}")
+                    
+                    record = FileRecord(
+                        absolute_path=Path(row['absolute_path']),
+                        size_bytes=row['size_bytes'],
+                        extension=row['extension'],
+                        parent_folder=Path(row['parent_folder']),
+                        scan_timestamp=datetime.fromisoformat(row['scan_timestamp']),
+                        md5_hash=row['md5_hash'],
+                        jellyfin_id=row['jellyfin_id'],
+                        jellyfin_provider_ids=provider_ids
+                    )
+                    file_records.append(record)
+                    
+                except (ValueError, TypeError, KeyError) as e:
+                    logger.warning(f"Error reconstructing file record: {e}")
+                    errors += 1
+                    continue
+
+            if errors > 0:
+                logger.warning(f"Reconstructed {len(file_records)} records with {errors} errors")
+
+            return file_records
+            
+        except ValueError as e:
+            logger.error(f"Invalid input to get_all_files: {e}", exc_info=True)
+            raise
+        except sqlite3.Error as e:
+            logger.error(f"Failed to get all files: {e}", exc_info=True)
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error getting all files: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to get all files: {e}")
 
     def get_files_by_folder(
         self,

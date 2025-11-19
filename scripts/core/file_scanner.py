@@ -120,21 +120,50 @@ class FileScanner:
                              for progress reporting
             exclude_paths: Set of paths to exclude from scanning
             calculate_md5: Whether to calculate MD5 hashes during scan (slower but useful for duplicates)
+
+        Raises:
+            TypeError: If arguments are of incorrect type
+            ValueError: If extensions set is empty
         """
-        self.extensions = extensions or self.DEFAULT_VIDEO_EXTENSIONS.copy()
+        try:
+            # Input validation
+            if extensions is not None and not isinstance(extensions, set):
+                raise TypeError(f"extensions must be a set, got {type(extensions)}")
+            
+            if exclude_paths is not None and not isinstance(exclude_paths, set):
+                raise TypeError(f"exclude_paths must be a set, got {type(exclude_paths)}")
+            
+            # Initialize extensions
+            self.extensions = extensions or self.DEFAULT_VIDEO_EXTENSIONS.copy()
 
-        if include_subtitles:
-            self.extensions.update(self.DEFAULT_SUBTITLE_EXTENSIONS)
-        if include_metadata:
-            self.extensions.update(self.DEFAULT_METADATA_EXTENSIONS)
+            if include_subtitles:
+                self.extensions.update(self.DEFAULT_SUBTITLE_EXTENSIONS)
+            if include_metadata:
+                self.extensions.update(self.DEFAULT_METADATA_EXTENSIONS)
+            
+            if not self.extensions:
+                raise ValueError("Extensions set cannot be empty")
 
-        self.progress_callback = progress_callback
-        self.statistics = ScanStatistics()
-        # Normalize exclusion paths (used to skip subfolders/files)
-        self.exclude_paths: Set[Path] = {p.resolve() for p in exclude_paths} if exclude_paths else set()
-        self.calculate_md5 = calculate_md5
+            self.progress_callback = progress_callback
+            self.statistics = ScanStatistics()
+            
+            # Normalize exclusion paths (used to skip subfolders/files)
+            try:
+                self.exclude_paths: Set[Path] = {p.resolve() for p in exclude_paths} if exclude_paths else set()
+            except (OSError, RuntimeError) as e:
+                logger.warning(f"Failed to resolve some exclusion paths: {e}")
+                self.exclude_paths = set()
 
-        logger.info(f"FileScanner initialized with {len(self.extensions)} extensions (MD5: {calculate_md5})")
+            self.calculate_md5 = calculate_md5
+
+            logger.info(f"FileScanner initialized with {len(self.extensions)} extensions (MD5: {calculate_md5})")
+            
+        except (TypeError, ValueError) as e:
+            logger.error(f"Failed to initialize FileScanner: {e}", exc_info=True)
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error initializing FileScanner: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to initialize FileScanner: {e}")
 
     def scan_folder(
         self,
@@ -155,46 +184,66 @@ class FileScanner:
 
         Raises:
             FileNotFoundError: If folder_path doesn't exist
+            NotADirectoryError: If path is not a directory
             PermissionError: If folder_path is not accessible
+            RuntimeError: If scan fails catastrophically
         """
-        start_time = datetime.now()
-        folder_path = Path(folder_path)
-
-        if not folder_path.exists():
-            raise FileNotFoundError(f"Folder does not exist: {folder_path}")
-
-        if not folder_path.is_dir():
-            raise NotADirectoryError(f"Path is not a directory: {folder_path}")
-
-        logger.info(f"Starting {'recursive' if recursive else 'non-recursive'} scan: {folder_path}")
-
-        # Reset statistics
-        self.statistics = ScanStatistics()
-
-        # Collect all files
-        file_records = []
-
         try:
-            if recursive:
-                file_records = self._scan_recursive(folder_path)
-            else:
-                file_records = self._scan_single_folder(folder_path)
-        except Exception as e:
-            logger.error(f"Error during scan: {e}", exc_info=True)
-            self.statistics.errors.append(str(e))
+            start_time = datetime.now()
+            
+            # Input validation and path conversion
+            try:
+                folder_path = Path(folder_path)
+            except (TypeError, ValueError) as e:
+                raise ValueError(f"Invalid folder path: {e}")
+
+            # Path validation
+            if not folder_path.exists():
+                raise FileNotFoundError(f"Folder does not exist: {folder_path}")
+
+            if not folder_path.is_dir():
+                raise NotADirectoryError(f"Path is not a directory: {folder_path}")
+
+            logger.info(f"Starting {'recursive' if recursive else 'non-recursive'} scan: {folder_path}")
+
+            # Reset statistics
+            self.statistics = ScanStatistics()
+
+            # Collect all files
+            file_records = []
+
+            try:
+                if recursive:
+                    file_records = self._scan_recursive(folder_path)
+                else:
+                    file_records = self._scan_single_folder(folder_path)
+            except (FileNotFoundError, NotADirectoryError, PermissionError):
+                # Re-raise expected exceptions
+                raise
+            except Exception as e:
+                error_msg = f"Scan operation failed: {e}"
+                logger.error(error_msg, exc_info=True)
+                self.statistics.errors.append(error_msg)
+                raise RuntimeError(error_msg)
+
+            # Calculate duration
+            end_time = datetime.now()
+            self.statistics.scan_duration_seconds = (end_time - start_time).total_seconds()
+
+            logger.info(
+                f"Scan complete: {self.statistics.total_files} files "
+                f"({self._format_size(self.statistics.total_size_bytes)}) "
+                f"in {self.statistics.scan_duration_seconds:.1f}s"
+            )
+
+            return file_records
+            
+        except (FileNotFoundError, NotADirectoryError, PermissionError, ValueError) as e:
+            logger.error(f"Scan failed with validation error: {e}", exc_info=True)
             raise
-
-        # Calculate duration
-        end_time = datetime.now()
-        self.statistics.scan_duration_seconds = (end_time - start_time).total_seconds()
-
-        logger.info(
-            f"Scan complete: {self.statistics.total_files} files "
-            f"({self._format_size(self.statistics.total_size_bytes)}) "
-            f"in {self.statistics.scan_duration_seconds:.1f}s"
-        )
-
-        return file_records
+        except Exception as e:
+            logger.error(f"Unexpected error during scan: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to scan folder: {e}")
 
     def _scan_recursive(self, folder_path: Path) -> List[FileRecord]:
         """
@@ -396,27 +445,62 @@ class FileScanner:
 
         Returns:
             Dictionary with folder structure and statistics
+
+        Raises:
+            TypeError: If file_records is not a list
+            RuntimeError: If structure generation fails
         """
-        structure = defaultdict(lambda: {
-            'total_size': 0,
-            'file_count': 0,
-            'file_types': defaultdict(int),
-            'file_type_sizes': defaultdict(int)
-        })
+        try:
+            # Input validation
+            if not isinstance(file_records, list):
+                raise TypeError(f"file_records must be a list, got {type(file_records)}")
 
-        for record in file_records:
-            folder = record.parent_folder
-            ext = record.extension
+            structure = defaultdict(lambda: {
+                'total_size': 0,
+                'file_count': 0,
+                'file_types': defaultdict(int),
+                'file_type_sizes': defaultdict(int)
+            })
 
-            structure[folder]['total_size'] += record.size_bytes
-            structure[folder]['file_count'] += 1
-            structure[folder]['file_types'][ext] += 1
-            structure[folder]['file_type_sizes'][ext] += record.size_bytes
+            # Process each record with error isolation
+            processed = 0
+            errors = 0
+            
+            for record in file_records:
+                try:
+                    if not isinstance(record, FileRecord):
+                        logger.warning(f"Skipping invalid record type: {type(record)}")
+                        errors += 1
+                        continue
+                    
+                    folder = record.parent_folder
+                    ext = record.extension
 
-        # Update folders scanned count
-        self.statistics.folders_scanned = len(structure)
+                    structure[folder]['total_size'] += record.size_bytes
+                    structure[folder]['file_count'] += 1
+                    structure[folder]['file_types'][ext] += 1
+                    structure[folder]['file_type_sizes'][ext] += record.size_bytes
+                    processed += 1
+                    
+                except (AttributeError, TypeError) as e:
+                    logger.warning(f"Error processing file record: {e}")
+                    errors += 1
+                    continue
 
-        return dict(structure)
+            # Update folders scanned count
+            self.statistics.folders_scanned = len(structure)
+
+            if errors > 0:
+                logger.warning(f"Processed {processed} records with {errors} errors")
+
+            return dict(structure)
+            
+        except TypeError as e:
+            logger.error(f"Invalid input to get_folder_structure: {e}", exc_info=True)
+            raise
+        except Exception as e:
+            logger.error(f"Failed to generate folder structure: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to generate folder structure: {e}")
 
     def get_statistics(self) -> ScanStatistics:
         """Get scan statistics."""
@@ -445,33 +529,62 @@ class FileScanner:
 
         Returns:
             Formatted string representation
+
+        Raises:
+            TypeError: If structure is not a dictionary
+            RuntimeError: If formatting fails
         """
-        lines = []
-        lines.append("FOLDER STRUCTURE ANALYSIS")
-        lines.append("=" * 80)
-        lines.append(f"Total folders: {len(structure)}")
-        lines.append(f"Total files: {self.statistics.total_files}")
-        lines.append(f"Total size: {self._format_size(self.statistics.total_size_bytes)}")
-        lines.append("")
+        try:
+            # Input validation
+            if not isinstance(structure, dict):
+                raise TypeError(f"structure must be a dict, got {type(structure)}")
 
-        for folder, data in sorted(structure.items()):
-            lines.append(f"\n{folder}")
-            lines.append(f"  Files: {data['file_count']}")
-            lines.append(f"  Size: {self._format_size(data['total_size'])}")
-            lines.append(f"  File types:")
+            lines = []
+            lines.append("FOLDER STRUCTURE ANALYSIS")
+            lines.append("=" * 80)
+            lines.append(f"Total folders: {len(structure)}")
+            lines.append(f"Total files: {self.statistics.total_files}")
+            lines.append(f"Total size: {self._format_size(self.statistics.total_size_bytes)}")
+            lines.append("")
 
-            # Sort by count descending
-            sorted_types = sorted(
-                data['file_types'].items(),
-                key=lambda x: x[1],
-                reverse=True
-            )
+            # Process folders with error isolation
+            for folder, data in sorted(structure.items()):
+                try:
+                    lines.append(f"\n{folder}")
+                    lines.append(f"  Files: {data.get('file_count', 0)}")
+                    lines.append(f"  Size: {self._format_size(data.get('total_size', 0))}")
+                    lines.append(f"  File types:")
 
-            for ext, count in sorted_types:
-                size = data['file_type_sizes'][ext]
-                lines.append(f"    {ext}: {count} files ({self._format_size(size)})")
+                    # Sort by count descending
+                    file_types = data.get('file_types', {})
+                    file_type_sizes = data.get('file_type_sizes', {})
+                    
+                    sorted_types = sorted(
+                        file_types.items(),
+                        key=lambda x: x[1],
+                        reverse=True
+                    )
 
-        return "\n".join(lines)
+                    for ext, count in sorted_types:
+                        try:
+                            size = file_type_sizes.get(ext, 0)
+                            lines.append(f"    {ext}: {count} files ({self._format_size(size)})")
+                        except Exception as e:
+                            logger.warning(f"Error formatting file type {ext}: {e}")
+                            continue
+                            
+                except (KeyError, TypeError, AttributeError) as e:
+                    logger.warning(f"Error formatting folder {folder}: {e}")
+                    continue
+
+            return "\n".join(lines)
+            
+        except TypeError as e:
+            logger.error(f"Invalid input to format_folder_structure: {e}", exc_info=True)
+            raise
+        except Exception as e:
+            logger.error(f"Failed to format folder structure: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to format folder structure: {e}")
 
 
 def main():
