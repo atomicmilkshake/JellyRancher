@@ -18,8 +18,9 @@ Usage:
 
 import sys
 import logging
+import json
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 import sqlite3
 
@@ -31,11 +32,12 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem, QAbstractItemView
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QAction, QFont, QIcon
+from PyQt6.QtGui import QAction, QFont, QIcon, QShortcut, QKeySequence
 
 from scripts.core.project_manager import ProjectManager, Project, ProjectState
 from scripts._common.logger import MasterLogger
 from scripts.ui.scan_view import ScanView
+from scripts.ui.scan_results_view import ScanResultsView
 from scripts.ui.analysis_view import AnalysisView
 from scripts.ui.review_view import ReviewView
 from scripts.ui.execution_view import ExecutionView
@@ -224,6 +226,7 @@ class JellyRancherStudio(QMainWindow):
         self._create_main_layout()
         self._create_status_bar()
         self._setup_keyboard_shortcuts()
+        self._setup_gui_capture_shortcut()
         self._setup_auto_save()
         
         # Load last project or show welcome
@@ -607,6 +610,39 @@ class JellyRancherStudio(QMainWindow):
         self.status_label.setText(f"Action plan ready (ID #{action_plan_id})")
         self._refresh_current_project("review")
     
+    def _on_results_ready(self, scan_session_id: int):
+        """Handle scan results ready signal - open ScanResultsView."""
+        if not self.current_project:
+            return
+        
+        # Create and open scan results view
+        results_view = ScanResultsView(self.current_project, self.project_manager, scan_session_id, self)
+        results_view.send_to_analysis.connect(self._on_send_to_analysis)
+        self.tab_widget.addTab(results_view, f"📊 Scan Results - Session #{scan_session_id}")
+        self.tab_widget.setCurrentWidget(results_view)
+        
+        logger.info(f"Opened scan results view for session {scan_session_id}")
+    
+    def _on_send_to_analysis(self, filtered_files: list, filter_config: dict):
+        """Handle send to analysis signal from ScanResultsView - open AnalysisView with filtered data."""
+        if not self.current_project:
+            return
+        
+        # Create and open analysis view with filtered data
+        analysis_view = AnalysisView(
+            self.current_project, 
+            self.project_manager, 
+            self, 
+            filtered_files=filtered_files,
+            filter_config=filter_config
+        )
+        analysis_view.analysis_saved.connect(self._on_analysis_saved)
+        analysis_view.metadata_built.connect(self._on_analysis_saved)
+        self.tab_widget.addTab(analysis_view, f"🤖 Analysis (Filtered) - {self.current_project.name}")
+        self.tab_widget.setCurrentWidget(analysis_view)
+        
+        logger.info(f"Opened analysis view with {len(filtered_files)} filtered files")
+    
     # ========================================================================
     # Project Management Actions
     # ========================================================================
@@ -707,6 +743,7 @@ class JellyRancherStudio(QMainWindow):
         # Create and open scan view
         scan_view = ScanView(self.current_project, self.project_manager, self)
         scan_view.scan_completed.connect(self._on_scan_completed)
+        scan_view.results_ready.connect(self._on_results_ready)
         self.tab_widget.addTab(scan_view, f"📁 Scan - {self.current_project.name}")
         self.tab_widget.setCurrentWidget(scan_view)
         
@@ -878,6 +915,145 @@ class JellyRancherStudio(QMainWindow):
         msg_box.setIcon(QMessageBox.Icon.Information)
         msg_box.exec()
 
+    def _setup_gui_capture_shortcut(self):
+        """Setup F12 keyboard shortcut for quick GUI state capture."""
+        # Create F12 shortcut
+        capture_shortcut = QShortcut(QKeySequence("F12"), self)
+        capture_shortcut.activated.connect(self._capture_gui_state)
+        
+        logger.info("F12 GUI capture shortcut registered")
+    
+    def _build_widget_tree(self, widget) -> Dict[str, Any]:
+        """
+        Recursively build a JSON representation of the widget hierarchy.
+        
+        Args:
+            widget: PyQt6 widget to inspect
+            
+        Returns:
+            Dictionary containing widget information and children
+        """
+        info = {
+            "object_name": widget.objectName() or "(unnamed)",
+            "class_name": widget.__class__.__name__,
+        }
+        
+        # Capture common useful properties
+        property_names = [
+            "text", "title", "placeholderText", "currentText", 
+            "toolTip", "statusTip", "whatsThis",
+            "isChecked", "isEnabled", "isVisible", "isReadOnly",
+            "minimum", "maximum", "value", "currentIndex"
+        ]
+        
+        for prop_name in property_names:
+            if hasattr(widget, prop_name):
+                try:
+                    prop = getattr(widget, prop_name)
+                    value = prop() if callable(prop) else prop
+                    
+                    # Only include non-empty/non-default values
+                    if value not in [None, "", False, 0]:
+                        info[prop_name] = value
+                except Exception:
+                    pass
+        
+        # Capture layout information
+        if hasattr(widget, 'layout') and widget.layout() is not None:
+            layout = widget.layout()
+            info["layout_type"] = layout.__class__.__name__
+            info["layout_spacing"] = layout.spacing()
+            margins = layout.contentsMargins()
+            info["layout_margins"] = {
+                "left": margins.left(),
+                "top": margins.top(),
+                "right": margins.right(),
+                "bottom": margins.bottom()
+            }
+        
+        # Recursively capture all direct widget children
+        direct_children = [c for c in widget.children() if c.isWidgetType()]
+        
+        if direct_children:
+            info["children"] = [self._build_widget_tree(child) for child in direct_children]
+        
+        return info
+    
+    def _capture_gui_state(self):
+        """
+        Capture current GUI state and save to timestamped file.
+        
+        Triggered by F12 hotkey. Saves complete widget hierarchy to
+        gui_captures folder with timestamp and view context.
+        """
+        try:
+            # Create gui_captures directory if it doesn't exist
+            captures_dir = Path("gui_captures")
+            captures_dir.mkdir(exist_ok=True)
+            
+            # Get current tab name for context
+            current_tab_index = self.tab_widget.currentIndex()
+            current_tab_name = self.tab_widget.tabText(current_tab_index)
+            current_tab_name = current_tab_name.replace("📁 ", "").replace("🤖 ", "").replace("📋 ", "").replace("⚙️ ", "").replace("📊 ", "").replace("💬 ", "")
+            current_tab_name = current_tab_name.split(" - ")[0].strip()  # Remove project name suffix
+            
+            # Build complete widget tree
+            widget_tree = self._build_widget_tree(self)
+            
+            # Create capture data
+            timestamp = datetime.now()
+            capture_data = {
+                "metadata": {
+                    "captured_at": timestamp.isoformat(),
+                    "current_view": current_tab_name,
+                    "project": self.current_project.name if self.current_project else "No Project",
+                    "main_window_class": "JellyRancherStudio",
+                    "pyqt_version": "PyQt6",
+                    "capture_method": "F12 Quick Capture"
+                },
+                "tree": widget_tree
+            }
+            
+            # Generate filename
+            timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
+            view_slug = current_tab_name.lower().replace(" ", "_")
+            filename = f"{timestamp_str}_{view_slug}.json"
+            output_file = captures_dir / filename
+            
+            # Save to file
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(capture_data, f, indent=2, ensure_ascii=False)
+            
+            # Also update the main gui_runtime_state.json file
+            main_state_file = Path("gui_runtime_state.json")
+            with open(main_state_file, 'w', encoding='utf-8') as f:
+                json.dump(capture_data, f, indent=2, ensure_ascii=False)
+            
+            # Show success notification in status bar
+            self.status_label.setText(f"📸 GUI state captured: {filename}")
+            logger.info(f"GUI state captured to {output_file} and gui_runtime_state.json")
+            
+            # Show brief message box
+            QMessageBox.information(
+                self,
+                "GUI State Captured",
+                f"GUI state has been captured!\n\n"
+                f"📁 Quick capture: gui_captures/{filename}\n"
+                f"📄 Main state: gui_runtime_state.json\n\n"
+                f"Current view: {current_tab_name}\n"
+                f"Timestamp: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                f"💡 Paste this JSON to LLMs for accurate GUI assistance!"
+            )
+            
+        except Exception as e:
+            logger.error(f"Failed to capture GUI state: {e}", exc_info=True)
+            QMessageBox.critical(
+                self,
+                "Capture Failed",
+                f"Failed to capture GUI state:\n{str(e)}\n\n"
+                f"Check logs for details."
+            )
+
     def closeEvent(self, event):
         """Handle window close event."""
         # Auto-save before closing
@@ -914,4 +1090,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

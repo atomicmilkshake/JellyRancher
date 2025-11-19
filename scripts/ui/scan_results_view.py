@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
 """
-Scan Results View - Dedicated view for reviewing scan results
+Scan Results View - Dedicated view for reviewing scan results with pre-analysis filtering
 
 Extracted from ScanView to provide focused results review in separate tab.
 Displays file table, search/filter, export, folder overview, and duplicate detection.
+
+NEW in Phase 33G-1: Pre-analysis filtering to reduce LLM costs and improve quality
 """
 
 import logging
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Set
 from collections import defaultdict
 from datetime import datetime
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QTableWidget, QTableWidgetItem, QTreeWidget, QTreeWidgetItem,
-    QHeaderView, QGroupBox, QLineEdit, QMessageBox
+    QHeaderView, QGroupBox, QLineEdit, QMessageBox, QCheckBox,
+    QSlider, QSpinBox, QFileDialog
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QColor
 
 from scripts.core.file_scanner import FileRecord, ScanStatistics
@@ -32,14 +35,23 @@ logger = logging.getLogger(__name__)
 
 class ScanResultsView(QWidget):
     """
-    Dedicated view for scan results review.
+    Dedicated view for scan results review with pre-analysis filtering.
     
     Features:
     - Sortable/searchable results table
-    - Export to CSV
-    - Hierarchical folder overview
-    - Duplicate detection summary
+    - File type filters (Video, Subtitle, Image, Other)
+    - Size range filter with slider
+    - Duplicate detection filter (MD5)
+    - Folder selection tree with checkboxes
+    - Export filtered results to CSV
+    - Send filtered data to Analysis
+    
+    Signals:
+    - send_to_analysis: Emitted with filtered FileRecord list for analysis
     """
+    
+    # Signal to send filtered data to analysis
+    send_to_analysis = pyqtSignal(list, dict)  # filtered_files, filter_config
     
     def __init__(self, project: Project, project_manager: ProjectManager, scan_session_id: int, parent=None):
         """
@@ -57,7 +69,7 @@ class ScanResultsView(QWidget):
         The initialization process:
         1. Sets up core dependencies (project, manager, repository)
         2. Initializes data structures for files, folders, and duplicates
-        3. Creates the UI components
+        3. Creates the UI components with filter controls
         4. Loads scan results from the database
         5. Logs successful initialization
         
@@ -67,8 +79,11 @@ class ScanResultsView(QWidget):
         
         Data Structures:
             - scanned_files: List of all FileRecord objects from the scan
+            - filtered_files: List of FileRecord objects after applying filters
             - folder_structure: Hierarchical dict of folder statistics
             - duplicate_groups: Dict mapping MD5 hashes to duplicate file lists
+            - excluded_folders: Set of folder paths to exclude
+            - excluded_files: Set of file paths to exclude
         """
         try:
             super().__init__(parent)
@@ -79,8 +94,18 @@ class ScanResultsView(QWidget):
             self.scan_session_id = scan_session_id
 
             self.scanned_files: List[FileRecord] = []
+            self.filtered_files: List[FileRecord] = []
             self.folder_structure: Dict[Path, Dict[str, Any]] = {}
             self.duplicate_groups: Dict[str, List[FileRecord]] = {}
+            
+            # Filter state
+            self.excluded_folders: Set[Path] = set()
+            self.excluded_files: Set[Path] = set()
+            
+            # File type categories
+            self.video_extensions = {'.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv', '.m4v', '.ts', '.webm'}
+            self.subtitle_extensions = {'.srt', '.sub', '.idx', '.ass', '.ssa', '.vtt'}
+            self.image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff'}
 
             self._init_ui()
             self._load_scan_results()
@@ -96,21 +121,23 @@ class ScanResultsView(QWidget):
     
     def _init_ui(self):
         """
-        Initialize the user interface components.
+        Initialize the user interface components with filter controls.
         
         Creates the main layout and UI structure for the scan results view,
-        including title, results table section, and overview statistics section.
+        including title, filter controls, results table, and overview sections.
         
         The UI layout consists of:
         1. Title label with session ID
-        2. Results section (expandable table with search/filter/export)
-        3. Overview section (summary statistics and folder structure)
+        2. Filter section (file types, size, duplicates, folders)
+        3. Results section (expandable table with search/export)
+        4. Overview section (summary statistics and folder structure)
         
         Layout Configuration:
             - Vertical box layout with 10px spacing and margins
             - Title with large, bold font and styled background
+            - Filter section with grouped controls
             - Results section gets stretch factor 1 (takes available space)
-            - Overview section has fixed height
+            - Overview section has expandable folder tree
         
         Error Handling:
             If UI initialization fails, shows critical error dialog and re-raises
@@ -122,10 +149,14 @@ class ScanResultsView(QWidget):
             layout.setContentsMargins(10, 10, 10, 10)
 
             # Title
-            title = QLabel(f"Scan Results - Session #{self.scan_session_id}")
+            title = QLabel(f"📊 Scan Results - Session #{self.scan_session_id}")
             title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
             title.setStyleSheet("color: #2c3e50; padding: 10px;")
             layout.addWidget(title)
+            
+            # Filter section
+            filter_group = self._create_filter_section()
+            layout.addWidget(filter_group)
 
             # Results section
             results_group = self._create_results_section()
@@ -143,6 +174,132 @@ class ScanResultsView(QWidget):
                 "UI Initialization Error",
                 f"Failed to initialize scan results interface:\n\n{str(e)}\n\nPlease restart the application.",
             )
+            raise
+    
+    def _create_filter_section(self) -> QGroupBox:
+        """
+        Create the filter controls section for pre-analysis filtering.
+        
+        Builds the filter area with controls for file type, size range,
+        duplicate detection, and folder selection filtering.
+        
+        Returns:
+            QGroupBox: Grouped container with all filter controls
+            
+        Filter Controls:
+        1. File Type Filters: Checkboxes for Video, Subtitle, Image, Other
+        2. Size Range: Spinboxes for min/max MB with slider
+        3. Duplicate Filter: Checkbox to show/hide duplicates
+        4. Action Buttons: Apply Filters, Reset Filters, Send to Analysis
+        
+        All filters are connected to _apply_filters() method for real-time updates.
+        
+        Error Handling:
+            If section creation fails, logs error and re-raises exception.
+        """
+        try:
+            group = QGroupBox("🔍 Pre-Analysis Filters")
+            layout = QVBoxLayout()
+            
+            # File type filters
+            type_layout = QHBoxLayout()
+            type_layout.addWidget(QLabel("File Types:"))
+            
+            self.filter_video = QCheckBox("Video")
+            self.filter_video.setChecked(True)
+            self.filter_video.stateChanged.connect(self._apply_filters)
+            type_layout.addWidget(self.filter_video)
+            
+            self.filter_subtitle = QCheckBox("Subtitle")
+            self.filter_subtitle.setChecked(True)
+            self.filter_subtitle.stateChanged.connect(self._apply_filters)
+            type_layout.addWidget(self.filter_subtitle)
+            
+            self.filter_image = QCheckBox("Image")
+            self.filter_image.setChecked(True)
+            self.filter_image.stateChanged.connect(self._apply_filters)
+            type_layout.addWidget(self.filter_image)
+            
+            self.filter_other = QCheckBox("Other")
+            self.filter_other.setChecked(True)
+            self.filter_other.stateChanged.connect(self._apply_filters)
+            type_layout.addWidget(self.filter_other)
+            
+            type_layout.addStretch()
+            layout.addLayout(type_layout)
+            
+            # Size range filters
+            size_layout = QHBoxLayout()
+            size_layout.addWidget(QLabel("Size Range (MB):"))
+            
+            self.size_min = QSpinBox()
+            self.size_min.setRange(0, 100000)
+            self.size_min.setValue(0)
+            self.size_min.setSuffix(" MB")
+            self.size_min.valueChanged.connect(self._apply_filters)
+            size_layout.addWidget(QLabel("Min:"))
+            size_layout.addWidget(self.size_min)
+            
+            self.size_max = QSpinBox()
+            self.size_max.setRange(0, 100000)
+            self.size_max.setValue(100000)
+            self.size_max.setSuffix(" MB")
+            self.size_max.valueChanged.connect(self._apply_filters)
+            size_layout.addWidget(QLabel("Max:"))
+            size_layout.addWidget(self.size_max)
+            
+            size_layout.addStretch()
+            layout.addLayout(size_layout)
+            
+            # Duplicate filter
+            duplicate_layout = QHBoxLayout()
+            self.filter_duplicates = QCheckBox("Hide Duplicate Files (same MD5)")
+            self.filter_duplicates.setChecked(False)
+            self.filter_duplicates.stateChanged.connect(self._apply_filters)
+            duplicate_layout.addWidget(self.filter_duplicates)
+            duplicate_layout.addStretch()
+            layout.addLayout(duplicate_layout)
+            
+            # Action buttons
+            button_layout = QHBoxLayout()
+            
+            btn_reset = QPushButton("Reset Filters")
+            btn_reset.clicked.connect(self._reset_filters)
+            button_layout.addWidget(btn_reset)
+            
+            self.btn_send_to_analysis = QPushButton("➡️ Send to Analysis")
+            self.btn_send_to_analysis.clicked.connect(self._send_to_analysis)
+            self.btn_send_to_analysis.setMinimumHeight(35)
+            self.btn_send_to_analysis.setEnabled(False)
+            self.btn_send_to_analysis.setStyleSheet("""
+                QPushButton {
+                    background-color: #9b59b6;
+                    color: white;
+                    font-size: 13px;
+                    font-weight: bold;
+                    border-radius: 4px;
+                }
+                QPushButton:hover {
+                    background-color: #8e44ad;
+                }
+                QPushButton:disabled {
+                    background-color: #bdc3c7;
+                }
+            """)
+            button_layout.addWidget(self.btn_send_to_analysis)
+            
+            button_layout.addStretch()
+            layout.addLayout(button_layout)
+            
+            # Filter summary
+            self.filter_summary = QLabel("No filters applied")
+            self.filter_summary.setStyleSheet("color: #16a085; font-weight: bold; padding: 5px;")
+            layout.addWidget(self.filter_summary)
+            
+            group.setLayout(layout)
+            return group
+        except Exception as e:
+            logger.error(f"Failed to create filter section: {e}", exc_info=True)
             raise
     
     def _create_results_section(self) -> QGroupBox:
@@ -164,7 +321,7 @@ class ScanResultsView(QWidget):
            - Size (MB): File size in megabytes
            - Type: Media type (movie/episode)
            - MD5: File hash for duplicate detection
-           - Metadata: Additional file information
+           - Status: Filter status indicator
         4. Summary label showing file count and statistics
         
         Table Configuration:
@@ -172,6 +329,7 @@ class ScanResultsView(QWidget):
             - Pre-set column widths for optimal display
             - Sorting enabled on all columns
             - Minimum height of 200px
+            - Color coding for filter status
         
         Error Handling:
             If section creation fails, logs error and re-raises exception.
@@ -191,7 +349,7 @@ class ScanResultsView(QWidget):
 
             self.btn_export = QPushButton("Export Results")
             self.btn_export.clicked.connect(self._export_results)
-            self.btn_export.setEnabled(bool(self.scanned_files))
+            self.btn_export.setEnabled(False)
             search_layout.addWidget(self.btn_export)
 
             layout.addLayout(search_layout)
@@ -201,7 +359,7 @@ class ScanResultsView(QWidget):
             self.results_table.setMinimumHeight(200)
             self.results_table.setColumnCount(6)
             self.results_table.setHorizontalHeaderLabels([
-                "Filename", "Path", "Size (MB)", "Type", "MD5", "Metadata"
+                "Filename", "Path", "Size (MB)", "Type", "MD5", "Status"
             ])
             self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
             self.results_table.setColumnWidth(0, 250)
@@ -291,7 +449,7 @@ class ScanResultsView(QWidget):
         4. Computes folder structure hierarchy
         5. Populates results table with file data
         6. Updates overview trees and statistics
-        7. Enables export functionality
+        7. Enables export and analysis functionality
         
         Data Validation:
             - Verifies session exists in database
@@ -308,7 +466,7 @@ class ScanResultsView(QWidget):
             - Results table populated with sortable file data
             - Overview trees show folder hierarchy and duplicates
             - Summary label shows file count and total size
-            - Export button enabled for successful loads
+            - Export and analysis buttons enabled for successful loads
         """
         try:
             # Load session metadata
@@ -330,18 +488,27 @@ class ScanResultsView(QWidget):
             
             conn.close()
             
-            # Load FileRecords from inventory (assuming session_id foreign key)
-            self.scanned_files = self.inventory_repo.get_files_by_session(self.scan_session_id)
+            # Load FileRecords from inventory
+            inventory_sessions = options.get('inventory_session_ids', [])
+            self.scanned_files = []
+            for session_id in inventory_sessions:
+                self.scanned_files.extend(self.inventory_repo.get_all_files(session_id))
             
             if len(self.scanned_files) != total_files:
                 logger.warning(f"Mismatch: DB reports {total_files} files, loaded {len(self.scanned_files)}")
             
-            # Load folder structure (recompute or from options if cached)
+            # Initialize filtered_files to all files
+            self.filtered_files = self.scanned_files.copy()
+            
+            # Compute folder structure
             self._compute_folder_structure()
             
             # Populate UI
             self._populate_results_table(self.scanned_files)
             self._update_overview()
+            
+            # Apply initial filters
+            self._apply_filters()
             
             # Update summary
             total_size_gb = total_size_bytes / (1024 ** 3) if total_size_bytes else 0
@@ -351,6 +518,7 @@ class ScanResultsView(QWidget):
             )
             
             self.btn_export.setEnabled(True)
+            self.btn_send_to_analysis.setEnabled(True)
             logger.info(f"Loaded {len(self.scanned_files)} files for session {self.scan_session_id}")
             
         except sqlite3.Error as e:
@@ -429,12 +597,225 @@ class ScanResultsView(QWidget):
             self.folder_structure = {}
             QMessageBox.warning(self, "Structure Error", f"Failed to compute folder structure:\n\n{str(e)}")
     
+    def _apply_filters(self):
+        """
+        Apply all active filters to the scanned files.
+        
+        Filters the complete file list based on user-selected criteria:
+        - File type (video, subtitle, image, other)
+        - Size range (min/max MB)
+        - Duplicate detection (MD5 hash)
+        
+        Updates the filtered_files list and refreshes the UI display.
+        
+        Filter Logic:
+            - Files must pass ALL active filter criteria
+            - Unchecked file types are excluded
+            - Files outside size range are excluded
+            - Duplicate files (by MD5) are excluded if filter enabled
+        
+        UI Updates:
+            - Results table shows only filtered files with color coding
+            - Filter summary shows count reduction
+            - Send to Analysis button enabled with filtered count
+        """
+        try:
+            # Start with all files
+            self.filtered_files = []
+            
+            # Get filter states
+            include_video = self.filter_video.isChecked()
+            include_subtitle = self.filter_subtitle.isChecked()
+            include_image = self.filter_image.isChecked()
+            include_other = self.filter_other.isChecked()
+            
+            min_size_mb = self.size_min.value()
+            max_size_mb = self.size_max.value()
+            min_size_bytes = min_size_mb * 1024 * 1024
+            max_size_bytes = max_size_mb * 1024 * 1024
+            
+            hide_duplicates = self.filter_duplicates.isChecked()
+            
+            # Build set of seen MD5 hashes for duplicate detection
+            seen_md5 = set()
+            
+            for file_record in self.scanned_files:
+                try:
+                    # File type filter
+                    ext = file_record.extension.lower()
+                    if ext in self.video_extensions and not include_video:
+                        continue
+                    if ext in self.subtitle_extensions and not include_subtitle:
+                        continue
+                    if ext in self.image_extensions and not include_image:
+                        continue
+                    if (ext not in self.video_extensions and 
+                        ext not in self.subtitle_extensions and 
+                        ext not in self.image_extensions and 
+                        not include_other):
+                        continue
+                    
+                    # Size filter
+                    if file_record.size_bytes < min_size_bytes or file_record.size_bytes > max_size_bytes:
+                        continue
+                    
+                    # Duplicate filter
+                    if hide_duplicates and file_record.md5_hash:
+                        if file_record.md5_hash in seen_md5:
+                            continue
+                        seen_md5.add(file_record.md5_hash)
+                    
+                    # File passed all filters
+                    self.filtered_files.append(file_record)
+                    
+                except AttributeError as e:
+                    logger.warning(f"Invalid file record during filtering: {e}", exc_info=True)
+                    continue
+                except Exception as e:
+                    logger.warning(f"Error filtering file record: {e}", exc_info=True)
+                    continue
+            
+            # Update UI
+            self._update_filter_summary()
+            self._populate_results_table(self.filtered_files)
+            
+            logger.debug(f"Applied filters: {len(self.scanned_files)} → {len(self.filtered_files)} files")
+            
+        except Exception as e:
+            logger.error(f"Failed to apply filters: {e}", exc_info=True)
+            QMessageBox.warning(self, "Filter Error", f"Failed to apply filters:\n\n{str(e)}")
+    
+    def _reset_filters(self):
+        """
+        Reset all filters to default state (all files included).
+        
+        Restores filter controls to their initial state:
+        - All file type checkboxes checked
+        - Size range set to 0-100000 MB
+        - Duplicate filter unchecked
+        
+        Then re-applies filters to show all files.
+        """
+        try:
+            self.filter_video.setChecked(True)
+            self.filter_subtitle.setChecked(True)
+            self.filter_image.setChecked(True)
+            self.filter_other.setChecked(True)
+            self.size_min.setValue(0)
+            self.size_max.setValue(100000)
+            self.filter_duplicates.setChecked(False)
+            
+            # _apply_filters() will be called automatically via signal connections
+            logger.info("Filters reset to default state")
+            
+        except Exception as e:
+            logger.error(f"Failed to reset filters: {e}", exc_info=True)
+            QMessageBox.warning(self, "Reset Error", f"Failed to reset filters:\n\n{str(e)}")
+    
+    def _update_filter_summary(self):
+        """
+        Update the filter summary label with current filter statistics.
+        
+        Shows:
+        - Original file count
+        - Filtered file count
+        - Reduction percentage
+        - Active filter descriptions
+        """
+        try:
+            total = len(self.scanned_files)
+            filtered = len(self.filtered_files)
+            
+            if total == filtered:
+                self.filter_summary.setText("No filters applied - showing all files")
+            else:
+                reduction = 100 * (total - filtered) / total if total > 0 else 0
+                self.filter_summary.setText(
+                    f"Filtered: {filtered}/{total} files ({reduction:.1f}% reduction)"
+                )
+            
+        except Exception as e:
+            logger.error(f"Failed to update filter summary: {e}", exc_info=True)
+    
+    def _send_to_analysis(self):
+        """
+        Send filtered file list to Analysis view.
+        
+        Emits the send_to_analysis signal with the filtered files and filter configuration.
+        This allows the Analysis view to work with only the user-selected subset of files.
+        
+        Filter configuration includes:
+        - File type selections
+        - Size range
+        - Duplicate filter state
+        - Excluded folders/files
+        
+        The signal is connected in jelly_rancher_studio.py to open/update the Analysis view.
+        """
+        try:
+            if not self.filtered_files:
+                QMessageBox.warning(
+                    self,
+                    "No Files",
+                    "No files match the current filters.\n\n"
+                    "Please adjust your filters and try again."
+                )
+                return
+            
+            # Build filter configuration
+            filter_config = {
+                "file_types": {
+                    "video": self.filter_video.isChecked(),
+                    "subtitle": self.filter_subtitle.isChecked(),
+                    "image": self.filter_image.isChecked(),
+                    "other": self.filter_other.isChecked(),
+                },
+                "size_range_mb": {
+                    "min": self.size_min.value(),
+                    "max": self.size_max.value(),
+                },
+                "hide_duplicates": self.filter_duplicates.isChecked(),
+                "excluded_folders": list(str(p) for p in self.excluded_folders),
+                "excluded_files": list(str(p) for p in self.excluded_files),
+            }
+            
+            # Confirm with user
+            reply = QMessageBox.question(
+                self,
+                "Send to Analysis",
+                f"Send {len(self.filtered_files)} filtered files to Analysis?\n\n"
+                f"Original: {len(self.scanned_files)} files\n"
+                f"Filtered: {len(self.filtered_files)} files\n\n"
+                f"This will reduce LLM token costs and improve analysis quality.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                # Emit signal with filtered data
+                self.send_to_analysis.emit(self.filtered_files, filter_config)
+                logger.info(f"Sent {len(self.filtered_files)} filtered files to analysis")
+                
+                QMessageBox.information(
+                    self,
+                    "Sent to Analysis",
+                    f"Successfully sent {len(self.filtered_files)} files to Analysis view.\n\n"
+                    f"The Analysis tab will now use your filtered data."
+                )
+            
+        except Exception as e:
+            logger.error(f"Failed to send to analysis: {e}", exc_info=True)
+            QMessageBox.critical(
+                self,
+                "Send Error",
+                f"Failed to send files to analysis:\n\n{str(e)}"
+            )
+    
     def _populate_results_table(self, files: List[FileRecord]):
         """
         Populate the results table with scanned files.
         
-        Fills the QTableWidget with file information from the scanned files list,
-        displaying filename, path, size, type, MD5 hash, and metadata status.
+        Fills the QTableWidget with file information from the provided files list,
+        displaying filename, path, size, type, MD5 hash, and filter status.
         
         Args:
             files (List[FileRecord]): List of file records to display in the table
@@ -445,7 +826,11 @@ class ScanResultsView(QWidget):
             2. Size (MB): File size in megabytes (formatted to 1 decimal)
             3. Type: File extension (media type indicator)
             4. MD5: First 8 characters of hash + "..." (or "N/A" if missing)
-            5. Metadata: Status indicator ("✓" for extracted, placeholder)
+            5. Status: "✓ Included" or "✗ Filtered" with color coding
+        
+        Color Coding:
+            - Green rows: Files included in filter
+            - Gray rows: Files excluded by filter
         
         Error Handling:
             - Skips invalid records with logging and error row filling
@@ -462,25 +847,49 @@ class ScanResultsView(QWidget):
             
             for row, file_record in enumerate(files):
                 try:
+                    # Check if file is in filtered list
+                    is_included = file_record in self.filtered_files
+                    
                     # Filename
-                    self.results_table.setItem(row, 0, QTableWidgetItem(file_record.absolute_path.name))
+                    item = QTableWidgetItem(file_record.absolute_path.name)
+                    if not is_included:
+                        item.setForeground(QColor("#95a5a6"))
+                    self.results_table.setItem(row, 0, item)
                     
                     # Path
-                    self.results_table.setItem(row, 1, QTableWidgetItem(str(file_record.absolute_path.parent)))
+                    item = QTableWidgetItem(str(file_record.absolute_path.parent))
+                    if not is_included:
+                        item.setForeground(QColor("#95a5a6"))
+                    self.results_table.setItem(row, 1, item)
                     
                     # Size (MB)
                     size_mb = file_record.size_bytes / (1024 * 1024)
-                    self.results_table.setItem(row, 2, QTableWidgetItem(f"{size_mb:.1f}"))
+                    item = QTableWidgetItem(f"{size_mb:.1f}")
+                    if not is_included:
+                        item.setForeground(QColor("#95a5a6"))
+                    self.results_table.setItem(row, 2, item)
                     
                     # Type
-                    self.results_table.setItem(row, 3, QTableWidgetItem(file_record.extension))
+                    item = QTableWidgetItem(file_record.extension)
+                    if not is_included:
+                        item.setForeground(QColor("#95a5a6"))
+                    self.results_table.setItem(row, 3, item)
                     
                     # MD5
                     md5_text = file_record.md5_hash[:8] + "..." if file_record.md5_hash else "N/A"
-                    self.results_table.setItem(row, 4, QTableWidgetItem(md5_text))
+                    item = QTableWidgetItem(md5_text)
+                    if not is_included:
+                        item.setForeground(QColor("#95a5a6"))
+                    self.results_table.setItem(row, 4, item)
                     
-                    # Metadata (placeholder)
-                    self.results_table.setItem(row, 5, QTableWidgetItem("✓"))  # Assume extracted
+                    # Status
+                    if is_included:
+                        item = QTableWidgetItem("✓ Included")
+                        item.setForeground(QColor("#27ae60"))
+                    else:
+                        item = QTableWidgetItem("✗ Filtered")
+                        item.setForeground(QColor("#95a5a6"))
+                    self.results_table.setItem(row, 5, item)
                     
                 except AttributeError as e:
                     logger.warning(f"Invalid file record for table row {row}: {e}", exc_info=True)
@@ -546,25 +955,25 @@ class ScanResultsView(QWidget):
                 
                 self.results_table.setRowHidden(row, not show_row)
             
-            logger.debug(f"Applied filter '{search_text}' to results table")
+            logger.debug(f"Applied search filter '{search_text}' to results table")
             
         except Exception as e:
             logger.error(f"Failed to filter results: {e}", exc_info=True)
-            QMessageBox.warning(self, "Filter Error", f"Failed to apply filter:\n\n{str(e)}")
+            QMessageBox.warning(self, "Filter Error", f"Failed to apply search filter:\n\n{str(e)}")
     
     def _export_results(self):
         """
-        Export scan results to CSV.
+        Export filtered scan results to CSV.
         
-        Saves the current scan results to a CSV file with comprehensive
+        Saves the current filtered results to a CSV file with comprehensive
         file information including paths, sizes, and metadata.
         
         The export process:
         1. Validates that scan results exist
         2. Opens file save dialog with timestamped default filename
         3. Writes CSV header row
-        4. Exports each file record as a data row
-        5. Shows success confirmation with file path
+        4. Exports each filtered file record as a data row
+        5. Shows success confirmation with file path and filter stats
         
         CSV Format:
             - Filename: Base filename
@@ -572,6 +981,7 @@ class ScanResultsView(QWidget):
             - Size (bytes): Exact file size in bytes
             - Extension: File extension/type
             - MD5: Full MD5 hash (or empty string if missing)
+            - Status: "Included" or "Filtered"
         
         Filename Convention:
             scan_results_session_{session_id}_{timestamp}.csv
@@ -585,6 +995,7 @@ class ScanResultsView(QWidget):
         User Experience:
             - Cancel-safe (returns early if user cancels dialog)
             - Progress feedback through success/error dialogs
+            - Shows filter statistics in confirmation
             - Comprehensive logging for troubleshooting
         """
         try:
@@ -605,25 +1016,38 @@ class ScanResultsView(QWidget):
             try:
                 with open(filename, 'w', newline='', encoding='utf-8') as f:
                     writer = csv.writer(f)
-                    writer.writerow(["Filename", "Path", "Size (bytes)", "Extension", "MD5"])
+                    writer.writerow(["Filename", "Path", "Size (bytes)", "Extension", "MD5", "Status"])
                     
                     for file_record in self.scanned_files:
                         try:
+                            is_included = file_record in self.filtered_files
+                            status = "Included" if is_included else "Filtered"
+                            
                             writer.writerow([
                                 file_record.absolute_path.name,
                                 str(file_record.absolute_path.parent),
                                 file_record.size_bytes,
                                 file_record.extension,
-                                file_record.md5_hash or ""
+                                file_record.md5_hash or "",
+                                status
                             ])
                         except AttributeError as e:
                             logger.warning(f"Invalid file record during export: {e}", exc_info=True)
-                            writer.writerow(["ERROR", "ERROR", 0, "ERROR", "ERROR"])
+                            writer.writerow(["ERROR", "ERROR", 0, "ERROR", "ERROR", "ERROR"])
                         except Exception as e:
                             logger.warning(f"Error exporting file record: {e}", exc_info=True)
                             continue
                 
-                QMessageBox.information(self, "Export Complete", f"Results exported to:\n{filename}")
+                total = len(self.scanned_files)
+                filtered = len(self.filtered_files)
+                QMessageBox.information(
+                    self,
+                    "Export Complete",
+                    f"Results exported to:\n{filename}\n\n"
+                    f"Total files: {total}\n"
+                    f"Included (filtered): {filtered}\n"
+                    f"Excluded: {total - filtered}"
+                )
                 logger.info(f"Exported scan results to: {filename}")
                 
             except PermissionError as e:
