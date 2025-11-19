@@ -59,50 +59,119 @@ class ActionPlanGenerator:
             llm_analysis: Dictionary containing the LLM's reorganization proposal.
             canonical_database: Dictionary containing the canonical metadata.
             app_config: Application configuration manager (optional, will create if None)
-        """
-        self.scanned_files = scanned_files
-        self.llm_analysis = llm_analysis
-        self.canonical_database = canonical_database
-        self.app_config = app_config or AppConfigManager()
-        self.action_plan: List[ProposedOperation] = []
 
-        # Build helper indices
-        self._build_indices()
+        Raises:
+            TypeError: If inputs are of incorrect type
+            ValueError: If required inputs are empty
+            RuntimeError: If initialization fails
+        """
+        try:
+            # Input validation
+            if not isinstance(scanned_files, list):
+                raise TypeError(f"scanned_files must be a list, got {type(scanned_files)}")
+            
+            if not isinstance(llm_analysis, dict):
+                raise TypeError(f"llm_analysis must be a dict, got {type(llm_analysis)}")
+            
+            if not isinstance(canonical_database, dict):
+                raise TypeError(f"canonical_database must be a dict, got {type(canonical_database)}")
+            
+            if not scanned_files:
+                raise ValueError("scanned_files cannot be empty")
+            
+            self.scanned_files = scanned_files
+            self.llm_analysis = llm_analysis
+            self.canonical_database = canonical_database
+            
+            # Initialize or use provided config
+            try:
+                self.app_config = app_config or AppConfigManager()
+            except Exception as e:
+                raise RuntimeError(f"Failed to initialize AppConfigManager: {e}")
+            
+            self.action_plan: List[ProposedOperation] = []
+
+            # Build helper indices
+            try:
+                self._build_indices()
+            except Exception as e:
+                raise RuntimeError(f"Failed to build indices: {e}")
+                
+            logger.info(f"ActionPlanGenerator initialized with {len(scanned_files)} files")
+            
+        except (TypeError, ValueError) as e:
+            logger.error(f"Invalid input to ActionPlanGenerator: {e}", exc_info=True)
+            raise
+        except RuntimeError as e:
+            logger.error(f"Failed to initialize ActionPlanGenerator: {e}", exc_info=True)
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error initializing ActionPlanGenerator: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to initialize ActionPlanGenerator: {e}")
 
     def _build_indices(self):
-        """Build helper indices for efficient lookups."""
-        # MD5 hash index for duplicate detection
-        self.md5_index: Dict[str, List[FileRecord]] = defaultdict(list)
-        for record in self.scanned_files:
-            if record.md5_hash:
-                self.md5_index[record.md5_hash].append(record)
+        """
+        Build helper indices for efficient lookups.
 
-        # Video file to subtitle file mapping (based on basename)
-        self.video_to_subs: Dict[Path, List[FileRecord]] = defaultdict(list)
-        video_files = {}
-        subtitle_files = []
+        Raises:
+            RuntimeError: If index building fails
+        """
+        try:
+            # MD5 hash index for duplicate detection
+            self.md5_index: Dict[str, List[FileRecord]] = defaultdict(list)
+            errors = 0
+            
+            for record in self.scanned_files:
+                try:
+                    if record.md5_hash:
+                        self.md5_index[record.md5_hash].append(record)
+                except (AttributeError, TypeError) as e:
+                    logger.warning(f"Error adding record to MD5 index: {e}")
+                    errors += 1
+                    continue
 
-        for record in self.scanned_files:
-            ext = record.extension.lower()
-            if ext in VIDEO_EXTENSIONS:
-                video_files[record.absolute_path.parent / record.absolute_path.stem] = record
-            elif ext in SUBTITLE_EXTENSIONS:
-                subtitle_files.append(record)
+            # Video file to subtitle file mapping (based on basename)
+            self.video_to_subs: Dict[Path, List[FileRecord]] = defaultdict(list)
+            video_files = {}
+            subtitle_files = []
 
-        # Match subtitles to video files by stem (filename without extension)
-        for sub_record in subtitle_files:
-            # Try to find matching video file
-            sub_stem = sub_record.absolute_path.stem
-            # Handle .en.srt style names
-            base_stem = re.sub(r'\.[a-z]{2}(-[A-Z]{2})?$', '', sub_stem)
+            for record in self.scanned_files:
+                try:
+                    ext = record.extension.lower()
+                    if ext in VIDEO_EXTENSIONS:
+                        video_files[record.absolute_path.parent / record.absolute_path.stem] = record
+                    elif ext in SUBTITLE_EXTENSIONS:
+                        subtitle_files.append(record)
+                except (AttributeError, TypeError) as e:
+                    logger.warning(f"Error categorizing file record: {e}")
+                    errors += 1
+                    continue
 
-            video_base = sub_record.absolute_path.parent / base_stem
-            if video_base in video_files:
-                video_record = video_files[video_base]
-                self.video_to_subs[video_record.absolute_path].append(sub_record)
+            # Match subtitles to video files by stem (filename without extension)
+            for sub_record in subtitle_files:
+                try:
+                    # Try to find matching video file
+                    sub_stem = sub_record.absolute_path.stem
+                    # Handle .en.srt style names
+                    base_stem = re.sub(r'\.[a-z]{2}(-[A-Z]{2})?$', '', sub_stem)
 
-        logger.info(f"Built indices: {len(self.md5_index)} MD5 groups, "
-                   f"{len(self.video_to_subs)} videos with subtitles")
+                    video_base = sub_record.absolute_path.parent / base_stem
+                    if video_base in video_files:
+                        video_record = video_files[video_base]
+                        self.video_to_subs[video_record.absolute_path].append(sub_record)
+                except (AttributeError, TypeError, KeyError) as e:
+                    logger.warning(f"Error matching subtitle to video: {e}")
+                    errors += 1
+                    continue
+
+            if errors > 0:
+                logger.warning(f"Built indices with {errors} errors: {len(self.md5_index)} MD5 groups, {len(self.video_to_subs)} videos with subtitles")
+            else:
+                logger.info(f"Built indices: {len(self.md5_index)} MD5 groups, {len(self.video_to_subs)} videos with subtitles")
+                
+        except Exception as e:
+            logger.error(f"Failed to build indices: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to build indices: {e}")
 
     def generate_plan(self) -> List[ProposedOperation]:
         """
@@ -112,42 +181,79 @@ class ActionPlanGenerator:
 
         Returns:
             List of ProposedOperation objects
+
+        Raises:
+            RuntimeError: If plan generation fails
         """
-        logger.info("Generating action plan...")
+        try:
+            logger.info("Generating action plan...")
 
-        # Step 1: Detect duplicates and mark for review/deletion
-        duplicate_files = self._handle_duplicates()
+            # Reset action plan
+            self.action_plan = []
 
-        # Step 2: Process video files (main media files)
-        processed_videos = set()
-        for record in self.scanned_files:
-            if record.extension.lower() in VIDEO_EXTENSIONS:
-                # Skip if already handled as duplicate
-                if record.absolute_path in duplicate_files:
+            # Step 1: Detect duplicates and mark for review/deletion
+            try:
+                duplicate_files = self._handle_duplicates()
+            except Exception as e:
+                logger.error(f"Error handling duplicates: {e}", exc_info=True)
+                duplicate_files = set()  # Continue with empty set
+
+            # Step 2: Process video files (main media files)
+            processed_videos = set()
+            errors = 0
+            
+            for record in self.scanned_files:
+                try:
+                    if record.extension.lower() in VIDEO_EXTENSIONS:
+                        # Skip if already handled as duplicate
+                        if record.absolute_path in duplicate_files:
+                            continue
+
+                        operation = self._process_video_file(record)
+                        if operation:
+                            self.action_plan.append(operation)
+                            processed_videos.add(record.absolute_path)
+                            
+                except Exception as e:
+                    logger.warning(f"Error processing video file {record.absolute_path}: {e}")
+                    errors += 1
                     continue
 
-                operation = self._process_video_file(record)
-                if operation:
-                    self.action_plan.append(operation)
-                    processed_videos.add(record.absolute_path)
+            # Step 3: Process subtitle files (associated with videos)
+            for record in self.scanned_files:
+                try:
+                    if record.extension.lower() in SUBTITLE_EXTENSIONS:
+                        # Skip if already handled as duplicate
+                        if record.absolute_path in duplicate_files:
+                            continue
 
-        # Step 3: Process subtitle files (associated with videos)
-        for record in self.scanned_files:
-            if record.extension.lower() in SUBTITLE_EXTENSIONS:
-                # Skip if already handled as duplicate
-                if record.absolute_path in duplicate_files:
+                        operation = self._process_subtitle_file(record, processed_videos)
+                        if operation:
+                            self.action_plan.append(operation)
+                            
+                except Exception as e:
+                    logger.warning(f"Error processing subtitle file {record.absolute_path}: {e}")
+                    errors += 1
                     continue
 
-                operation = self._process_subtitle_file(record, processed_videos)
-                if operation:
-                    self.action_plan.append(operation)
+            # Step 4: Generate NFO creation operations for multi-part episodes
+            try:
+                nfo_ops = self._generate_nfo_operations()
+                self.action_plan.extend(nfo_ops)
+            except Exception as e:
+                logger.error(f"Error generating NFO operations: {e}", exc_info=True)
+                # Continue without NFO ops
 
-        # Step 4: Generate NFO creation operations for multi-part episodes
-        nfo_ops = self._generate_nfo_operations()
-        self.action_plan.extend(nfo_ops)
-
-        logger.info(f"Generated {len(self.action_plan)} proposed operations.")
-        return self.action_plan
+            if errors > 0:
+                logger.warning(f"Generated {len(self.action_plan)} operations with {errors} errors")
+            else:
+                logger.info(f"Generated {len(self.action_plan)} proposed operations.")
+            
+            return self.action_plan
+            
+        except Exception as e:
+            logger.error(f"Failed to generate action plan: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to generate action plan: {e}")
 
     def _handle_duplicates(self) -> set:
         """
@@ -155,62 +261,95 @@ class ActionPlanGenerator:
 
         Returns:
             Set of file paths that have been handled as duplicates
+
+        Raises:
+            RuntimeError: If duplicate handling fails catastrophically
         """
-        handled = set()
-        duplicate_strategy = self.app_config.get_duplicate_strategy()
+        try:
+            handled = set()
+            errors = 0
+            
+            try:
+                duplicate_strategy = self.app_config.get_duplicate_strategy()
+            except Exception as e:
+                logger.warning(f"Failed to get duplicate strategy, using default 'review': {e}")
+                duplicate_strategy = "review"
 
-        for md5_hash, records in self.md5_index.items():
-            if len(records) < 2:
-                continue  # Not a duplicate
+            for md5_hash, records in self.md5_index.items():
+                try:
+                    if len(records) < 2:
+                        continue  # Not a duplicate
 
-            logger.info(f"Found {len(records)} duplicates with MD5 {md5_hash[:8]}...")
+                    logger.info(f"Found {len(records)} duplicates with MD5 {md5_hash[:8]}...")
 
-            # Sort records by priority (Jellyfin first, then by size)
-            sorted_records = sorted(
-                records,
-                key=lambda r: (
-                    not r.jellyfin_matched,  # Jellyfin files first (False sorts before True)
-                    -r.size_bytes  # Larger files first
-                )
-            )
+                    # Sort records by priority (Jellyfin first, then by size)
+                    try:
+                        sorted_records = sorted(
+                            records,
+                            key=lambda r: (
+                                not r.jellyfin_matched,  # Jellyfin files first (False sorts before True)
+                                -r.size_bytes  # Larger files first
+                            )
+                        )
+                    except (AttributeError, TypeError) as e:
+                        logger.warning(f"Error sorting duplicates for {md5_hash}: {e}")
+                        sorted_records = records  # Use unsorted
 
-            # Keep the first one, mark others for deletion or review
-            keeper = sorted_records[0]
-            duplicates = sorted_records[1:]
+                    # Keep the first one, mark others for deletion or review
+                    keeper = sorted_records[0]
+                    duplicates = sorted_records[1:]
 
-            for dup in duplicates:
-                action_type = ActionType.REVIEW  # Default
-                confidence = Confidence.MEDIUM
-                notes = f"Duplicate of {keeper.absolute_path.name}"
+                    for dup in duplicates:
+                        try:
+                            action_type = ActionType.REVIEW  # Default
+                            confidence = Confidence.MEDIUM
+                            notes = f"Duplicate of {keeper.absolute_path.name}"
 
-                # Apply strategy
-                if duplicate_strategy == "jellyfin_first" and keeper.jellyfin_matched:
-                    action_type = ActionType.DELETE
-                    confidence = Confidence.HIGH
-                    notes += f" (auto-marked: keeping Jellyfin file)"
-                elif duplicate_strategy == "largest_file" and keeper.size_bytes > dup.size_bytes:
-                    action_type = ActionType.DELETE
-                    confidence = Confidence.HIGH
-                    notes += f" (auto-marked: keeping larger file)"
-                else:
-                    notes += f" (manual review required)"
+                            # Apply strategy
+                            if duplicate_strategy == "jellyfin_first" and keeper.jellyfin_matched:
+                                action_type = ActionType.DELETE
+                                confidence = Confidence.HIGH
+                                notes += f" (auto-marked: keeping Jellyfin file)"
+                            elif duplicate_strategy == "largest_file" and keeper.size_bytes > dup.size_bytes:
+                                action_type = ActionType.DELETE
+                                confidence = Confidence.HIGH
+                                notes += f" (auto-marked: keeping larger file)"
+                            else:
+                                notes += f" (manual review required)"
 
-                operation = ProposedOperation(
-                    source_path=dup.absolute_path,
-                    destination_path=None,
-                    action_type=action_type,
-                    confidence=confidence,
-                    notes=notes,
-                    jellyfin_status=self._determine_jellyfin_status(dup),
-                    jellyfin_id=dup.jellyfin_id,
-                    current_provider_ids=dup.jellyfin_provider_ids or {},
-                    current_md5=dup.md5_hash  # MD5 for verification
-                )
+                            operation = ProposedOperation(
+                                source_path=dup.absolute_path,
+                                destination_path=None,
+                                action_type=action_type,
+                                confidence=confidence,
+                                notes=notes,
+                                jellyfin_status=self._determine_jellyfin_status(dup),
+                                jellyfin_id=dup.jellyfin_id,
+                                current_provider_ids=dup.jellyfin_provider_ids or {},
+                                current_md5=dup.md5_hash  # MD5 for verification
+                            )
 
-                self.action_plan.append(operation)
-                handled.add(dup.absolute_path)
+                            self.action_plan.append(operation)
+                            handled.add(dup.absolute_path)
+                            
+                        except Exception as e:
+                            logger.warning(f"Error creating operation for duplicate {dup.absolute_path}: {e}")
+                            errors += 1
+                            continue
+                            
+                except Exception as e:
+                    logger.warning(f"Error processing duplicate group {md5_hash}: {e}")
+                    errors += 1
+                    continue
 
-        return handled
+            if errors > 0:
+                logger.warning(f"Handled duplicates with {errors} errors, {len(handled)} files marked")
+                
+            return handled
+            
+        except Exception as e:
+            logger.error(f"Failed to handle duplicates: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to handle duplicates: {e}")
 
     def _process_video_file(self, record: FileRecord) -> Optional[ProposedOperation]:
         """
