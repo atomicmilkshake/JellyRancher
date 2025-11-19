@@ -26,7 +26,9 @@ from scripts.core.file_scanner import FileScanner, FileRecord
 from scripts.core.inventory_repository import InventoryRepository
 from scripts.ai.ravenmaven_client import PoeClient
 from scripts.core.workers import LLMAnalysisWorker, MetadataLookupWorker
+from scripts.core.regex_analysis_worker import RegexAnalysisWorker, HybridAnalysisWorker
 from scripts.media.llm_structure_analyzer import LLMStructureAnalyzer
+from scripts.media.regex_structure_analyzer import RegexStructureAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +49,7 @@ class AnalysisView(QWidget):
     analysis_saved = pyqtSignal(int)
     metadata_built = pyqtSignal(int)
 
-    def __init__(self, project: Project, project_manager: ProjectManager, parent=None):
+    def __init__(self, project: Project, project_manager: ProjectManager, parent=None, filtered_files: List[FileRecord] = None, filter_config: dict = None):
         """
         Initialize the Analysis View widget.
         
@@ -80,8 +82,18 @@ class AnalysisView(QWidget):
             self.folder_structure = None
             self.scanned_files = []
             
+            # Handle filtered data from ScanResultsView
+            self.filtered_files = filtered_files
+            self.filter_config = filter_config
+            self.using_filtered_data = bool(filtered_files)
+            
             self._init_ui()
-            logger.info("AnalysisView initialized successfully")
+            
+            # If filtered data provided, use it immediately instead of loading from DB
+            if self.using_filtered_data:
+                self._use_filtered_data()
+            
+            logger.info(f"AnalysisView initialized successfully (filtered_data={self.using_filtered_data})")
             
         except Exception as e:
             logger.error(f"Failed to initialize AnalysisView: {e}", exc_info=True)
@@ -99,13 +111,32 @@ class AnalysisView(QWidget):
             layout.setContentsMargins(10, 10, 10, 10)
             
             # Title
-            title = QLabel("LLM Analysis")
+            title = QLabel("Structure Analysis")
             title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
             title.setStyleSheet("color: #2c3e50; padding: 10px;")
             layout.addWidget(title)
             
-            # Model selection
-            model_group = QGroupBox("Model Selection")
+            # Analysis Mode Selection
+            mode_group = QGroupBox("Analysis Mode")
+            mode_layout = QHBoxLayout()
+            mode_layout.addWidget(QLabel("Mode:"))
+            self.mode_combo = QComboBox()
+            self.mode_combo.addItems([
+                "🤖 LLM Analysis (Deep, Canonical, API Cost)",
+                "⚡ Regex Analysis (Instant, Free, Offline)",
+                "🔀 Hybrid (Regex + LLM for Ambiguous)"
+            ])
+            self.mode_combo.setToolTip(
+                "LLM: Uses AI for context understanding and canonical verification\n"
+                "Regex: Fast pattern matching, no API costs\n"
+                "Hybrid: Regex first, LLM only for unclear cases (80-90% cost savings)"
+            )
+            mode_layout.addWidget(self.mode_combo, 1)
+            mode_group.setLayout(mode_layout)
+            layout.addWidget(mode_group)
+            
+            # Model selection (for LLM/Hybrid modes)
+            model_group = QGroupBox("LLM Model Selection")
             model_layout = QVBoxLayout()
             
             model_row = QHBoxLayout()
@@ -274,9 +305,13 @@ class AnalysisView(QWidget):
                     self.folder_structure['project_name'] = self.project.name
                     self.folder_structure['scan_id'] = scan_id
                     self.folder_structure['total_files'] = len(self.scanned_files)
-                    self.lbl_status.setText(
-                        f"Ready to analyze {len(self.scanned_files)} files from {len(folders)} folder(s)"
-                    )
+                    if self.using_filtered_data:
+                        # Don't overwrite status if we're using filtered data
+                        pass
+                    else:
+                        self.lbl_status.setText(
+                            f"Ready to analyze {len(self.scanned_files)} files from {len(folders)} folder(s)"
+                        )
                     self.btn_run.setEnabled(True)
                     self.btn_preview.setEnabled(True)
             else:
@@ -300,6 +335,71 @@ class AnalysisView(QWidget):
         except Exception as e:
             logger.error(f"Unexpected error loading scan data: {e}", exc_info=True)
             self.lbl_status.setText(f"Unexpected error loading scan data: {e}")
+            self.btn_run.setEnabled(False)
+            self.btn_preview.setEnabled(False)
+    
+    def _use_filtered_data(self):
+        """
+        Use filtered data provided from ScanResultsView.
+        
+        This method is called during initialization if filtered_files were provided,
+        bypassing the normal database load process and using the pre-filtered dataset.
+        
+        The method:
+        1. Uses the provided filtered_files as scanned_files
+        2. Builds folder structure from filtered files
+        3. Updates UI status to show filter information
+        4. Enables analysis buttons
+        
+        This allows users to perform LLM analysis on a subset of files, reducing
+        token costs and improving analysis quality by excluding irrelevant content.
+        """
+        try:
+            if not self.filtered_files:
+                logger.warning("_use_filtered_data called but no filtered_files available")
+                return
+            
+            # Use filtered files as scanned files
+            self.scanned_files = self.filtered_files
+            
+            # Build folder structure from filtered files
+            scanner = FileScanner()
+            self.folder_structure = scanner.get_folder_structure(self.scanned_files)
+            self.folder_structure['project_name'] = self.project.name
+            self.folder_structure['total_files'] = len(self.scanned_files)
+            
+            # Update status with filter information
+            total_files = len(self.scanned_files)
+            filter_desc = []
+            
+            if self.filter_config:
+                file_types = self.filter_config.get('file_types', {})
+                enabled_types = [k for k, v in file_types.items() if v]
+                if enabled_types and len(enabled_types) < 4:
+                    filter_desc.append(f"Types: {', '.join(enabled_types)}")
+                
+                size_range = self.filter_config.get('size_range_mb', {})
+                if size_range.get('min', 0) > 0 or size_range.get('max', 100000) < 100000:
+                    filter_desc.append(f"Size: {size_range.get('min', 0)}-{size_range.get('max', 100000)} MB")
+                
+                if self.filter_config.get('hide_duplicates'):
+                    filter_desc.append("No duplicates")
+            
+            filter_text = f" ({', '.join(filter_desc)})" if filter_desc else ""
+            
+            self.lbl_status.setText(
+                f"✓ Ready to analyze {total_files} filtered files{filter_text}"
+            )
+            self.lbl_status.setStyleSheet("color: #16a085; font-weight: bold; font-style: italic;")
+            
+            self.btn_run.setEnabled(True)
+            self.btn_preview.setEnabled(True)
+            
+            logger.info(f"Using filtered data: {total_files} files with filters: {filter_desc}")
+            
+        except Exception as e:
+            logger.error(f"Failed to use filtered data: {e}", exc_info=True)
+            self.lbl_status.setText(f"Error using filtered data: {e}")
             self.btn_run.setEnabled(False)
             self.btn_preview.setEnabled(False)
     
@@ -437,18 +537,21 @@ class AnalysisView(QWidget):
     
     def _run_analysis(self):
         """
-        Execute LLM analysis on the loaded scan data.
+        Execute analysis on the loaded scan data using the selected mode.
+        
+        Supports three analysis modes:
+        - LLM: Deep AI analysis with context understanding (API cost)
+        - Regex: Fast pattern matching (instant, free, offline)
+        - Hybrid: Regex first, LLM only for ambiguous (80-90% cost savings)
         
         Initiates the analysis workflow by:
         1. Validating that scan data is available
-        2. Getting the selected LLM model from the UI
-        3. Confirming execution with the user
-        4. Creating and starting an LLMAnalysisWorker thread
-        5. Disabling UI controls during processing
-        6. Showing progress indication
-        
-        The analysis uses the folder structure and file data to generate
-        reorganization recommendations and media detection results.
+        2. Determining selected analysis mode
+        3. Getting LLM model (if needed for mode)
+        4. Confirming execution with the user
+        5. Creating and starting appropriate worker thread
+        6. Disabling UI controls during processing
+        7. Showing progress indication
         
         The worker runs in a separate thread to prevent UI blocking.
         Progress and completion are handled by connected signal handlers.
@@ -461,16 +564,48 @@ class AnalysisView(QWidget):
                 QMessageBox.warning(self, "No Data", "No scan data available. Please run a scan first.")
                 return
             
-            model = self.model_combo.currentText()
+            # Determine analysis mode from combo box
+            mode_text = self.mode_combo.currentText()
+            if "LLM Analysis" in mode_text:
+                analysis_mode = "llm"
+            elif "Regex Analysis" in mode_text:
+                analysis_mode = "regex"
+            elif "Hybrid" in mode_text:
+                analysis_mode = "hybrid"
+            else:
+                analysis_mode = "llm"  # Default fallback
             
-            # Confirm
+            model = self.model_combo.currentText()
             total_files = self.folder_structure.get('total_files', 0) if self.folder_structure else 0
+            
+            # Mode-specific confirmation dialogs
+            if analysis_mode == "llm":
+                confirm_msg = (
+                    f"Run LLM analysis with {model}?\n\n"
+                    f"Files to analyze: {total_files}\n"
+                    f"Estimated time: 30-60 seconds\n"
+                    f"Cost: API call charges apply"
+                )
+            elif analysis_mode == "regex":
+                confirm_msg = (
+                    f"Run Regex analysis?\n\n"
+                    f"Files to analyze: {total_files}\n"
+                    f"Estimated time: <1 second\n"
+                    f"Cost: FREE (no API calls)"
+                )
+            else:  # hybrid
+                confirm_msg = (
+                    f"Run Hybrid analysis (Regex + {model})?\n\n"
+                    f"Files to analyze: {total_files}\n"
+                    f"Phase 1: Regex (instant, free)\n"
+                    f"Phase 2: LLM only for ambiguous cases\n"
+                    f"Expected savings: 80-90% vs pure LLM"
+                )
+            
             reply = QMessageBox.question(
                 self,
                 "Run Analysis",
-                f"Run analysis with {model}?\n\n"
-                f"This will analyze {total_files} files "
-                f"and may take 30-60 seconds.",
+                confirm_msg,
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )
             
@@ -481,20 +616,38 @@ class AnalysisView(QWidget):
             self.btn_run.setEnabled(False)
             self.btn_preview.setEnabled(False)
             self.model_combo.setEnabled(False)
+            self.mode_combo.setEnabled(False)
             self.progress_bar.setVisible(True)
             
-            # Start worker
-            self.analysis_worker = LLMAnalysisWorker(
-                folder_structure=self.folder_structure,
-                scanned_files=self.scanned_files,
-                model=model,
-            )
+            # Create appropriate worker based on mode
+            if analysis_mode == "llm":
+                self.analysis_worker = LLMAnalysisWorker(
+                    folder_structure=self.folder_structure,
+                    scanned_files=self.scanned_files,
+                    model=model,
+                )
+                logger.info(f"Started LLM analysis with {model}")
+                
+            elif analysis_mode == "regex":
+                self.analysis_worker = RegexAnalysisWorker(
+                    scanned_files=self.scanned_files,
+                )
+                logger.info(f"Started Regex analysis on {total_files} files")
+                
+            else:  # hybrid
+                self.analysis_worker = HybridAnalysisWorker(
+                    scanned_files=self.scanned_files,
+                    folder_structure=self.folder_structure,
+                    model=model,
+                )
+                logger.info(f"Started Hybrid analysis (Regex + {model} for ambiguous)")
+            
+            # Connect signals (same interface for all workers)
             self.analysis_worker.progress.connect(self._on_analysis_progress)
             self.analysis_worker.finished.connect(self._on_analysis_finished)
             self.analysis_worker.error.connect(self._on_analysis_error)
             self.analysis_worker.start()
             
-            logger.info(f"Started LLM analysis with {model}")
         except Exception as e:
             logger.error(f"Failed to start analysis: {e}", exc_info=True)
             QMessageBox.critical(self, "Analysis Error", f"Failed to start analysis: {str(e)}")
@@ -502,6 +655,7 @@ class AnalysisView(QWidget):
             self.btn_run.setEnabled(True)
             self.btn_preview.setEnabled(True)
             self.model_combo.setEnabled(True)
+            self.mode_combo.setEnabled(True)
             self.progress_bar.setVisible(False)
     
     def _on_analysis_progress(self, status: str):
@@ -554,6 +708,7 @@ class AnalysisView(QWidget):
             self.btn_run.setEnabled(True)
             self.btn_preview.setEnabled(True)
             self.model_combo.setEnabled(True)
+            self.mode_combo.setEnabled(True)
             self.btn_enrich.setEnabled(True)
             self.progress_bar.setVisible(False)
 
@@ -667,6 +822,7 @@ class AnalysisView(QWidget):
             self.btn_run.setEnabled(True)
             self.btn_preview.setEnabled(True)
             self.model_combo.setEnabled(True)
+            self.mode_combo.setEnabled(True)
             self.progress_bar.setVisible(False)
             
             self.lbl_status.setText(f"Analysis failed: {error_msg}")
@@ -1012,4 +1168,3 @@ class AnalysisView(QWidget):
                 self.lbl_status.setText("Critical error in metadata error handling")
             except Exception as ui_error:
                 logger.error(f"Failed to restore UI state after metadata error: {ui_error}", exc_info=True)
-
