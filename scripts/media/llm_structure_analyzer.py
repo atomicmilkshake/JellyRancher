@@ -213,8 +213,10 @@ class LLMStructureAnalyzer:
                 raise TypeError(f"structure_summary must be a dict, got {type(structure_summary)}")
             
             # Convert structure to readable format with error handling
+            # Convert Path objects to strings for JSON serialization
             try:
-                structure_json = json.dumps(structure_summary, indent=2)
+                serializable_structure = self._make_json_serializable(structure_summary)
+                structure_json = json.dumps(serializable_structure, indent=2)
             except (TypeError, ValueError) as e:
                 raise ValueError(f"Cannot serialize structure_summary to JSON: {e}")
             
@@ -324,6 +326,29 @@ IMPORTANT: Return ONLY the JSON object, no additional text before or after.
         except Exception as e:
             self.logger.error(f"Unexpected error building prompt: {e}", exc_info=True)
             raise RuntimeError(f"Failed to build analysis prompt: {e}")
+    
+    def _make_json_serializable(self, obj):
+        """
+        Recursively convert Path objects and other non-serializable types to strings.
+        
+        Args:
+            obj: Object to make JSON serializable
+        
+        Returns:
+            JSON-serializable version of obj
+        """
+        from pathlib import Path
+        
+        if isinstance(obj, Path):
+            return str(obj)
+        elif isinstance(obj, dict):
+            return {str(k) if isinstance(k, Path) else k: self._make_json_serializable(v) for k, v in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            return [self._make_json_serializable(item) for item in obj]
+        elif isinstance(obj, set):
+            return [self._make_json_serializable(item) for item in obj]
+        else:
+            return obj
     
     def _parse_llm_response(self, response_text: str) -> Dict:
         """
