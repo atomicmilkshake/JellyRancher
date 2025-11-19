@@ -42,18 +42,43 @@ class LLMStructureAnalyzer:
             model: LLM model to use (default: Claude-Sonnet-4.5 for reasoning)
             api_key: Poe API key (defaults to env var OPENAI_API_KEY)
             logger: Logger instance
+
+        Raises:
+            ValueError: If model name is invalid
+            RuntimeError: If Poe client initialization fails
         """
-        self.model = model
-        self.logger = logger or self._setup_logger()
-        
-        # Initialize Poe client
-        self.client = PoeClient(
-            api_key=api_key,
-            default_model=model,
-            logger=self.logger
-        )
-        
-        self.logger.info(f"LLM Structure Analyzer initialized with model: {model}")
+        try:
+            # Input validation
+            if not model or not isinstance(model, str):
+                raise ValueError(f"Invalid model name: {model}")
+            
+            self.model = model
+            self.logger = logger or self._setup_logger()
+            
+            # Initialize Poe client with error handling
+            try:
+                self.client = PoeClient(
+                    api_key=api_key,
+                    default_model=model,
+                    logger=self.logger
+                )
+            except Exception as e:
+                raise RuntimeError(f"Failed to initialize Poe client: {e}")
+            
+            self.logger.info(f"LLM Structure Analyzer initialized with model: {model}")
+            
+        except ValueError as e:
+            if logger:
+                logger.error(f"Invalid input to LLMStructureAnalyzer: {e}", exc_info=True)
+            raise
+        except RuntimeError as e:
+            if logger:
+                logger.error(f"Failed to initialize LLMStructureAnalyzer: {e}", exc_info=True)
+            raise
+        except Exception as e:
+            if logger:
+                logger.error(f"Unexpected error initializing LLMStructureAnalyzer: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to initialize LLMStructureAnalyzer: {e}")
     
     def _setup_logger(self) -> logging.Logger:
         """Set up basic logger if none provided."""
@@ -88,40 +113,79 @@ class LLMStructureAnalyzer:
             - reorganization_plan: Proposed Jellyfin-compliant structure
             - multi_part_episodes: Episodes requiring NFO files
             - reasoning: LLM's reasoning process
+
+        Raises:
+            TypeError: If structure_summary is not a dictionary
+            ValueError: If structure_summary is empty
+            RuntimeError: If LLM analysis fails
         """
-        self.logger.info("Starting LLM structure analysis...")
-        
-        # Build comprehensive prompt for reasoning LLM
-        prompt = self._build_analysis_prompt(structure_summary, additional_context)
-        
-        self.logger.info(f"Sending structure analysis request to {self.model}...")
-        self.logger.debug(f"Prompt length: {len(prompt)} characters")
-        
-        # Send to LLM with extended timeout for reasoning
-        response_text = self.client.send_message(
-            prompt=prompt,
-            model=self.model,
-            max_tokens=8000,  # Allow for detailed analysis
-            temperature=0.3,  # Lower temperature for more deterministic output
-            logger=self.logger
-        )
-        
-        self.logger.info("LLM analysis complete, parsing response...")
-        
-        # Parse the LLM response
-        analysis_result = self._parse_llm_response(response_text)
-        
-        # Add metadata
-        analysis_result['metadata'] = {
-            'timestamp': datetime.now().isoformat(),
-            'model_used': self.model,
-            'prompt_length': len(prompt),
-            'response_length': len(response_text)
-        }
-        
-        self.logger.info(f"Analysis complete: {len(analysis_result.get('detected_media', []))} media items detected")
-        
-        return analysis_result
+        try:
+            # Input validation
+            if not isinstance(structure_summary, dict):
+                raise TypeError(f"structure_summary must be a dict, got {type(structure_summary)}")
+            
+            if not structure_summary:
+                raise ValueError("structure_summary cannot be empty")
+            
+            self.logger.info("Starting LLM structure analysis...")
+            
+            # Build comprehensive prompt for reasoning LLM
+            try:
+                prompt = self._build_analysis_prompt(structure_summary, additional_context)
+            except Exception as e:
+                raise RuntimeError(f"Failed to build analysis prompt: {e}")
+            
+            self.logger.info(f"Sending structure analysis request to {self.model}...")
+            self.logger.debug(f"Prompt length: {len(prompt)} characters")
+            
+            # Send to LLM with extended timeout for reasoning
+            try:
+                response_text = self.client.send_message(
+                    prompt=prompt,
+                    model=self.model,
+                    max_tokens=8000,  # Allow for detailed analysis
+                    temperature=0.3,  # Lower temperature for more deterministic output
+                    logger=self.logger
+                )
+            except Exception as e:
+                raise RuntimeError(f"LLM API call failed: {e}")
+            
+            if not response_text or not isinstance(response_text, str):
+                raise RuntimeError(f"Invalid LLM response: {type(response_text)}")
+            
+            self.logger.info("LLM analysis complete, parsing response...")
+            
+            # Parse the LLM response
+            try:
+                analysis_result = self._parse_llm_response(response_text)
+            except Exception as e:
+                raise RuntimeError(f"Failed to parse LLM response: {e}")
+            
+            # Add metadata with error handling
+            try:
+                analysis_result['metadata'] = {
+                    'timestamp': datetime.now().isoformat(),
+                    'model_used': self.model,
+                    'prompt_length': len(prompt),
+                    'response_length': len(response_text)
+                }
+            except Exception as e:
+                self.logger.warning(f"Failed to add metadata to analysis result: {e}")
+            
+            detected_count = len(analysis_result.get('detected_media', []))
+            self.logger.info(f"Analysis complete: {detected_count} media items detected")
+            
+            return analysis_result
+            
+        except (TypeError, ValueError) as e:
+            self.logger.error(f"Invalid input to analyze_structure: {e}", exc_info=True)
+            raise
+        except RuntimeError as e:
+            self.logger.error(f"Analysis failed: {e}", exc_info=True)
+            raise
+        except Exception as e:
+            self.logger.error(f"Unexpected error during analysis: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to analyze structure: {e}")
     
     def _build_analysis_prompt(
         self, 
@@ -137,11 +201,24 @@ class LLMStructureAnalyzer:
             
         Returns:
             Complete prompt string
+
+        Raises:
+            TypeError: If structure_summary is not a dictionary
+            ValueError: If JSON serialization fails
+            RuntimeError: If prompt building fails
         """
-        # Convert structure to readable format
-        structure_json = json.dumps(structure_summary, indent=2)
-        
-        prompt = f"""You are an expert media librarian analyzing folder structures for Jellyfin media server organization.
+        try:
+            # Input validation
+            if not isinstance(structure_summary, dict):
+                raise TypeError(f"structure_summary must be a dict, got {type(structure_summary)}")
+            
+            # Convert structure to readable format with error handling
+            try:
+                structure_json = json.dumps(structure_summary, indent=2)
+            except (TypeError, ValueError) as e:
+                raise ValueError(f"Cannot serialize structure_summary to JSON: {e}")
+            
+            prompt = f"""You are an expert media librarian analyzing folder structures for Jellyfin media server organization.
         
 TASK: Analyze the provided folder structure and generate a comprehensive reorganization plan.
         
@@ -238,8 +315,15 @@ Provide your analysis as a JSON object with this exact structure:
 
 IMPORTANT: Return ONLY the JSON object, no additional text before or after.
 """
-        
-        return prompt
+            
+            return prompt
+            
+        except (TypeError, ValueError) as e:
+            self.logger.error(f"Invalid input to _build_analysis_prompt: {e}", exc_info=True)
+            raise
+        except Exception as e:
+            self.logger.error(f"Unexpected error building prompt: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to build analysis prompt: {e}")
     
     def _parse_llm_response(self, response_text: str) -> Dict:
         """
@@ -330,14 +414,49 @@ IMPORTANT: Return ONLY the JSON object, no additional text before or after.
         Args:
             analysis_result: Analysis dictionary
             output_path: Path to save the file
+
+        Raises:
+            TypeError: If inputs are invalid
+            ValueError: If output_path is empty
+            OSError: If file cannot be written
+            RuntimeError: If save operation fails
         """
-        output_file = Path(output_path)
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(analysis_result, f, indent=2, ensure_ascii=False)
-        
-        self.logger.info(f"Analysis saved to: {output_file}")
+        try:
+            # Input validation
+            if not isinstance(analysis_result, dict):
+                raise TypeError(f"analysis_result must be a dict, got {type(analysis_result)}")
+            
+            if not output_path or not isinstance(output_path, str):
+                raise ValueError(f"Invalid output_path: {output_path}")
+            
+            output_file = Path(output_path)
+            
+            # Create parent directory with error handling
+            try:
+                output_file.parent.mkdir(parents=True, exist_ok=True)
+            except (PermissionError, OSError) as e:
+                raise RuntimeError(f"Cannot create output directory {output_file.parent}: {e}")
+            
+            # Write file with error handling
+            try:
+                with open(output_file, 'w', encoding='utf-8') as f:
+                    json.dump(analysis_result, f, indent=2, ensure_ascii=False)
+            except (OSError, PermissionError) as e:
+                raise RuntimeError(f"Cannot write to file {output_file}: {e}")
+            except (TypeError, ValueError) as e:
+                raise RuntimeError(f"Cannot serialize analysis_result to JSON: {e}")
+            
+            self.logger.info(f"Analysis saved to: {output_file}")
+            
+        except (TypeError, ValueError) as e:
+            self.logger.error(f"Invalid input to save_analysis: {e}", exc_info=True)
+            raise
+        except RuntimeError as e:
+            self.logger.error(f"Failed to save analysis: {e}", exc_info=True)
+            raise
+        except Exception as e:
+            self.logger.error(f"Unexpected error saving analysis: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to save analysis: {e}")
 
 
 def main():
