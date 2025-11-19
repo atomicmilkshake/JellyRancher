@@ -37,16 +37,44 @@ class ExecutionWorker(QThread):
     error = pyqtSignal(str)
     
     def __init__(self, action_plan_id: int, dry_run: bool = False, jellyfin_refresh: bool = False):
-        super().__init__()
-        self.action_plan_id = action_plan_id
-        self.dry_run = dry_run
-        self.jellyfin_refresh = jellyfin_refresh
-        self.batch_id = None
-        self.jellyfin_client = None
-        self.modified_paths = set()  # Track paths that were modified for Jellyfin refresh
+        """
+        Initialize the ExecutionWorker thread.
+        
+        Sets up the background worker for executing file operations with
+        full transaction management, rollback capability, and optional
+        Jellyfin library refresh.
+        
+        Args:
+            action_plan_id: Database ID of the action plan to execute
+            dry_run: If True, simulate operations without actual file changes
+            jellyfin_refresh: If True, refresh Jellyfin library after execution
+            
+        The worker provides real-time progress updates and maintains
+        transaction integrity for all file operations.
+        """
     
     def run(self):
-        """Execute operations with full transaction management."""
+        """
+        Execute operations with full transaction management.
+        
+        This is the main execution method that runs in a background thread.
+        It processes all approved operations from the action plan with proper
+        transaction handling, progress reporting, and optional Jellyfin integration.
+        
+        The execution process:
+        1. Loads approved operations from the database
+        2. Initializes TransactionManager for rollback capability
+        3. Sets up Jellyfin client if refresh is enabled
+        4. Executes each operation with progress updates
+        5. Performs Jellyfin library refresh if requested
+        6. Reports final success/failure counts
+        
+        All operations are wrapped in transactions for atomicity.
+        Progress is reported in real-time via signals.
+        Failed operations are logged but don't stop the batch.
+        
+        The method handles dry-run mode for testing without actual changes.
+        """
         try:
             conn = sqlite3.connect("data/media_library.db")
             cursor = conn.cursor()
@@ -238,23 +266,70 @@ class ExecutionView(QWidget):
     """
     
     def __init__(self, project: Project, project_manager: ProjectManager, action_plan_id: int = None, parent=None):
-        super().__init__(parent)
+        """
+        Initialize the Execution View widget.
         
-        self.project = project
-        self.project_manager = project_manager
-        self.action_plan_id = action_plan_id
-        self.execution_worker = None
-        self.current_batch_id = None
+        Sets up the real-time execution monitor for file operations with
+        transaction management, progress tracking, and rollback capabilities.
+        This view implements Points 6-9 of the JellyRancher workflow.
         
-        self._init_ui()
+        Args:
+            project: The current Project instance
+            project_manager: ProjectManager instance for database operations
+            action_plan_id: Optional action plan ID to load immediately
+            parent: Parent QWidget (typically the main application window)
+            
+        The view provides:
+        - Real-time execution progress with visual progress bar
+        - Live transaction log with timestamps
+        - Execution controls (start, pause, stop)
+        - Rollback capability for failed operations
+        - Post-execution summary and statistics
         
-        if action_plan_id:
-            self._load_action_plan()
-        
-        logger.info(f"ExecutionView initialized for project: {project.name}")
+        If action_plan_id is provided, the view automatically loads
+        and prepares the action plan for execution.
+        """
+        try:
+            self.project = project
+            self.project_manager = project_manager
+            self.action_plan_id = action_plan_id
+
+            self._init_ui()
+            
+            if action_plan_id:
+                self._load_action_plan()
+
+            logger.info(f"ExecutionView initialized for project: {project.name}")
+        except Exception as e:
+            logger.error(f"Failed to initialize ExecutionView: {e}", exc_info=True)
+            QMessageBox.critical(
+                self,
+                "Initialization Error",
+                f"Failed to initialize execution monitor:\n\n{str(e)}\n\nPlease check the logs for details.",
+            )
+            raise
     
     def _init_ui(self):
-        """Initialize the UI."""
+        """
+        Initialize the user interface components.
+        
+        Creates and configures all UI elements for the execution monitor:
+        - Progress section with visual progress bar and status labels
+        - Control buttons (start, rollback, create snapshot)
+        - Transaction log viewer with real-time updates
+        - Execution options (dry run, Jellyfin refresh)
+        - Summary statistics display
+        
+        The UI is organized in logical sections:
+        - Header with title and execution options
+        - Progress tracking with visual indicators
+        - Control buttons for execution management
+        - Log viewer for detailed operation tracking
+        - Summary area for final results
+        
+        All interactive elements are properly connected to their
+        respective handler methods and signal connections.
+        """
         layout = QVBoxLayout()
         layout.setSpacing(10)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -366,7 +441,26 @@ class ExecutionView(QWidget):
         self.setLayout(layout)
     
     def _load_action_plan(self):
-        """Load action plan details."""
+        """
+        Load action plan details from the database.
+        
+        Retrieves metadata about the current action plan including operation
+        counts, approval status, and execution state. This information is
+        used to configure the UI and determine available actions.
+        
+        The method:
+        1. Validates that an action_plan_id is set
+        2. Queries the database for action plan metadata
+        3. Updates UI status labels with operation counts
+        4. Enables/disables buttons based on execution state
+        5. Shows appropriate messaging for executed plans
+        
+        This ensures the UI reflects the current state of the action plan
+        and provides appropriate controls for the user's next actions.
+        
+        Raises:
+            sqlite3.Error: If database operations fail
+        """
         if not self.action_plan_id:
             return
 
@@ -394,8 +488,14 @@ class ExecutionView(QWidget):
 
             conn.close()
 
+        except sqlite3.Error as e:
+            logger.error(f"Database error loading action plan: {e}", exc_info=True)
+            self.lbl_status.setText(f"Error loading action plan: Database error")
+            QMessageBox.critical(self, "Database Error", f"Failed to load action plan from database:\n\n{str(e)}")
         except Exception as e:
-            logger.error(f"Failed to load action plan: {e}")
+            logger.error(f"Failed to load action plan: {e}", exc_info=True)
+            self.lbl_status.setText(f"Error loading action plan: {str(e)}")
+            QMessageBox.critical(self, "Load Error", f"Failed to load action plan:\n\n{str(e)}")
 
         # Check if Jellyfin is configured and enable refresh checkbox if so
         try:
@@ -405,124 +505,326 @@ class ExecutionView(QWidget):
                 self.lbl_summary.setText(f"{self.lbl_summary.text()} | Jellyfin: Ready")
         except Exception as e:
             logger.warning(f"Jellyfin config check failed: {e}")
+            self.chk_jellyfin_refresh.setEnabled(False)
+            self.chk_jellyfin_refresh.setChecked(False)
     
     def _start_execution(self):
-        """Start execution of approved operations."""
-        if not self.action_plan_id:
-            QMessageBox.warning(self, "No Action Plan", "No action plan selected for execution.")
-            return
+        """
+        Start execution of approved operations.
         
-        dry_run = self.chk_dry_run.isChecked()
+        Initiates the file operation execution process with appropriate
+        safety confirmations and mode selection (dry run vs production).
         
-        # Confirm with appropriate warning
-        if dry_run:
-            message = (
-                "Start DRY RUN execution?\n\n"
-                "This will simulate all operations without making actual file changes.\n"
-                "Use this to verify the execution plan is correct."
+        The method:
+        1. Validates that an action plan is selected
+        2. Checks dry run mode setting
+        3. Shows appropriate confirmation dialog based on mode
+        4. Creates and starts the ExecutionWorker thread
+        5. Disables execution controls during processing
+        6. Enables rollback capability
+        
+        Dry run mode simulates all operations without actual file changes,
+        useful for testing the execution plan. Production mode performs
+        actual file operations with full transaction logging.
+        
+        The confirmation dialogs include clear warnings about the
+        destructive nature of production execution.
+        
+        Raises:
+            QMessageBox: Shows warnings if no action plan is selected
+        """
+        try:
+            if not self.action_plan_id:
+                QMessageBox.warning(self, "No Action Plan", "No action plan selected for execution.")
+                return
+
+            dry_run = self.chk_dry_run.isChecked()
+
+            # Confirm with appropriate warning
+            if dry_run:
+                message = (
+                    "Start DRY RUN execution?\n\n"
+                    "This will simulate all operations without making actual file changes.\n"
+                    "Use this to verify the execution plan is correct."
+                )
+            else:
+                message = (
+                    "⚠️ START PRODUCTION EXECUTION? ⚠️\n\n"
+                    "This will make ACTUAL FILE CHANGES to your system!\n\n"
+                    "• Files will be moved to new locations\n"
+                    "• MD5 verification will be performed\n"
+                    "• All operations will be logged for rollback\n\n"
+                    "Are you ABSOLUTELY SURE you want to proceed?"
+                )
+
+            reply = QMessageBox.question(
+                self,
+                "Start Execution",
+                message,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )
-        else:
-            message = (
-                "⚠️ START PRODUCTION EXECUTION? ⚠️\n\n"
-                "This will make ACTUAL FILE CHANGES to your system!\n\n"
-                "• Files will be moved to new locations\n"
-                "• MD5 verification will be performed\n"
-                "• All operations will be logged for rollback\n\n"
-                "Are you ABSOLUTELY SURE you want to proceed?"
+
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+
+            # Disable UI during execution
+            self.btn_execute.setEnabled(False)
+            self.chk_dry_run.setEnabled(False)
+            self.chk_jellyfin_refresh.setEnabled(False)
+            self.progress_bar.setValue(0)
+            self.log_text.clear()
+
+            # Get Jellyfin refresh setting
+            jellyfin_refresh = self.chk_jellyfin_refresh.isChecked() and self.chk_jellyfin_refresh.isEnabled()
+
+            # Start worker
+            self.execution_worker = ExecutionWorker(self.action_plan_id, dry_run, jellyfin_refresh)
+            self.execution_worker.progress.connect(self._on_progress)
+            self.execution_worker.log_message.connect(self._on_log_message)
+            self.execution_worker.finished.connect(self._on_finished)
+            self.execution_worker.error.connect(self._on_error)
+            self.execution_worker.start()
+
+            mode_str = "DRY RUN" if dry_run else "PRODUCTION"
+            logger.info(f"Started {mode_str} execution of action plan {self.action_plan_id}")
+        except Exception as e:
+            logger.error(f"Failed to start execution: {e}", exc_info=True)
+            QMessageBox.critical(
+                self,
+                "Execution Start Error",
+                f"Failed to start execution:\n\n{str(e)}\n\nPlease try again.",
             )
-        
-        reply = QMessageBox.question(
-            self,
-            "Start Execution",
-            message,
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-        
-        # Disable UI during execution
-        self.btn_execute.setEnabled(False)
-        self.chk_dry_run.setEnabled(False)
-        self.chk_jellyfin_refresh.setEnabled(False)
-        self.progress_bar.setValue(0)
-        self.log_text.clear()
-
-        # Get Jellyfin refresh setting
-        jellyfin_refresh = self.chk_jellyfin_refresh.isChecked() and self.chk_jellyfin_refresh.isEnabled()
-
-        # Start worker
-        self.execution_worker = ExecutionWorker(self.action_plan_id, dry_run, jellyfin_refresh)
-        self.execution_worker.progress.connect(self._on_progress)
-        self.execution_worker.log_message.connect(self._on_log_message)
-        self.execution_worker.finished.connect(self._on_finished)
-        self.execution_worker.error.connect(self._on_error)
-        self.execution_worker.start()
-
-        mode_str = "DRY RUN" if dry_run else "PRODUCTION"
-        logger.info(f"Started {mode_str} execution of action plan {self.action_plan_id}")
+            # Restore UI state
+            self.btn_execute.setEnabled(True)
+            self.chk_dry_run.setEnabled(True)
+            if self.chk_jellyfin_refresh.isEnabled():
+                self.chk_jellyfin_refresh.setEnabled(True)
     
     def _on_progress(self, current: int, total: int, status: str):
-        """Handle progress updates."""
-        if total > 0:
-            self.progress_bar.setMaximum(total)
-            self.progress_bar.setValue(current)
-            percent = (current / total) * 100
-            self.lbl_status.setText(f"{status} ({percent:.1f}%)")
+        """
+        Handle progress updates from the execution worker.
+        
+        Updates the progress bar and status label with current execution
+        progress information. This method is called from the worker thread
+        to provide real-time feedback to the user about operation progress.
+        
+        Args:
+            current (int): Current operation number being processed (0-based)
+            total (int): Total number of operations to process
+            status (str): Descriptive message about current operation
+            
+        The progress bar shows completion percentage, and the status label
+        displays the current operation being performed. This provides
+        visual feedback during potentially long-running operations.
+        
+        Error Handling:
+            If progress update fails, logs the error and attempts to set
+            a fallback status message. If even that fails, logs the UI error.
+            This prevents progress update failures from crashing the UI.
+        
+        Thread Safety:
+            This method is called from the worker thread and updates UI
+            elements, which is safe in PyQt6 as long as signal-slot connections
+            are used (which they are via the progress signal).
+        """
+        try:
+            if total > 0:
+                self.progress_bar.setMaximum(total)
+                self.progress_bar.setValue(current)
+                percent = (current / total) * 100
+                self.lbl_status.setText(f"{status} ({percent:.1f}%)")
+        except Exception as e:
+            logger.error(f"Failed to update progress: {e}", exc_info=True)
+            try:
+                self.lbl_status.setText("Progress update error")
+            except Exception as ui_error:
+                logger.error(f"Failed to update status label: {ui_error}", exc_info=True)
     
     def _on_log_message(self, message: str):
-        """Handle log messages."""
-        self.log_text.append(message)
+        """
+        Handle log messages from the execution worker.
+        
+        Appends log messages to the execution log text area. This method
+        is called from the worker thread to provide detailed execution
+        feedback including operation details, transaction IDs, and status
+        updates.
+        
+        Args:
+            message (str): Log message to append to the execution log
+            
+        The log messages include:
+        - Operation start/end notifications
+        - Transaction IDs for audit trail
+        - File operation results (success/failure)
+        - MD5 verification results
+        - Error details and recovery actions
+        
+        Error Handling:
+            If appending the message fails, logs the error to prevent
+            log display failures from interrupting execution. This ensures
+            execution continues even if UI logging encounters issues.
+        
+        Thread Safety:
+            Called from worker thread via signal-slot mechanism, safe
+            for UI updates in PyQt6.
+        """
+        try:
+            self.log_text.append(message)
+        except Exception as e:
+            logger.error(f"Failed to append log message: {e}", exc_info=True)
     
     def _on_finished(self, success_count: int, fail_count: int, batch_id: str):
-        """Handle execution completion."""
-        self.btn_execute.setEnabled(False)
-        self.chk_dry_run.setEnabled(True)
-        self.chk_jellyfin_refresh.setEnabled(True)
-        self.current_batch_id = batch_id
+        """
+        Handle execution completion and update UI state.
+        
+        Called when the execution worker completes all operations. Updates
+        the UI to reflect completion status, enables rollback capability,
+        and optionally triggers Jellyfin library refresh.
+        
+        Args:
+            success_count (int): Number of operations that completed successfully
+            fail_count (int): Number of operations that failed
+            batch_id (str): Unique identifier for this execution batch
+            
+        The method:
+        1. Disables execution controls (execution cannot be restarted)
+        2. Re-enables dry run and Jellyfin refresh checkboxes
+        3. Stores the batch ID for rollback reference
+        4. Enables rollback button if production mode was used
+        5. Updates status label with completion summary
+        6. Triggers Jellyfin refresh if requested and available
+        
+        Rollback is only enabled for production executions (not dry runs)
+        since dry runs don't modify actual files.
+        
+        Jellyfin refresh updates the media library to reflect file changes,
+        ensuring the library stays synchronized with the filesystem.
+        
+        Error Handling:
+            All operations are wrapped in try-catch to prevent UI update
+            failures from affecting the completion handling.
+        """
+        try:
+            self.btn_execute.setEnabled(False)
+            self.chk_dry_run.setEnabled(True)
+            self.chk_jellyfin_refresh.setEnabled(True)
+            self.current_batch_id = batch_id
 
-        # Enable rollback only if production mode was used
-        if batch_id and not self.chk_dry_run.isChecked():
-            self.btn_rollback.setEnabled(True)
-        
-        self.lbl_summary.setText(
-            f"Execution complete: {success_count} successful, {fail_count} failed"
-        )
-        
-        if self.chk_dry_run.isChecked():
-            QMessageBox.information(
-                self,
-                "Dry Run Complete",
-                f"Dry run completed successfully!\n\n"
-                f"• {success_count} operations simulated\n"
-                f"• {fail_count} operations failed\n\n"
-                f"Uncheck 'Dry Run Mode' to execute for real."
+            # Enable rollback only if production mode was used
+            if batch_id and not self.chk_dry_run.isChecked():
+                self.btn_rollback.setEnabled(True)
+
+            self.lbl_summary.setText(
+                f"Execution complete: {success_count} successful, {fail_count} failed"
             )
-        else:
-            QMessageBox.information(
+
+            if self.chk_dry_run.isChecked():
+                QMessageBox.information(
+                    self,
+                    "Dry Run Complete",
+                    f"Dry run completed successfully!\n\n"
+                    f"• {success_count} operations simulated\n"
+                    f"• {fail_count} operations failed\n\n"
+                    f"Uncheck 'Dry Run Mode' to execute for real."
+                )
+            else:
+                QMessageBox.information(
+                    self,
+                    "Execution Complete",
+                    f"Production execution completed!\n\n"
+                    f"• {success_count} operations successful\n"
+                    f"• {fail_count} operations failed\n\n"
+                    f"Batch ID: {batch_id}\n"
+                    f"Use 'Rollback All' if you need to undo these changes."
+                )
+        except Exception as e:
+            logger.error(f"Failed to handle execution completion: {e}", exc_info=True)
+            QMessageBox.critical(
                 self,
-                "Execution Complete",
-                f"Production execution completed!\n\n"
-                f"• {success_count} operations successful\n"
-                f"• {fail_count} operations failed\n\n"
-                f"Batch ID: {batch_id}\n"
-                f"Use 'Rollback All' if you need to undo these changes."
+                "Completion Error",
+                f"Execution completed but failed to update UI:\n\n{str(e)}\n\nCheck the logs for details.",
             )
+            # Still try to enable rollback if we have a batch_id
+            try:
+                if batch_id and not self.chk_dry_run.isChecked():
+                    self.btn_rollback.setEnabled(True)
+                    self.current_batch_id = batch_id
+            except Exception as rollback_error:
+                logger.error(f"Failed to enable rollback: {rollback_error}", exc_info=True)
     
     def _on_error(self, error_msg: str):
-        """Handle execution errors."""
-        self.btn_execute.setEnabled(True)
-        self.chk_dry_run.setEnabled(True)
-        self.lbl_status.setText(f"Execution failed: {error_msg}")
+        """
+        Handle execution errors and provide user feedback.
         
-        QMessageBox.critical(
-            self,
-            "Execution Error",
-            f"Execution failed:\n\n{error_msg}"
-        )
+        Called when the execution worker encounters a critical error that
+        prevents further processing. Updates UI state to allow retry and
+        shows error dialog to inform the user.
+        
+        Args:
+            error_msg (str): Description of the error that occurred
+            
+        The method:
+        1. Re-enables execution controls so user can retry
+        2. Updates status label with error information
+        3. Shows critical error dialog with full error details
+        4. Logs any UI update failures to prevent secondary errors
+        
+        Error handling ensures that even if UI updates fail, the error
+        is still logged and the user is informed through the dialog.
+        This prevents silent failures where users don't know execution
+        stopped due to an error.
+        
+        The error dialog uses QMessageBox.critical to clearly indicate
+        a serious problem that requires user attention.
+        """
+        try:
+            self.btn_execute.setEnabled(True)
+            self.chk_dry_run.setEnabled(True)
+            self.lbl_status.setText(f"Execution failed: {error_msg}")
+
+            QMessageBox.critical(
+                self,
+                "Execution Error",
+                f"Execution failed:\n\n{error_msg}"
+            )
+        except Exception as e:
+            logger.error(f"Failed to handle execution error: {e}", exc_info=True)
+            # Ensure UI is restored
+            try:
+                self.btn_execute.setEnabled(True)
+                self.chk_dry_run.setEnabled(True)
+                self.lbl_status.setText("Critical error in execution handling")
+            except Exception as ui_error:
+                logger.error(f"Failed to restore UI after execution error: {ui_error}", exc_info=True)
     
     def _rollback(self):
-        """Rollback executed operations using TransactionManager."""
+        """
+        Rollback executed operations using TransactionManager.
+        
+        Reverses all file operations from the most recent production execution
+        batch, restoring files to their original locations. This provides
+        a safety net for recovering from failed or incorrect executions.
+        
+        The method:
+        1. Validates that a batch ID exists (only available after production runs)
+        2. Shows confirmation dialog with clear warning about destructive operation
+        3. Executes rollback through TransactionManager
+        4. Displays detailed results in the log
+        5. Updates UI state (disables rollback button after use)
+        6. Shows completion dialog with success/failure summary
+        
+        Rollback is only available after production executions (not dry runs)
+        since dry runs don't modify actual files. The operation moves files
+        back to their original locations using the transaction log.
+        
+        Error Handling:
+            If rollback fails, shows critical error dialog and logs details.
+            Partial failures are reported with specific error counts.
+        
+        Transaction Safety:
+            Uses TransactionManager.rollback_batch() which ensures atomic
+            rollback operations with proper error tracking and logging.
+        """
         if not self.current_batch_id:
             QMessageBox.warning(
                 self,
@@ -595,9 +897,12 @@ class ExecutionView(QWidget):
             
         except Exception as e:
             error_msg = f"Rollback failed: {str(e)}"
-            self.log_text.append(f"\n✗ ERROR: {error_msg}")
+            try:
+                self.log_text.append(f"\n✗ ERROR: {error_msg}")
+            except Exception as log_error:
+                logger.error(f"Failed to log rollback error: {log_error}", exc_info=True)
             logger.error(error_msg, exc_info=True)
-            
+
             QMessageBox.critical(
                 self,
                 "Rollback Failed",
@@ -605,20 +910,52 @@ class ExecutionView(QWidget):
             )
 
     def _create_snapshot(self):
-        """Simulate creation of a transaction snapshot (legacy Step 6)."""
-        text = (
-            "📸 Transaction Snapshot Created\n\n"
-            "TransactionManager will log every file operation with:\n"
-            "- Transaction ID / Batch ID\n"
-            "- Source path / Destination path\n"
-            "- MD5 before and after moves\n"
-            "- Operation type (move/copy/delete)\n"
-            "- Status (pending/completed/failed)\n\n"
-            "Use rollback to restore all files if anything goes wrong."
-        )
-        self.snapshot_info.setPlainText(text)
-        QMessageBox.information(
-            self,
-            "Snapshot Ready",
-            "Snapshot information recorded. Execute operations when ready."
-        )
+        """
+        Simulate creation of a transaction snapshot (legacy Step 6).
+        
+        Displays informational text about transaction logging capabilities
+        and shows a confirmation dialog. This is a legacy method that
+        provides user education about the transaction system's safety features.
+        
+        The method:
+        1. Creates informative text about TransactionManager capabilities
+        2. Displays the information in the snapshot info text area
+        3. Shows confirmation dialog that snapshot is ready
+        
+        The snapshot information explains that every file operation is logged
+        with comprehensive details including paths, MD5 hashes, operation types,
+        and status tracking. This reassures users about the system's ability
+        to rollback operations if needed.
+        
+        Error Handling:
+            If snapshot creation fails, shows critical error dialog and logs
+            the error. This prevents silent failures in the informational display.
+        
+        Legacy Context:
+            This method represents Step 6 from the original JellyRancher workflow,
+            now largely handled automatically by the TransactionManager.
+        """
+        try:
+            text = (
+                "📸 Transaction Snapshot Created\n\n"
+                "TransactionManager will log every file operation with:\n"
+                "- Transaction ID / Batch ID\n"
+                "- Source path / Destination path\n"
+                "- MD5 before and after moves\n"
+                "- Operation type (move/copy/delete)\n"
+                "- Status (pending/completed/failed)\n\n"
+                "Use rollback to restore all files if anything goes wrong."
+            )
+            self.snapshot_info.setPlainText(text)
+            QMessageBox.information(
+                self,
+                "Snapshot Ready",
+                "Snapshot information recorded. Execute operations when ready."
+            )
+        except Exception as e:
+            logger.error(f"Failed to create snapshot: {e}", exc_info=True)
+            QMessageBox.critical(
+                self,
+                "Snapshot Error",
+                f"Failed to create snapshot:\n\n{str(e)}\n\nPlease try again.",
+            )

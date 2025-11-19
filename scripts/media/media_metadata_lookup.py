@@ -44,85 +44,158 @@ class MediaMetadataLookup:
             cache_dir: Directory for caching API responses
             logger: Logger instance
         """
-        self.tmdb_api_key = tmdb_api_key or os.getenv('TMDB_API_KEY')
-        self.omdb_api_key = omdb_api_key or os.getenv('OMDB_API_KEY')
-        self.logger = logger or self._setup_logger()
-        
-        # Set up cache directory
-        if cache_dir:
-            self.cache_dir = Path(cache_dir)
-        else:
-            self.cache_dir = Path(os.getcwd()) / '.cache' / 'metadata'
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        
-        # API endpoints
-        self.tmdb_base_url = "https://api.themoviedb.org/3"
-        self.omdb_base_url = "http://www.omdbapi.com/"
-        
-        # Rate limiting: Be courteous to TMDB API
-        # TMDB allows ~40 req/sec but recommends respecting their service
-        # We use conservative 1 req/sec (1000ms) to be very courteous
-        self.last_request_time = 0
-        self.min_request_interval = 1.0  # 1 second between requests
-        
-        self.logger.info("Media Metadata Lookup initialized")
-        if self.tmdb_api_key:
-            self.logger.info("[OK] TMDB API key configured")
-        else:
-            self.logger.warning("[WARN] No TMDB API key - set TMDB_API_KEY environment variable")
-        
-        if self.omdb_api_key:
-            self.logger.info("[OK] OMDb API key configured")
-        else:
-            self.logger.warning("[WARN] No OMDb API key - set OMDB_API_KEY environment variable")
+        try:
+            self.tmdb_api_key = tmdb_api_key or os.getenv('TMDB_API_KEY')
+            self.omdb_api_key = omdb_api_key or os.getenv('OMDB_API_KEY')
+            self.logger = logger or self._setup_logger()
+            
+            # Set up cache directory
+            if cache_dir:
+                self.cache_dir = Path(cache_dir)
+            else:
+                self.cache_dir = Path(os.getcwd()) / '.cache' / 'metadata'
+            
+            try:
+                self.cache_dir.mkdir(parents=True, exist_ok=True)
+            except PermissionError as e:
+                self.logger.error(f"Cannot create cache directory {self.cache_dir}: {e}", exc_info=True)
+                raise
+            except OSError as e:
+                self.logger.error(f"Failed to create cache directory {self.cache_dir}: {e}", exc_info=True)
+                raise
+            
+            # API endpoints
+            self.tmdb_base_url = "https://api.themoviedb.org/3"
+            self.omdb_base_url = "http://www.omdbapi.com/"
+            
+            # Rate limiting: Be courteous to TMDB API
+            # TMDB allows ~40 req/sec but recommends respecting their service
+            # We use conservative 1 req/sec (1000ms) to be very courteous
+            self.last_request_time = 0
+            self.min_request_interval = 1.0  # 1 second between requests
+            
+            self.logger.info("Media Metadata Lookup initialized")
+            if self.tmdb_api_key:
+                self.logger.info("[OK] TMDB API key configured")
+            else:
+                self.logger.warning("[WARN] No TMDB API key - set TMDB_API_KEY environment variable")
+            
+            if self.omdb_api_key:
+                self.logger.info("[OK] OMDb API key configured")
+            else:
+                self.logger.warning("[WARN] No OMDb API key - set OMDB_API_KEY environment variable")
+                
+        except Exception as e:
+            if hasattr(self, 'logger') and self.logger:
+                self.logger.error(f"Failed to initialize MediaMetadataLookup: {e}", exc_info=True)
+            else:
+                print(f"Failed to initialize MediaMetadataLookup: {e}")
+            raise
     
     def _setup_logger(self) -> logging.Logger:
         """Set up basic logger if none provided."""
-        logger = logging.getLogger(__name__)
-        logger.setLevel(logging.INFO)
-        
-        if not logger.handlers:
-            handler = logging.StreamHandler()
-            formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-            )
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-        
-        return logger
+        try:
+            logger = logging.getLogger(__name__)
+            logger.setLevel(logging.INFO)
+            
+            if not logger.handlers:
+                handler = logging.StreamHandler()
+                formatter = logging.Formatter(
+                    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+                )
+                handler.setFormatter(formatter)
+                logger.addHandler(handler)
+            
+            return logger
+            
+        except Exception as e:
+            print(f"Failed to setup logger: {e}")
+            # Return a basic logger as fallback
+            return logging.getLogger(__name__)
     
     def _rate_limit(self):
         """Enforce rate limiting between API requests."""
-        elapsed = time.time() - self.last_request_time
-        if elapsed < self.min_request_interval:
-            time.sleep(self.min_request_interval - elapsed)
-        self.last_request_time = time.time()
+        try:
+            elapsed = time.time() - self.last_request_time
+            if elapsed < self.min_request_interval:
+                sleep_time = self.min_request_interval - elapsed
+                self.logger.debug(f"Rate limiting: sleeping for {sleep_time:.2f} seconds")
+                time.sleep(sleep_time)
+            self.last_request_time = time.time()
+            
+        except Exception as e:
+            self.logger.warning(f"Rate limiting failed: {e}", exc_info=True)
+            # Continue without rate limiting to avoid blocking
     
     def _get_cache_path(self, cache_key: str) -> Path:
         """Generate cache file path for a given key."""
-        # Sanitize cache key for filename
-        safe_key = "".join(c if c.isalnum() or c in '-_' else '_' for c in cache_key)
-        return self.cache_dir / f"{safe_key}.json"
+        try:
+            if not cache_key:
+                raise ValueError("Cache key cannot be empty")
+            
+            # Sanitize cache key for filename
+            safe_key = "".join(c if c.isalnum() or c in '-_' else '_' for c in cache_key)
+            cache_path = self.cache_dir / f"{safe_key}.json"
+            
+            # Ensure cache directory still exists
+            if not self.cache_dir.exists():
+                self.cache_dir.mkdir(parents=True, exist_ok=True)
+            
+            return cache_path
+            
+        except Exception as e:
+            self.logger.error(f"Failed to generate cache path for key '{cache_key}': {e}", exc_info=True)
+            raise
     
     def _read_cache(self, cache_key: str) -> Optional[Dict]:
         """Read cached data if available."""
-        cache_path = self._get_cache_path(cache_key)
-        if cache_path.exists():
-            try:
-                with open(cache_path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            except Exception as e:
-                self.logger.warning(f"Failed to read cache for {cache_key}: {e}")
-        return None
+        try:
+            cache_path = self._get_cache_path(cache_key)
+            if cache_path.exists():
+                try:
+                    with open(cache_path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        self.logger.debug(f"Cache hit for key: {cache_key}")
+                        return data
+                except json.JSONDecodeError as e:
+                    self.logger.warning(f"Invalid JSON in cache file {cache_path}: {e}", exc_info=True)
+                    # Try to remove corrupted cache file
+                    try:
+                        cache_path.unlink()
+                    except Exception:
+                        pass
+                except PermissionError as e:
+                    self.logger.warning(f"Permission denied reading cache file {cache_path}: {e}")
+                except OSError as e:
+                    self.logger.warning(f"OS error reading cache file {cache_path}: {e}")
+                except Exception as e:
+                    self.logger.warning(f"Failed to read cache for {cache_key}: {e}", exc_info=True)
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Failed to access cache for key '{cache_key}': {e}", exc_info=True)
+            return None
     
     def _write_cache(self, cache_key: str, data: Dict):
         """Write data to cache."""
-        cache_path = self._get_cache_path(cache_key)
         try:
-            with open(cache_path, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
+            cache_path = self._get_cache_path(cache_key)
+            try:
+                with open(cache_path, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2, ensure_ascii=False)
+                self.logger.debug(f"Cache written for key: {cache_key}")
+                
+            except PermissionError as e:
+                self.logger.warning(f"Permission denied writing cache file {cache_path}: {e}")
+            except OSError as e:
+                self.logger.warning(f"OS error writing cache file {cache_path}: {e}")
+            except TypeError as e:
+                self.logger.warning(f"Data serialization error for cache key {cache_key}: {e}", exc_info=True)
+            except Exception as e:
+                self.logger.warning(f"Failed to write cache for {cache_key}: {e}", exc_info=True)
+                
         except Exception as e:
-            self.logger.warning(f"Failed to write cache for {cache_key}: {e}")
+            self.logger.error(f"Failed to setup cache write for key '{cache_key}': {e}", exc_info=True)
     
     def lookup_movie(
         self, 
@@ -143,69 +216,188 @@ class MediaMetadataLookup:
         Returns:
             Dictionary with movie metadata or None if not found
         """
-        cache_key = f"movie_{title}_{year or 'noyear'}_{jellyfin_provider_ids.get('Tmdb', '') if jellyfin_provider_ids else ''}"
-        
-        # Check cache first
-        if use_cache:
-            cached = self._read_cache(cache_key)
-            if cached:
-                self.logger.debug(f"Cache hit for movie: {title}")
-                return cached
-        
-        self.logger.info(f"Looking up movie: {title} ({year or 'unknown year'})")
-        
-        # Try TMDB first (more comprehensive)
-        if self.tmdb_api_key:
-            tmdb_id = jellyfin_provider_ids.get('Tmdb') if jellyfin_provider_ids else None
-            if tmdb_id:
-                self.logger.info(f"Using Jellyfin TMDB ID {tmdb_id} for direct lookup of movie: {title}")
-                result = self._get_movie_details_tmdb(tmdb_id)
-                if result:
-                    self._write_cache(cache_key, result)
-                    return result
+        try:
+            if not title or not title.strip():
+                raise ValueError("Movie title cannot be empty")
             
-            # If no TMDB ID from Jellyfin or direct lookup failed, perform search
-            result = self._lookup_movie_tmdb(title, year)
-            if result:
-                self._write_cache(cache_key, result)
-                return result
-        
-        # Fallback to OMDb
-        if self.omdb_api_key:
-            result = self._lookup_movie_omdb(title, year)
-            if result:
-                self._write_cache(cache_key, result)
-                return result
-        
-        self.logger.warning(f"No metadata found for movie: {title}")
-        return None
+            cache_key = f"movie_{title}_{year or 'noyear'}_{jellyfin_provider_ids.get('Tmdb', '') if jellyfin_provider_ids else ''}"
+            
+            # Check cache first
+            if use_cache:
+                try:
+                    cached = self._read_cache(cache_key)
+                    if cached:
+                        self.logger.debug(f"Cache hit for movie: {title}")
+                        return cached
+                except Exception as e:
+                    self.logger.warning(f"Cache read failed for movie {title}: {e}", exc_info=True)
+            
+            self.logger.info(f"Looking up movie: {title} ({year or 'unknown year'})")
+            
+            # Try TMDB first (more comprehensive)
+            if self.tmdb_api_key:
+                try:
+                    tmdb_id = jellyfin_provider_ids.get('Tmdb') if jellyfin_provider_ids else None
+                    if tmdb_id:
+                        self.logger.info(f"Using Jellyfin TMDB ID {tmdb_id} for direct lookup of movie: {title}")
+                        result = self._get_movie_details_tmdb(tmdb_id)
+                        if result:
+                            self._write_cache(cache_key, result)
+                            return result
+                    
+                    # If no TMDB ID from Jellyfin or direct lookup failed, perform search
+                    result = self._lookup_movie_tmdb(title, year)
+                    if result:
+                        self._write_cache(cache_key, result)
+                        return result
+                        
+                except Exception as e:
+                    self.logger.warning(f"TMDB lookup failed for movie {title}: {e}", exc_info=True)
+            
+            # Fallback to OMDb
+            if self.omdb_api_key:
+                try:
+                    result = self._lookup_movie_omdb(title, year)
+                    if result:
+                        self._write_cache(cache_key, result)
+                        return result
+                        
+                except Exception as e:
+                    self.logger.warning(f"OMDb lookup failed for movie {title}: {e}", exc_info=True)
+            
+            self.logger.warning(f"No metadata found for movie: {title}")
+            return None
+            
+        except ValueError as e:
+            self.logger.error(f"Invalid parameters for movie lookup: {e}", exc_info=True)
+            return None
+        except Exception as e:
+            self.logger.error(f"Unexpected error during movie lookup for '{title}': {e}", exc_info=True)
+            return None
     
     def _lookup_movie_tmdb(self, title: str, year: Optional[int] = None) -> Optional[Dict]:
         """Look up movie using TMDB API."""
         try:
+            if not title or not title.strip():
+                raise ValueError("Movie title cannot be empty")
+            if not self.tmdb_api_key:
+                raise ValueError("TMDB API key not configured")
+            
             self._rate_limit()
             
             # Search for movie
             params = {
                 'api_key': self.tmdb_api_key,
-                'query': title
+                'query': title.strip()
             }
             if year:
-                params['year'] = year
+                if not isinstance(year, int) or year < 1900 or year > 2100:
+                    self.logger.warning(f"Invalid year provided: {year}")
+                else:
+                    params['year'] = year
             
-            response = requests.get(
-                f"{self.tmdb_base_url}/search/movie",
-                params=params,
-                timeout=10
-            )
-            response.raise_for_status()
-            data = response.json()
+            try:
+                response = requests.get(
+                    f"{self.tmdb_base_url}/search/movie",
+                    params=params,
+                    timeout=10
+                )
+                response.raise_for_status()
+                data = response.json()
+                
+            except requests.exceptions.Timeout as e:
+                self.logger.warning(f"TMDB API timeout for movie '{title}': {e}")
+                return None
+            except requests.exceptions.ConnectionError as e:
+                self.logger.warning(f"TMDB API connection error for movie '{title}': {e}")
+                return None
+            except requests.exceptions.HTTPError as e:
+                self.logger.warning(f"TMDB API HTTP error for movie '{title}': {e}")
+                return None
+            except requests.exceptions.RequestException as e:
+                self.logger.warning(f"TMDB API request error for movie '{title}': {e}")
+                return None
+            except json.JSONDecodeError as e:
+                self.logger.warning(f"Invalid JSON response from TMDB for movie '{title}': {e}")
+                return None
             
-            if data.get('results'):
+            if data.get('results') and len(data['results']) > 0:
                 # Get first result (most relevant)
                 movie = data['results'][0]
                 
-                return {
+                try:
+                    result = {
+                        'title': movie.get('title'),
+                        'original_title': movie.get('original_title'),
+                        'year': int(movie.get('release_date', '')[:4]) if movie.get('release_date') else None,
+                        'overview': movie.get('overview'),
+                        'tmdb_id': movie.get('id'),
+                        'poster_path': movie.get('poster_path'),
+                        'source': 'tmdb'
+                    }
+                    
+                    # Validate required fields
+                    if not result.get('title'):
+                        self.logger.warning(f"TMDB result missing title for '{title}'")
+                        return None
+                    
+                    self.logger.debug(f"Successfully looked up movie '{title}' via TMDB")
+                    return result
+                    
+                except (ValueError, KeyError) as e:
+                    self.logger.warning(f"Error parsing TMDB movie data for '{title}': {e}")
+                    return None
+            else:
+                self.logger.debug(f"No TMDB results found for movie '{title}'")
+                return None
+        
+        except ValueError as e:
+            self.logger.error(f"Invalid parameters for TMDB movie lookup: {e}")
+            return None
+        except Exception as e:
+            self.logger.error(f"Unexpected error in TMDB movie lookup for '{title}': {e}", exc_info=True)
+            return None
+    
+    def _get_movie_details_tmdb(self, tmdb_id: str) -> Optional[Dict]:
+        """Directly get movie details using TMDB ID."""
+        try:
+            if not tmdb_id or not tmdb_id.strip():
+                raise ValueError("TMDB ID cannot be empty")
+            if not self.tmdb_api_key:
+                raise ValueError("TMDB API key not configured")
+            
+            self._rate_limit()
+            
+            try:
+                response = requests.get(
+                    f"{self.tmdb_base_url}/movie/{tmdb_id}",
+                    params={'api_key': self.tmdb_api_key},
+                    timeout=10
+                )
+                response.raise_for_status()
+                movie = response.json()
+                
+            except requests.exceptions.Timeout as e:
+                self.logger.warning(f"TMDB API timeout for movie ID '{tmdb_id}': {e}")
+                return None
+            except requests.exceptions.ConnectionError as e:
+                self.logger.warning(f"TMDB API connection error for movie ID '{tmdb_id}': {e}")
+                return None
+            except requests.exceptions.HTTPError as e:
+                if response.status_code == 404:
+                    self.logger.debug(f"Movie not found for TMDB ID '{tmdb_id}'")
+                else:
+                    self.logger.warning(f"TMDB API HTTP error for movie ID '{tmdb_id}': {e}")
+                return None
+            except requests.exceptions.RequestException as e:
+                self.logger.warning(f"TMDB API request error for movie ID '{tmdb_id}': {e}")
+                return None
+            except json.JSONDecodeError as e:
+                self.logger.warning(f"Invalid JSON response from TMDB for movie ID '{tmdb_id}': {e}")
+                return None
+            
+            try:
+                result = {
                     'title': movie.get('title'),
                     'original_title': movie.get('original_title'),
                     'year': int(movie.get('release_date', '')[:4]) if movie.get('release_date') else None,
@@ -214,68 +406,101 @@ class MediaMetadataLookup:
                     'poster_path': movie.get('poster_path'),
                     'source': 'tmdb'
                 }
-        
+                
+                # Validate required fields
+                if not result.get('title'):
+                    self.logger.warning(f"TMDB movie details missing title for ID '{tmdb_id}'")
+                    return None
+                
+                self.logger.debug(f"Successfully retrieved movie details for TMDB ID '{tmdb_id}'")
+                return result
+                
+            except (ValueError, KeyError) as e:
+                self.logger.warning(f"Error parsing TMDB movie details for ID '{tmdb_id}': {e}")
+                return None
+                
+        except ValueError as e:
+            self.logger.error(f"Invalid parameters for TMDB movie details lookup: {e}")
+            return None
         except Exception as e:
-            self.logger.error(f"TMDB movie lookup failed for '{title}': {e}")
-        
-        return None
-    
-    def _get_movie_details_tmdb(self, tmdb_id: str) -> Optional[Dict]:
-        """Directly get movie details using TMDB ID."""
-        try:
-            self._rate_limit()
-            response = requests.get(
-                f"{self.tmdb_base_url}/movie/{tmdb_id}",
-                params={'api_key': self.tmdb_api_key},
-                timeout=10
-            )
-            response.raise_for_status()
-            movie = response.json()
-            
-            return {
-                'title': movie.get('title'),
-                'original_title': movie.get('original_title'),
-                'year': int(movie.get('release_date', '')[:4]) if movie.get('release_date') else None,
-                'overview': movie.get('overview'),
-                'tmdb_id': movie.get('id'),
-                'poster_path': movie.get('poster_path'),
-                'source': 'tmdb'
-            }
-        except Exception as e:
-            self.logger.error(f"TMDB direct movie lookup failed for ID '{tmdb_id}': {e}")
-        return None
+            self.logger.error(f"Unexpected error in TMDB movie details lookup for ID '{tmdb_id}': {e}", exc_info=True)
+            return None
     
     def _lookup_movie_omdb(self, title: str, year: Optional[int] = None) -> Optional[Dict]:
         """Look up movie using OMDb API."""
         try:
+            if not title or not title.strip():
+                raise ValueError("Movie title cannot be empty")
+            if not self.omdb_api_key:
+                raise ValueError("OMDb API key not configured")
+            
             self._rate_limit()
             
             params = {
                 'apikey': self.omdb_api_key,
-                't': title,
+                't': title.strip(),
                 'type': 'movie'
             }
             if year:
-                params['y'] = year
+                if not isinstance(year, int) or year < 1900 or year > 2100:
+                    self.logger.warning(f"Invalid year provided: {year}")
+                else:
+                    params['y'] = year
             
-            response = requests.get(self.omdb_base_url, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
+            try:
+                response = requests.get(self.omdb_base_url, params=params, timeout=10)
+                response.raise_for_status()
+                data = response.json()
+                
+            except requests.exceptions.Timeout as e:
+                self.logger.warning(f"OMDb API timeout for movie '{title}': {e}")
+                return None
+            except requests.exceptions.ConnectionError as e:
+                self.logger.warning(f"OMDb API connection error for movie '{title}': {e}")
+                return None
+            except requests.exceptions.HTTPError as e:
+                self.logger.warning(f"OMDb API HTTP error for movie '{title}': {e}")
+                return None
+            except requests.exceptions.RequestException as e:
+                self.logger.warning(f"OMDb API request error for movie '{title}': {e}")
+                return None
+            except json.JSONDecodeError as e:
+                self.logger.warning(f"Invalid JSON response from OMDb for movie '{title}': {e}")
+                return None
             
             if data.get('Response') == 'True':
-                return {
-                    'title': data.get('Title'),
-                    'year': int(data.get('Year', '0').split('–')[0]) if data.get('Year') else None,
-                    'overview': data.get('Plot'),
-                    'imdb_id': data.get('imdbID'),
-                    'poster_url': data.get('Poster'),
-                    'source': 'omdb'
-                }
+                try:
+                    result = {
+                        'title': data.get('Title'),
+                        'year': int(data.get('Year', '0').split('–')[0]) if data.get('Year') else None,
+                        'overview': data.get('Plot'),
+                        'imdb_id': data.get('imdbID'),
+                        'poster_url': data.get('Poster'),
+                        'source': 'omdb'
+                    }
+                    
+                    # Validate required fields
+                    if not result.get('title'):
+                        self.logger.warning(f"OMDb result missing title for '{title}'")
+                        return None
+                    
+                    self.logger.debug(f"Successfully looked up movie '{title}' via OMDb")
+                    return result
+                    
+                except (ValueError, KeyError) as e:
+                    self.logger.warning(f"Error parsing OMDb movie data for '{title}': {e}")
+                    return None
+            else:
+                error_msg = data.get('Error', 'Unknown error')
+                self.logger.debug(f"OMDb lookup failed for movie '{title}': {error_msg}")
+                return None
         
+        except ValueError as e:
+            self.logger.error(f"Invalid parameters for OMDb movie lookup: {e}")
+            return None
         except Exception as e:
-            self.logger.error(f"OMDb movie lookup failed for '{title}': {e}")
-        
-        return None
+            self.logger.error(f"Unexpected error in OMDb movie lookup for '{title}': {e}", exc_info=True)
+            return None
     
     def lookup_tv_show(
         self, 
@@ -296,51 +521,73 @@ class MediaMetadataLookup:
         Returns:
             Dictionary with TV show metadata including season/episode details
         """
-        cache_key = f"tv_{title}_{year or 'noyear'}_{jellyfin_provider_ids.get('Tmdb', '') if jellyfin_provider_ids else ''}_{jellyfin_provider_ids.get('Tvdb', '') if jellyfin_provider_ids else ''}"
-        
-        # Check cache first
-        if use_cache:
-            cached = self._read_cache(cache_key)
-            if cached:
-                self.logger.debug(f"Cache hit for TV show: {title}")
-                return cached
-        
-        self.logger.info(f"Looking up TV show: {title} ({year or 'unknown year'})")
-        
-        # Try TMDB (best for TV shows)
-        if self.tmdb_api_key:
-            tmdb_id = jellyfin_provider_ids.get('Tmdb') if jellyfin_provider_ids else None
-            tvdb_id = jellyfin_provider_ids.get('Tvdb') if jellyfin_provider_ids else None
-
-            if tmdb_id:
-                self.logger.info(f"Using Jellyfin TMDB ID {tmdb_id} for direct lookup of TV show: {title}")
-                result = self._get_tv_details_tmdb(tmdb_id)
-                if result:
-                    self._write_cache(cache_key, result)
-                    return result
-            elif tvdb_id:
-                self.logger.info(f"Using Jellyfin TVDB ID {tvdb_id} for direct lookup of TV show: {title} (via TMDB external IDs)")
-                # TMDB can find TV shows by TVDB ID via external_ids endpoint
-                result = self._get_tv_details_tmdb_by_external_id(tvdb_id, 'tvdb_id')
-                if result:
-                    self._write_cache(cache_key, result)
-                    return result
+        try:
+            if not title or not title.strip():
+                raise ValueError("TV show title cannot be empty")
             
-            # If no TMDB/TVDB ID from Jellyfin or direct lookup failed, perform search
-            result = self._lookup_tv_tmdb(title, year)
-            if result:
-                self._write_cache(cache_key, result)
-                return result
-        
-        # Fallback to OMDb (limited TV data)
-        if self.omdb_api_key:
-            result = self._lookup_tv_omdb(title, year)
-            if result:
-                self._write_cache(cache_key, result)
-                return result
-        
-        self.logger.warning(f"No metadata found for TV show: {title}")
-        return None
+            cache_key = f"tv_{title}_{year or 'noyear'}_{jellyfin_provider_ids.get('Tmdb', '') if jellyfin_provider_ids else ''}_{jellyfin_provider_ids.get('Tvdb', '') if jellyfin_provider_ids else ''}"
+            
+            # Check cache first
+            if use_cache:
+                try:
+                    cached = self._read_cache(cache_key)
+                    if cached:
+                        self.logger.debug(f"Cache hit for TV show: {title}")
+                        return cached
+                except Exception as e:
+                    self.logger.warning(f"Cache read failed for TV show {title}: {e}", exc_info=True)
+            
+            self.logger.info(f"Looking up TV show: {title} ({year or 'unknown year'})")
+            
+            # Try TMDB (best for TV shows)
+            if self.tmdb_api_key:
+                try:
+                    tmdb_id = jellyfin_provider_ids.get('Tmdb') if jellyfin_provider_ids else None
+                    tvdb_id = jellyfin_provider_ids.get('Tvdb') if jellyfin_provider_ids else None
+
+                    if tmdb_id:
+                        self.logger.info(f"Using Jellyfin TMDB ID {tmdb_id} for direct lookup of TV show: {title}")
+                        result = self._get_tv_details_tmdb(tmdb_id)
+                        if result:
+                            self._write_cache(cache_key, result)
+                            return result
+                    elif tvdb_id:
+                        self.logger.info(f"Using Jellyfin TVDB ID {tvdb_id} for direct lookup of TV show: {title} (via TMDB external IDs)")
+                        # TMDB can find TV shows by TVDB ID via external_ids endpoint
+                        result = self._get_tv_details_tmdb_by_external_id(tvdb_id, 'tvdb_id')
+                        if result:
+                            self._write_cache(cache_key, result)
+                            return result
+                    
+                    # If no TMDB/TVDB ID from Jellyfin or direct lookup failed, perform search
+                    result = self._lookup_tv_tmdb(title, year)
+                    if result:
+                        self._write_cache(cache_key, result)
+                        return result
+                        
+                except Exception as e:
+                    self.logger.warning(f"TMDB lookup failed for TV show {title}: {e}", exc_info=True)
+            
+            # Fallback to OMDb (limited TV data)
+            if self.omdb_api_key:
+                try:
+                    result = self._lookup_tv_omdb(title, year)
+                    if result:
+                        self._write_cache(cache_key, result)
+                        return result
+                        
+                except Exception as e:
+                    self.logger.warning(f"OMDb lookup failed for TV show {title}: {e}", exc_info=True)
+            
+            self.logger.warning(f"No metadata found for TV show: {title}")
+            return None
+            
+        except ValueError as e:
+            self.logger.error(f"Invalid parameters for TV show lookup: {e}", exc_info=True)
+            return None
+        except Exception as e:
+            self.logger.error(f"Unexpected error during TV show lookup for '{title}': {e}", exc_info=True)
+            return None
     
     def _lookup_tv_tmdb(self, title: str, year: Optional[int] = None) -> Optional[Dict]:
         """Look up TV show using TMDB API with full season/episode details."""
@@ -568,59 +815,125 @@ class MediaMetadataLookup:
         Returns:
             Canonical database with complete metadata
         """
-        self.logger.info(f"Building canonical database for {len(detected_media)} items...")
-        
-        canonical_db = {
-            'timestamp': datetime.now().isoformat(),
-            'total_items': len(detected_media),
-            'movies': [],
-            'tv_shows': [],
-            'lookup_failures': []
-        }
-        
-        for item in detected_media:
-            title = item.get('title')
-            media_type = item.get('type')
-            year_estimate = item.get('year_estimate')
+        try:
+            if not detected_media:
+                self.logger.warning("No detected media provided for canonical database")
+                return {
+                    'timestamp': datetime.now().isoformat(),
+                    'total_items': 0,
+                    'movies': [],
+                    'tv_shows': [],
+                    'lookup_failures': []
+                }
             
-            self.logger.info(f"Processing: {title} ({media_type})")
+            self.logger.info(f"Building canonical database for {len(detected_media)} items...")
             
-            if media_type == 'movie':
-                metadata = self.lookup_movie(title, year_estimate)
-                if metadata:
-                    metadata['original_detection'] = item
-                    canonical_db['movies'].append(metadata)
-                else:
+            canonical_db = {
+                'timestamp': datetime.now().isoformat(),
+                'total_items': len(detected_media),
+                'movies': [],
+                'tv_shows': [],
+                'lookup_failures': []
+            }
+            
+            for item in detected_media:
+                try:
+                    title = item.get('title')
+                    media_type = item.get('type')
+                    year_estimate = item.get('year_estimate')
+                    
+                    if not title or not media_type:
+                        self.logger.warning(f"Invalid media item: missing title or type - {item}")
+                        canonical_db['lookup_failures'].append(item)
+                        continue
+                    
+                    self.logger.info(f"Processing: {title} ({media_type})")
+                    
+                    if media_type == 'movie':
+                        metadata = self.lookup_movie(title, year_estimate)
+                        if metadata:
+                            metadata['original_detection'] = item
+                            canonical_db['movies'].append(metadata)
+                        else:
+                            canonical_db['lookup_failures'].append(item)
+                    
+                    elif media_type == 'tv_show':
+                        metadata = self.lookup_tv_show(title, year_estimate)
+                        if metadata:
+                            metadata['original_detection'] = item
+                            canonical_db['tv_shows'].append(metadata)
+                        else:
+                            canonical_db['lookup_failures'].append(item)
+                    else:
+                        self.logger.warning(f"Unknown media type '{media_type}' for title '{title}'")
+                        canonical_db['lookup_failures'].append(item)
+                        
+                except Exception as e:
+                    self.logger.error(f"Error processing media item {item}: {e}", exc_info=True)
                     canonical_db['lookup_failures'].append(item)
             
-            elif media_type == 'tv_show':
-                metadata = self.lookup_tv_show(title, year_estimate)
-                if metadata:
-                    metadata['original_detection'] = item
-                    canonical_db['tv_shows'].append(metadata)
-                else:
-                    canonical_db['lookup_failures'].append(item)
-        
-        # Summary
-        self.logger.info(f"[OK] Movies: {len(canonical_db['movies'])}")
-        self.logger.info(f"[OK] TV Shows: {len(canonical_db['tv_shows'])}")
-        self.logger.info(f"[WARN] Lookup failures: {len(canonical_db['lookup_failures'])}")
-        
-        # Save if output path provided
-        if output_path:
-            self.save_database(canonical_db, output_path)
-        
-        return canonical_db
+            # Summary
+            self.logger.info(f"[OK] Movies: {len(canonical_db['movies'])}")
+            self.logger.info(f"[OK] TV Shows: {len(canonical_db['tv_shows'])}")
+            self.logger.info(f"[WARN] Lookup failures: {len(canonical_db['lookup_failures'])}")
+            
+            # Save if output path provided
+            if output_path:
+                try:
+                    self.save_database(canonical_db, output_path)
+                except Exception as e:
+                    self.logger.error(f"Failed to save canonical database to {output_path}: {e}", exc_info=True)
+            
+            return canonical_db
+            
+        except Exception as e:
+            self.logger.error(f"Failed to build canonical database: {e}", exc_info=True)
+            raise
     
     def save_database(self, canonical_db: Dict, output_path: str):
         """Save canonical database to JSON file."""
-        output_file = Path(output_path)
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(canonical_db, f, indent=2, ensure_ascii=False)
-        
-        self.logger.info(f"Canonical database saved to: {output_file}")
+        try:
+            if not canonical_db:
+                raise ValueError("Canonical database cannot be empty")
+            if not output_path or not output_path.strip():
+                raise ValueError("Output path cannot be empty")
+            
+            output_file = Path(output_path)
+            
+            try:
+                output_file.parent.mkdir(parents=True, exist_ok=True)
+            except PermissionError as e:
+                self.logger.error(f"Cannot create directory {output_file.parent}: {e}")
+                raise
+            except OSError as e:
+                self.logger.error(f"Failed to create directory {output_file.parent}: {e}")
+                raise
+            
+            try:
+                with open(output_file, 'w', encoding='utf-8') as f:
+                    json.dump(canonical_db, f, indent=2, ensure_ascii=False)
+                
+                self.logger.info(f"Canonical database saved to: {output_file}")
+                
+            except PermissionError as e:
+                self.logger.error(f"Permission denied writing to {output_file}: {e}")
+                raise
+            except OSError as e:
+                self.logger.error(f"OS error writing to {output_file}: {e}")
+                raise
+            except TypeError as e:
+                self.logger.error(f"Data serialization error for canonical database: {e}", exc_info=True)
+                raise
+            except Exception as e:
+                self.logger.error(f"Failed to write canonical database to {output_file}: {e}", exc_info=True)
+                raise
+                
+        except ValueError as e:
+            self.logger.error(f"Invalid parameters for saving database: {e}")
+            raise
+        except Exception as e:
+            self.logger.error(f"Unexpected error saving canonical database to {output_path}: {e}", exc_info=True)
+            raise
 
 
 def main():

@@ -187,7 +187,7 @@ class ProjectManager:
         except ValueError:
             # Re-raise validation errors
             raise
-        except json.JSONEncodeError as e:
+        except ValueError as e:
             logger.error(f"Failed to serialize project settings: {e}", exc_info=True)
             raise ValueError(f"Invalid project settings: {e}")
         except Exception as e:
@@ -464,7 +464,7 @@ class ProjectManager:
                 
                 logger.info(f"Saved state for project ID: {state.project_id}")
                 return True
-        except json.JSONEncodeError as e:
+        except (TypeError, ValueError) as e:
             logger.error(f"Failed to serialize UI state for project {state.project_id}: {e}", exc_info=True)
             raise ValueError(f"Invalid UI state: {e}")
         except Exception as e:

@@ -583,6 +583,19 @@ class JellyRancherStudio(QMainWindow):
         """Handle scan completion signal from ScanView."""
         self.status_label.setText(f"Scan session saved (ID #{scan_id})")
         self._refresh_current_project("scan")
+        
+        # Save scan session ID to project state
+        if self.current_project and self.current_project.id:
+            try:
+                state = ProjectState(
+                    project_id=self.current_project.id,
+                    current_view="scan",
+                    last_scan_session_id=scan_id
+                )
+                self.project_manager.save_project_state(state)
+                logger.info(f"Saved scan session {scan_id} to project state")
+            except Exception as exc:
+                logger.warning(f"Failed to save scan session to project state: {exc}", exc_info=True)
 
     def _on_analysis_saved(self, analysis_id: int):
         """Handle analysis/metadata completion."""
