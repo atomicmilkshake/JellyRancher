@@ -14,7 +14,7 @@ from collections import defaultdict
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QProgressBar, QFileDialog,
+    QTableWidget, QTableWidgetItem, QProgressBar, QFileDialog,
     QMessageBox, QGroupBox, QCheckBox, QHeaderView, QDialog,
     QScrollArea, QLineEdit
 )

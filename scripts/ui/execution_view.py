@@ -77,17 +77,25 @@ class ExecutionWorker(QThread):
             if self.jellyfin_refresh and not self.dry_run:
                 try:
                     config_mgr = JellyfinConfigManager()
-                    config = config_mgr.load_config()
-                    if config and config.get('enabled'):
-                        self.jellyfin_client = JellyfinClient(
-                            server_url=config.get('server_url'),
-                            api_key=config.get('api_key')
-                        )
-                        if self.jellyfin_client.test_connection():
-                            self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] Jellyfin: Connected")
+                    if config_mgr.is_enabled():
+                        server_url = config_mgr.get_server_url()
+                        api_key = config_mgr.get_api_key()
+                        if server_url and api_key:
+                            self.jellyfin_client = JellyfinClient(
+                                server_url=server_url,
+                                api_key=api_key
+                            )
+                            if self.jellyfin_client.test_connection():
+                                self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] Jellyfin: Connected")
+                            else:
+                                self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] Jellyfin: Connection FAILED")
+                                self.jellyfin_client = None
                         else:
-                            self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] Jellyfin: Connection FAILED")
+                            self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] Jellyfin: Missing URL or API key")
                             self.jellyfin_client = None
+                    else:
+                        self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] Jellyfin: Disabled")
+                        self.jellyfin_client = None
                 except Exception as e:
                     self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] Jellyfin: Error - {str(e)}")
                     self.jellyfin_client = None
@@ -392,8 +400,7 @@ class ExecutionView(QWidget):
         # Check if Jellyfin is configured and enable refresh checkbox if so
         try:
             config_mgr = JellyfinConfigManager()
-            config = config_mgr.load_config()
-            if config and config.get('enabled') and config.get('server_url') and config.get('api_key'):
+            if config_mgr.is_enabled() and config_mgr.get_server_url() and config_mgr.get_api_key():
                 self.chk_jellyfin_refresh.setEnabled(True)
                 self.lbl_summary.setText(f"{self.lbl_summary.text()} | Jellyfin: Ready")
         except Exception as e:
@@ -615,4 +622,3 @@ class ExecutionView(QWidget):
             "Snapshot Ready",
             "Snapshot information recorded. Execute operations when ready."
         )
-

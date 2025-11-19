@@ -143,45 +143,56 @@ class ProjectManager:
             Created Project instance
         
         Raises:
-            ValueError: If project name already exists
+            ValueError: If project name already exists or invalid
+            RuntimeError: If database operation fails
         """
-        if not name or not name.strip():
-            raise ValueError("Project name cannot be empty")
-        
-        # Check if project already exists
-        existing = self.get_project_by_name(name)
-        if existing:
-            raise ValueError(f"Project '{name}' already exists")
-        
-        now = datetime.now().isoformat()
-        settings_json = json.dumps(settings or {})
-        
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT INTO projects (name, description, created_at, last_opened, state, settings_json)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (name, description, now, now, 'active', settings_json))
+        try:
+            if not name or not name.strip():
+                raise ValueError("Project name cannot be empty")
             
-            project_id = cursor.lastrowid
+            # Check if project already exists
+            existing = self.get_project_by_name(name)
+            if existing:
+                raise ValueError(f"Project '{name}' already exists")
             
-            # Initialize project state
-            cursor.execute('''
-                INSERT INTO project_state (project_id, updated_at)
-                VALUES (?, ?)
-            ''', (project_id, now))
+            now = datetime.now().isoformat()
+            settings_json = json.dumps(settings or {})
             
-            logger.info(f"Created project: {name} (ID: {project_id})")
-        
-        return Project(
-            id=project_id,
-            name=name,
-            description=description,
-            created_at=now,
-            last_opened=now,
-            state='active',
-            settings=settings or {}
-        )
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO projects (name, description, created_at, last_opened, state, settings_json)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (name, description, now, now, 'active', settings_json))
+                
+                project_id = cursor.lastrowid
+                
+                # Initialize project state
+                cursor.execute('''
+                    INSERT INTO project_state (project_id, updated_at)
+                    VALUES (?, ?)
+                ''', (project_id, now))
+                
+                logger.info(f"Created project: {name} (ID: {project_id})")
+            
+            return Project(
+                id=project_id,
+                name=name,
+                description=description,
+                created_at=now,
+                last_opened=now,
+                state='active',
+                settings=settings or {}
+            )
+        except ValueError:
+            # Re-raise validation errors
+            raise
+        except json.JSONEncodeError as e:
+            logger.error(f"Failed to serialize project settings: {e}", exc_info=True)
+            raise ValueError(f"Invalid project settings: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error creating project '{name}': {e}", exc_info=True)
+            raise RuntimeError(f"Failed to create project: {e}")
     
     def load_project(self, project_id: Optional[int] = None, name: Optional[str] = None) -> Optional[Project]:
         """
@@ -194,64 +205,81 @@ class ProjectManager:
         Returns:
             Project instance or None if not found
         """
-        if not project_id and not name:
-            raise ValueError("Must provide either project_id or name")
-        
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
+        try:
+            if not project_id and not name:
+                raise ValueError("Must provide either project_id or name")
             
-            if project_id:
-                cursor.execute('SELECT * FROM projects WHERE id = ?', (project_id,))
-            else:
-                cursor.execute('SELECT * FROM projects WHERE name = ?', (name,))
-            
-            row = cursor.fetchone()
-            if not row:
-                return None
-            
-            # Update last_opened timestamp
-            now = datetime.now().isoformat()
-            cursor.execute(
-                'UPDATE projects SET last_opened = ? WHERE id = ?',
-                (now, row['id'])
-            )
-            
-            # Load related data counts
-            cursor.execute('''
-                SELECT id FROM project_scan_sessions 
-                WHERE project_id = ? 
-                ORDER BY scan_start DESC
-            ''', (row['id'],))
-            scan_sessions = [r['id'] for r in cursor.fetchall()]
-            
-            cursor.execute('''
-                SELECT id FROM project_analyses 
-                WHERE project_id = ? 
-                ORDER BY analysis_date DESC
-            ''', (row['id'],))
-            analyses = [r['id'] for r in cursor.fetchall()]
-            
-            cursor.execute('''
-                SELECT id FROM project_action_plans 
-                WHERE project_id = ? 
-                ORDER BY created_at DESC
-            ''', (row['id'],))
-            action_plans = [r['id'] for r in cursor.fetchall()]
-            
-            logger.info(f"Loaded project: {row['name']} (ID: {row['id']})")
-            
-            return Project(
-                id=row['id'],
-                name=row['name'],
-                description=row['description'],
-                created_at=row['created_at'],
-                last_opened=now,
-                state=row['state'],
-                settings=json.loads(row['settings_json']) if row['settings_json'] else {},
-                scan_sessions=scan_sessions,
-                analyses=analyses,
-                action_plans=action_plans
-            )
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                
+                if project_id:
+                    cursor.execute('SELECT * FROM projects WHERE id = ?', (project_id,))
+                else:
+                    cursor.execute('SELECT * FROM projects WHERE name = ?', (name,))
+                
+                row = cursor.fetchone()
+                if not row:
+                    logger.debug(f"Project not found: id={project_id}, name={name}")
+                    return None
+                
+                # Update last_opened timestamp
+                now = datetime.now().isoformat()
+                cursor.execute(
+                    'UPDATE projects SET last_opened = ? WHERE id = ?',
+                    (now, row['id'])
+                )
+                
+                # Load related data counts
+                cursor.execute('''
+                    SELECT id FROM project_scan_sessions 
+                    WHERE project_id = ? 
+                    ORDER BY scan_start DESC
+                ''', (row['id'],))
+                scan_sessions = [r['id'] for r in cursor.fetchall()]
+                
+                cursor.execute('''
+                    SELECT id FROM project_analyses 
+                    WHERE project_id = ? 
+                    ORDER BY analysis_date DESC
+                ''', (row['id'],))
+                analyses = [r['id'] for r in cursor.fetchall()]
+                
+                cursor.execute('''
+                    SELECT id FROM project_action_plans 
+                    WHERE project_id = ? 
+                    ORDER BY created_at DESC
+                ''', (row['id'],))
+                action_plans = [r['id'] for r in cursor.fetchall()]
+                
+                # Parse settings JSON
+                settings = {}
+                if row['settings_json']:
+                    try:
+                        settings = json.loads(row['settings_json'])
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"Failed to parse settings JSON for project {row['id']}: {e}")
+                        settings = {}
+                
+                logger.info(f"Loaded project: {row['name']} (ID: {row['id']})")
+                
+                return Project(
+                    id=row['id'],
+                    name=row['name'],
+                    description=row['description'],
+                    created_at=row['created_at'],
+                    last_opened=now,
+                    state=row['state'],
+                    settings=settings,
+                    scan_sessions=scan_sessions,
+                    analyses=analyses,
+                    action_plans=action_plans
+                )
+        except ValueError:
+            # Re-raise validation errors
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error loading project (id={project_id}, name={name}): {e}", exc_info=True)
+            return None
     
     def save_project(self, project: Project) -> bool:
         """
@@ -262,27 +290,47 @@ class ProjectManager:
         
         Returns:
             True if successful
-        """
-        if not project.id:
-            raise ValueError("Cannot save project without ID. Use create_project() first.")
         
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                UPDATE projects 
-                SET name = ?, description = ?, state = ?, settings_json = ?, last_opened = ?
-                WHERE id = ?
-            ''', (
-                project.name,
-                project.description,
-                project.state,
-                json.dumps(project.settings),
-                datetime.now().isoformat(),
-                project.id
-            ))
+        Raises:
+            ValueError: If project has no ID
+            RuntimeError: If save operation fails
+        """
+        try:
+            if not project.id:
+                raise ValueError("Cannot save project without ID. Use create_project() first.")
             
-            logger.info(f"Saved project: {project.name} (ID: {project.id})")
-            return True
+            settings_json = json.dumps(project.settings)
+            
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    UPDATE projects 
+                    SET name = ?, description = ?, state = ?, settings_json = ?, last_opened = ?
+                    WHERE id = ?
+                ''', (
+                    project.name,
+                    project.description,
+                    project.state,
+                    settings_json,
+                    datetime.now().isoformat(),
+                    project.id
+                ))
+                
+                if cursor.rowcount == 0:
+                    logger.warning(f"No project found with ID {project.id} to update")
+                    return False
+                
+                logger.info(f"Saved project: {project.name} (ID: {project.id})")
+                return True
+        except ValueError:
+            # Re-raise validation errors
+            raise
+        except json.JSONEncodeError as e:
+            logger.error(f"Failed to serialize project settings for {project.name}: {e}", exc_info=True)
+            raise ValueError(f"Invalid project settings: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error saving project {project.name} (ID: {project.id}): {e}", exc_info=True)
+            raise RuntimeError(f"Failed to save project: {e}")
     
     def delete_project(self, project_id: int) -> bool:
         """
@@ -297,16 +345,20 @@ class ProjectManager:
         Note:
             This cascades to all related tables due to ON DELETE CASCADE
         """
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('DELETE FROM projects WHERE id = ?', (project_id,))
-            
-            if cursor.rowcount > 0:
-                logger.info(f"Deleted project ID: {project_id}")
-                return True
-            else:
-                logger.warning(f"Project ID {project_id} not found for deletion")
-                return False
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('DELETE FROM projects WHERE id = ?', (project_id,))
+                
+                if cursor.rowcount > 0:
+                    logger.info(f"Deleted project ID: {project_id}")
+                    return True
+                else:
+                    logger.warning(f"Project ID {project_id} not found for deletion")
+                    return False
+        except Exception as e:
+            logger.error(f"Unexpected error deleting project ID {project_id}: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to delete project: {e}")
     
     def list_projects(
         self, 
