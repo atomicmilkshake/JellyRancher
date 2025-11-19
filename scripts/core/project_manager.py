@@ -375,38 +375,50 @@ class ProjectManager:
         Returns:
             List of Project instances, ordered by last_opened (most recent first)
         """
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            
-            query = 'SELECT * FROM projects'
-            params = []
-            
-            if state:
-                query += ' WHERE state = ?'
-                params.append(state)
-            
-            query += ' ORDER BY last_opened DESC'
-            
-            if limit:
-                query += ' LIMIT ?'
-                params.append(limit)
-            
-            cursor.execute(query, params)
-            
-            projects = []
-            for row in cursor.fetchall():
-                projects.append(Project(
-                    id=row['id'],
-                    name=row['name'],
-                    description=row['description'],
-                    created_at=row['created_at'],
-                    last_opened=row['last_opened'],
-                    state=row['state'],
-                    settings=json.loads(row['settings_json']) if row['settings_json'] else {}
-                ))
-            
-            logger.info(f"Listed {len(projects)} projects")
-            return projects
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                
+                query = 'SELECT * FROM projects'
+                params = []
+                
+                if state:
+                    query += ' WHERE state = ?'
+                    params.append(state)
+                
+                query += ' ORDER BY last_opened DESC'
+                
+                if limit:
+                    query += ' LIMIT ?'
+                    params.append(limit)
+                
+                cursor.execute(query, params)
+                
+                projects = []
+                for row in cursor.fetchall():
+                    settings = {}
+                    if row['settings_json']:
+                        try:
+                            settings = json.loads(row['settings_json'])
+                        except json.JSONDecodeError as e:
+                            logger.warning(f"Failed to parse settings JSON for project {row['id']}: {e}")
+                            settings = {}
+                    
+                    projects.append(Project(
+                        id=row['id'],
+                        name=row['name'],
+                        description=row['description'],
+                        created_at=row['created_at'],
+                        last_opened=row['last_opened'],
+                        state=row['state'],
+                        settings=settings
+                    ))
+                
+                logger.info(f"Listed {len(projects)} projects")
+                return projects
+        except Exception as e:
+            logger.error(f"Unexpected error listing projects (state={state}, limit={limit}): {e}", exc_info=True)
+            return []
     
     def get_project_by_name(self, name: str) -> Optional[Project]:
         """
@@ -430,25 +442,34 @@ class ProjectManager:
         Returns:
             True if successful
         """
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT OR REPLACE INTO project_state 
-                (project_id, current_view, ui_state_json, last_scan_session_id, 
-                 last_analysis_id, last_action_plan_id, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                state.project_id,
-                state.current_view,
-                json.dumps(state.ui_state),
-                state.last_scan_session_id,
-                state.last_analysis_id,
-                state.last_action_plan_id,
-                datetime.now().isoformat()
-            ))
+        try:
+            ui_state_json = json.dumps(state.ui_state)
             
-            logger.info(f"Saved state for project ID: {state.project_id}")
-            return True
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT OR REPLACE INTO project_state 
+                    (project_id, current_view, ui_state_json, last_scan_session_id, 
+                     last_analysis_id, last_action_plan_id, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    state.project_id,
+                    state.current_view,
+                    ui_state_json,
+                    state.last_scan_session_id,
+                    state.last_analysis_id,
+                    state.last_action_plan_id,
+                    datetime.now().isoformat()
+                ))
+                
+                logger.info(f"Saved state for project ID: {state.project_id}")
+                return True
+        except json.JSONEncodeError as e:
+            logger.error(f"Failed to serialize UI state for project {state.project_id}: {e}", exc_info=True)
+            raise ValueError(f"Invalid UI state: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error saving project state for {state.project_id}: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to save project state: {e}")
     
     def load_project_state(self, project_id: int) -> Optional[ProjectState]:
         """
@@ -460,23 +481,36 @@ class ProjectManager:
         Returns:
             ProjectState instance or None if not found
         """
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('SELECT * FROM project_state WHERE project_id = ?', (project_id,))
-            
-            row = cursor.fetchone()
-            if not row:
-                return None
-            
-            return ProjectState(
-                project_id=row['project_id'],
-                current_view=row['current_view'],
-                ui_state=json.loads(row['ui_state_json']) if row['ui_state_json'] else {},
-                last_scan_session_id=row['last_scan_session_id'],
-                last_analysis_id=row['last_analysis_id'],
-                last_action_plan_id=row['last_action_plan_id'],
-                updated_at=row['updated_at']
-            )
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('SELECT * FROM project_state WHERE project_id = ?', (project_id,))
+                
+                row = cursor.fetchone()
+                if not row:
+                    logger.debug(f"No state found for project ID: {project_id}")
+                    return None
+                
+                ui_state = {}
+                if row['ui_state_json']:
+                    try:
+                        ui_state = json.loads(row['ui_state_json'])
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"Failed to parse UI state JSON for project {project_id}: {e}")
+                        ui_state = {}
+                
+                return ProjectState(
+                    project_id=row['project_id'],
+                    current_view=row['current_view'],
+                    ui_state=ui_state,
+                    last_scan_session_id=row['last_scan_session_id'],
+                    last_analysis_id=row['last_analysis_id'],
+                    last_action_plan_id=row['last_action_plan_id'],
+                    updated_at=row['updated_at']
+                )
+        except Exception as e:
+            logger.error(f"Unexpected error loading project state for {project_id}: {e}", exc_info=True)
+            return None
     
     def get_recent_projects(self, limit: int = 5) -> List[Project]:
         """
@@ -500,17 +534,22 @@ class ProjectManager:
         Returns:
             True if successful
         """
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                'UPDATE projects SET state = ? WHERE id = ?',
-                ('archived', project_id)
-            )
-            
-            if cursor.rowcount > 0:
-                logger.info(f"Archived project ID: {project_id}")
-                return True
-            return False
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'UPDATE projects SET state = ? WHERE id = ?',
+                    ('archived', project_id)
+                )
+                
+                if cursor.rowcount > 0:
+                    logger.info(f"Archived project ID: {project_id}")
+                    return True
+                logger.warning(f"Project ID {project_id} not found for archiving")
+                return False
+        except Exception as e:
+            logger.error(f"Unexpected error archiving project ID {project_id}: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to archive project: {e}")
     
     def unarchive_project(self, project_id: int) -> bool:
         """
@@ -522,77 +561,94 @@ class ProjectManager:
         Returns:
             True if successful
         """
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                'UPDATE projects SET state = ? WHERE id = ?',
-                ('active', project_id)
-            )
-            
-            if cursor.rowcount > 0:
-                logger.info(f"Unarchived project ID: {project_id}")
-                return True
-            return False
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'UPDATE projects SET state = ? WHERE id = ?',
+                    ('active', project_id)
+                )
+                
+                if cursor.rowcount > 0:
+                    logger.info(f"Unarchived project ID: {project_id}")
+                    return True
+                logger.warning(f"Project ID {project_id} not found for unarchiving")
+                return False
+        except Exception as e:
+            logger.error(f"Unexpected error unarchiving project ID {project_id}: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to unarchive project: {e}")
 
 
 def main():
     """CLI entry point for testing ProjectManager."""
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    
-    print("=" * 70)
-    print("JellyRancher Project Manager Test")
-    print("=" * 70)
-    
-    pm = ProjectManager()
-    
-    # Create a test project
-    print("\n1. Creating test project...")
     try:
-        project = pm.create_project(
-            "Test Project",
-            "A test project for Phase 32A",
-            settings={'theme': 'dark', 'auto_save': True}
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
-        print(f"   Created: {project.name} (ID: {project.id})")
-    except ValueError as e:
-        print(f"   Project already exists, loading instead...")
-        project = pm.get_project_by_name("Test Project")
-    
-    # List all projects
-    print("\n2. Listing all projects...")
-    projects = pm.list_projects()
-    for p in projects:
-        print(f"   - {p.name} (ID: {p.id}, State: {p.state}, Last opened: {p.last_opened})")
-    
-    # Save project state
-    print("\n3. Saving project state...")
-    state = ProjectState(
-        project_id=project.id,
-        current_view='scan_view',
-        ui_state={'window_width': 1200, 'window_height': 800}
-    )
-    pm.save_project_state(state)
-    print(f"   Saved state for project: {project.name}")
-    
-    # Load project state
-    print("\n4. Loading project state...")
-    loaded_state = pm.load_project_state(project.id)
-    if loaded_state:
-        print(f"   Current view: {loaded_state.current_view}")
-        print(f"   UI state: {loaded_state.ui_state}")
-    
-    # Get recent projects
-    print("\n5. Getting recent projects...")
-    recent = pm.get_recent_projects(limit=3)
-    for p in recent:
-        print(f"   - {p.name} (Last opened: {p.last_opened})")
-    
-    print("\n" + "=" * 70)
-    print("[SUCCESS] ProjectManager test completed!")
-    print("=" * 70)
+        
+        print("=" * 70)
+        print("JellyRancher Project Manager Test")
+        print("=" * 70)
+        
+        pm = ProjectManager()
+        
+        # Create a test project
+        print("\n1. Creating test project...")
+        try:
+            project = pm.create_project(
+                "Test Project",
+                "A test project for Phase 32A",
+                settings={'theme': 'dark', 'auto_save': True}
+            )
+            print(f"   Created: {project.name} (ID: {project.id})")
+        except ValueError as e:
+            print(f"   Project already exists, loading instead...")
+            project = pm.get_project_by_name("Test Project")
+            if not project:
+                print("   ERROR: Could not create or load test project")
+                return
+        
+        # List all projects
+        print("\n2. Listing all projects...")
+        projects = pm.list_projects()
+        for p in projects:
+            print(f"   - {p.name} (ID: {p.id}, State: {p.state}, Last opened: {p.last_opened})")
+        
+        # Save project state
+        print("\n3. Saving project state...")
+        state = ProjectState(
+            project_id=project.id,
+            current_view='scan_view',
+            ui_state={'window_width': 1200, 'window_height': 800}
+        )
+        if pm.save_project_state(state):
+            print(f"   Saved state for project: {project.name}")
+        else:
+            print("   ERROR: Failed to save project state")
+        
+        # Load project state
+        print("\n4. Loading project state...")
+        loaded_state = pm.load_project_state(project.id)
+        if loaded_state:
+            print(f"   Current view: {loaded_state.current_view}")
+            print(f"   UI state: {loaded_state.ui_state}")
+        else:
+            print("   No state found")
+        
+        # Get recent projects
+        print("\n5. Getting recent projects...")
+        recent = pm.get_recent_projects(limit=3)
+        for p in recent:
+            print(f"   - {p.name} (Last opened: {p.last_opened})")
+        
+        print("\n" + "=" * 70)
+        print("[SUCCESS] ProjectManager test completed!")
+        print("=" * 70)
+    except Exception as e:
+        logger.error(f"Unexpected error in ProjectManager test: {e}", exc_info=True)
+        print(f"\n[ERROR] Test failed: {e}")
+        print("Check logs for details")
 
 
 if __name__ == "__main__":
