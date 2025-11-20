@@ -1,127 +1,31 @@
 #!/usr/bin/env python3
 """
-Build comprehensive function index for JellyRancher project with optional LLM docstring enhancement.
+Build comprehensive function index for JellyRancher project.
 
 Features:
 - Scans all Python files and extracts function signatures, docstrings, and metadata
-- Optional: Auto-generates enhanced docstrings using Grok LLM for functions with missing/minimal docs
-- Stores enhanced docstrings in function_index.json and ChromaDB
+- Stores in function_index.json for TF-IDF semantic search
+- Simple, dependency-free, fast
 
 Usage:
-    .venv\Scripts\python.exe build_function_index_enhanced.py                  # Normal build without enhancement
-    .venv\Scripts\python.exe build_function_index_enhanced.py --enhance        # Build with LLM docstring enhancement
-    .venv\Scripts\python.exe build_function_index_enhanced.py --enhance-new    # Only enhance new/modified functions
+    .venv\Scripts\python.exe tools/build_function_index_simple.py
 
-IMPORTANT: Must use .venv Python 3.10 for ChromaDB compatibility. Python 3.14+ is incompatible with ChromaDB's Pydantic v1.
+Note: Always use .venv Python for consistency.
 """
 
 import ast
 import sys
 import json
-import argparse
 import logging
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 from datetime import datetime
 
-# Add scripts to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts" / "core"))
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts" / "ai"))
-
-# ChromaDB compatibility layer
-class ChromaDBCompat:
-    """Compatibility layer for ChromaDB with graceful fallbacks."""
-
-    def __init__(self):
-        self.available = False
-        self.backend = None
-        self.issues = []
-
-        self._check_availability()
-
-    def _check_availability(self):
-        """Check if ChromaDB is available and working."""
-        try:
-            # Try to import ChromaDB
-            import chromadb
-            from chromadb.config import Settings
-
-            # Test basic functionality
-            test_client = chromadb.EphemeralClient()
-            test_collection = test_client.get_or_create_collection("test_compat")
-            test_collection.add(
-                documents=["test document"],
-                ids=["test_id"],
-                metadatas=[{"test": "metadata"}]
-            )
-
-            # If we get here, ChromaDB is working
-            self.available = True
-
-            # Now try to import our backend
-            try:
-                from chroma_memory_backend import ChromaMemoryBackend
-                self.backend = ChromaMemoryBackend('./chroma_db')
-                print("[OK] ChromaDB fully available and working")
-            except Exception as e:
-                self.issues.append(f"ChromaMemoryBackend import failed: {e}")
-                print(f"[WARNING] ChromaDB core available but ChromaMemoryBackend failed: {e}")
-
-        except ImportError as e:
-            self.issues.append(f"ChromaDB import failed: {e}")
-            print(f"[WARNING] ChromaDB not available: {e}")
-
-        except Exception as e:
-            self.issues.append(f"ChromaDB functionality test failed: {e}")
-            print(f"[WARNING] ChromaDB available but not working: {e}")
-
-    def is_available(self) -> bool:
-        """Check if ChromaDB is available and working."""
-        return self.available and self.backend is not None
-
-    def add_memory(self, content: str, user_id: str = "function_indexer",
-                   metadata: Optional[Dict[str, Any]] = None) -> Optional[str]:
-        """Add memory to ChromaDB with fallback."""
-        if not self.is_available():
-            logger.info("[SKIP] ChromaDB not available - skipping memory storage")
-            return None
-
-        try:
-            return self.backend.add_memory(content, user_id, metadata)
-        except Exception as e:
-            logger.error(f"[ERROR] Failed to store in ChromaDB: {e}")
-            self.issues.append(f"Memory storage failed: {e}")
-            return None
-
-    def get_memory_stats(self) -> Optional[Dict[str, Any]]:
-        """Get memory statistics with fallback."""
-        if not self.is_available():
-            return {"total_memories": 0, "status": "unavailable"}
-
-        try:
-            return self.backend.get_memory_stats()
-        except Exception as e:
-            logger.error(f"[ERROR] Failed to get ChromaDB stats: {e}")
-            return {"total_memories": 0, "status": "error", "error": str(e)}
-
-    def get_status_info(self) -> Dict[str, Any]:
-        """Get comprehensive status information."""
-        return {
-            "available": self.available,
-            "backend_available": self.backend is not None,
-            "issues": self.issues,
-            "status": "available" if self.is_available() else "unavailable"
-        }
-
-# Initialize ChromaDB compatibility layer
-chromadb_compat = ChromaDBCompat()
-
-# RICH imports for beautiful progress indication
+# RICH imports for progress indication
 try:
     from rich.console import Console
     from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn, MofNCompleteColumn
     from rich.panel import Panel
-    from rich.text import Text
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
@@ -140,226 +44,22 @@ logger = logging.getLogger(__name__)
 
 
 class FunctionIndexer:
-    """Extract function information from Python files with optional LLM enhancement."""
+    """Extract function information from Python files."""
 
-    def __init__(self, enhance_docstrings=False, enhance_new_only=False):
+    def __init__(self):
         self.functions = {}
         self.total_files = 0
         self.total_functions = 0
-        self.enhance_docstrings = enhance_docstrings
-        self.enhance_new_only = enhance_new_only
-        self.poe_client = None
-
-        # Load existing index if enhancing new only
-        self.existing_index = {}
-        if enhance_new_only and Path('function_index.json').exists():
-            with open('function_index.json', 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                self.existing_index = data.get('functions', {})
-
-    def _initialize_poe_client(self):
-        """Lazy initialization of Poe client for LLM docstring generation."""
-        if self.poe_client is None and self.enhance_docstrings:
-            try:
-                from ravenmaven_client import PoeClient
-                self.poe_client = PoeClient()
-                logger.info("[OK] Poe client initialized for docstring enhancement")
-            except Exception as e:
-                logger.error(f"[ERROR] Failed to initialize Poe client: {e}")
-                logger.warning("[WARNING] Continuing without docstring enhancement")
-                self.enhance_docstrings = False
-
-    def _needs_enhancement(self, func_info: Dict[str, Any], file_path: str) -> bool:
-        """
-        Determine if a function needs docstring enhancement.
-
-        Args:
-            func_info: Function metadata
-            file_path: Path to source file
-
-        Returns:
-            True if function needs enhancement
-        """
-        docstring = func_info.get('docstring', '')
-
-        # Check if already enhanced
-        if func_info.get('docstring_enhanced'):
-            return False
-
-        # Check if it's a new/modified function (for enhance_new_only mode)
-        if self.enhance_new_only:
-            existing_funcs = self.existing_index.get(file_path, [])
-            existing_func = next(
-                (f for f in existing_funcs if f['name'] == func_info['name'] and f['line'] == func_info['line']),
-                None
-            )
-            if existing_func and existing_func.get('docstring_enhanced'):
-                # Already enhanced, copy over the enhanced docstring
-                func_info['docstring'] = existing_func['docstring']
-                func_info['docstring_enhanced'] = True
-                func_info['docstring_source'] = existing_func.get('docstring_source', 'llm')
-                return False
-
-        # Needs enhancement if docstring is missing or minimal
-        if not docstring or docstring == "No documentation available":
-            return True
-        if len(docstring.strip()) < 20:  # Very short docstring
-            return True
-        if not any(keyword in docstring.lower() for keyword in ['args:', 'returns:', 'raises:', 'parameters:']):
-            # Doesn't have structured documentation
-            return True
-
-        return False
-
-    def _extract_function_code(self, file_path: Path, function_name: str, line_number: int) -> Optional[str]:
-        """Extract complete function code from source file."""
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-
-            tree = ast.parse(content, filename=str(file_path))
-
-            # Find the function node
-            for node in ast.walk(tree):
-                if isinstance(node, ast.FunctionDef) and node.name == function_name and node.lineno == line_number:
-                    return ast.unparse(node)
-
-            return None
-
-        except Exception as e:
-            logger.error(f"Failed to extract {function_name} from {file_path}: {e}")
-            return None
-
-    def _generate_enhanced_docstring(self, func_info: Dict[str, Any], function_code: str) -> Optional[str]:
-        """
-        Generate enhanced docstring using LLM.
-
-        Args:
-            func_info: Function metadata
-            function_code: Complete function source code
-
-        Returns:
-            Enhanced docstring or None if generation fails
-        """
-        if not self.poe_client:
-            return None
-
-        prompt = f"""You are a Python documentation expert. Generate a comprehensive Google-style docstring for this function.
-
-Function Code:
-```python
-{function_code}
-```
-
-Requirements:
-- Use Google-style format (Args, Returns, Raises sections)
-- Explain WHY the function exists and WHAT problem it solves
-- Include "How it works" for complex logic
-- Document all parameters with types
-- Document return value and type
-- List potential exceptions
-- Note side effects if any
-- Be concise but thorough
-
-Return ONLY the docstring text (no code fences, no function definition).
-
-Enhanced Docstring:"""
-
-        try:
-            response = self.poe_client.send_message(prompt, bot_name="Grok-2")
-
-            if response and response.strip():
-                # Clean up response
-                docstring = response.strip()
-                # Remove code fences if present
-                if docstring.startswith('```'):
-                    lines = docstring.split('\n')
-                    docstring = '\n'.join(lines[1:-1]) if len(lines) > 2 else docstring
-                docstring = docstring.strip('"""').strip("'''").strip()
-
-                return docstring
-
-        except Exception as e:
-            logger.error(f"Failed to generate docstring for {func_info['name']}: {e}")
-
-        return None
-
-    def _enhance_function_docstrings(self, functions: List[Dict[str, Any]], file_path: Path):
-        """Enhance docstrings for functions that need it."""
-        if not self.enhance_docstrings:
-            return
-
-        self._initialize_poe_client()
-        if not self.poe_client:
-            return
-
-        file_key = str(file_path.relative_to(Path.cwd()))
-        functions_to_enhance = [f for f in functions if self._needs_enhancement(f, file_key)]
-
-        if not functions_to_enhance:
-            return
-
-        # Use RICH progress bar for enhancement if available
-        if RICH_AVAILABLE:
-            console = Console()
-            console.print(f"[bold blue]✨ Enhancing {len(functions_to_enhance)} functions in {Path(file_key).name}[/bold blue]")
-
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                MofNCompleteColumn(),
-                TaskProgressColumn(),
-                TimeRemainingColumn(),
-                console=console,
-                refresh_per_second=2,
-            ) as progress:
-                enhance_task = progress.add_task("🤖 Generating docstrings...", total=len(functions_to_enhance))
-
-                for func_info in functions_to_enhance:
-                    progress.update(enhance_task, description=f"🤖 Enhancing: {func_info['name']}")
-                    function_code = self._extract_function_code(file_path, func_info['name'], func_info['line'])
-
-                    if not function_code:
-                        progress.update(enhance_task, description=f"⚠️  Skipped: {func_info['name']} (code extraction failed)")
-                        progress.advance(enhance_task)
-                        continue
-
-                    enhanced_docstring = self._generate_enhanced_docstring(func_info, function_code)
-
-                    if enhanced_docstring:
-                        func_info['docstring'] = enhanced_docstring
-                        func_info['docstring_enhanced'] = True
-                        func_info['docstring_source'] = 'llm_grok'
-                        progress.update(enhance_task, description=f"✅ Enhanced: {func_info['name']}")
-                    else:
-                        progress.update(enhance_task, description=f"❌ Failed: {func_info['name']}")
-
-                    progress.advance(enhance_task)
-        else:
-            # Fallback to logger-based progress
-            logger.info(f"[ENHANCE] {len(functions_to_enhance)} functions need enhancement in {file_key}")
-
-            for func_info in functions_to_enhance:
-                function_code = self._extract_function_code(file_path, func_info['name'], func_info['line'])
-
-                if not function_code:
-                    logger.warning(f"[SKIP] Could not extract code for {func_info['name']}")
-                    continue
-
-                logger.info(f"[ENHANCE] Generating docstring for {func_info['name']}...")
-                enhanced_docstring = self._generate_enhanced_docstring(func_info, function_code)
-
-                if enhanced_docstring:
-                    func_info['docstring'] = enhanced_docstring
-                    func_info['docstring_enhanced'] = True
-                    func_info['docstring_source'] = 'llm_grok'
-                    logger.info(f"[OK] Enhanced {func_info['name']}")
-                else:
-                    logger.warning(f"[SKIP] Failed to enhance {func_info['name']}")
 
     def extract_functions_from_file(self, file_path: Path) -> List[Dict[str, Any]]:
-        """Extract all functions from a Python file."""
+        """Extract all functions from a Python file.
+        
+        Args:
+            file_path: Path to Python file to analyze
+            
+        Returns:
+            List of function metadata dictionaries
+        """
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -372,10 +72,6 @@ Enhanced Docstring:"""
                     func_info = self.extract_function_info(node, file_path)
                     functions.append(func_info)
 
-            # Enhance docstrings if enabled
-            if self.enhance_docstrings and functions:
-                self._enhance_function_docstrings(functions, file_path)
-
             return functions
 
         except Exception as e:
@@ -383,7 +79,15 @@ Enhanced Docstring:"""
             return []
 
     def extract_function_info(self, node: ast.FunctionDef, file_path: Path) -> Dict[str, Any]:
-        """Extract detailed information about a function."""
+        """Extract detailed information about a function.
+        
+        Args:
+            node: AST FunctionDef node
+            file_path: Source file path
+            
+        Returns:
+            Function metadata dictionary
+        """
         # Get function name
         func_name = node.name
 
@@ -428,9 +132,18 @@ Enhanced Docstring:"""
         }
 
     def scan_directory(self, directory: Path, exclude_dirs=None):
-        """Recursively scan directory for Python files."""
+        """Recursively scan directory for Python files.
+        
+        Args:
+            directory: Root directory to scan
+            exclude_dirs: Set of directory names to exclude
+            
+        Returns:
+            List of Python file paths
+        """
         if exclude_dirs is None:
-            exclude_dirs = {'.venv', '__pycache__', 'archive', '.git', 'chroma_db', 'backups', 'Jellyfin Organizer', 'RavenMaven', 'code_cop'}
+            exclude_dirs = {'.venv', '__pycache__', 'archive', '.git', 'chroma_db', 'backups', 
+                          'Jellyfin Organizer', 'RavenMaven', 'code_cop'}
 
         python_files = []
         for item in directory.rglob('*.py'):
@@ -445,25 +158,23 @@ Enhanced Docstring:"""
         return python_files
 
     def build_index(self):
-        """Build complete function index."""
+        """Build complete function index.
+        
+        Returns:
+            True if successful, False if too many errors
+        """
         # Initialize RICH console if available
         console = Console() if RICH_AVAILABLE else None
 
         if console:
-            # Create beautiful header
-            title = "🔍 Building JellyRancher Function Index"
-            if self.enhance_docstrings:
-                mode = "ENHANCED (New Functions Only)" if self.enhance_new_only else "ENHANCED (All Functions)"
-                title += f"\n✨ Mode: {mode}"
-
-            console.print(Panel.fit(title, border_style="blue", padding=(1, 2)))
+            console.print(Panel.fit(
+                "🔍 Building JellyRancher Function Index", 
+                border_style="blue", 
+                padding=(1, 2)
+            ))
         else:
-            # Fallback to basic output
             print("=" * 80)
             print("Building JellyRancher Function Index")
-            if self.enhance_docstrings:
-                mode = "ENHANCED (New Functions Only)" if self.enhance_new_only else "ENHANCED (All Functions)"
-                print(f"Mode: {mode}")
             print("=" * 80)
             print()
 
@@ -479,8 +190,7 @@ Enhanced Docstring:"""
 
         # Set up progress bar for file processing
         error_count = 0
-        warning_count = 0
-        max_errors = 50  # Allow more parsing errors for large codebase
+        max_errors = 50  # Allow parsing errors for large codebase
 
         if console:
             with Progress(
@@ -495,39 +205,24 @@ Enhanced Docstring:"""
             ) as progress:
                 file_task = progress.add_task("🔍 Analyzing files...", total=len(python_files))
 
-                # Extract functions from each file
                 for file_path in sorted(python_files):
                     progress.update(file_task, description=f"🔍 Analyzing: {file_path.relative_to(project_root).name}")
 
-                    # Capture warnings during file processing
-                    import warnings
-                    with warnings.catch_warnings(record=True) as w:
-                        warnings.simplefilter("always")
-                        functions = self.extract_functions_from_file(file_path)
-                        # Only count syntax warnings from this specific file
-                        file_warnings = sum(1 for warning in w if issubclass(warning.category, SyntaxWarning))
+                    functions = self.extract_functions_from_file(file_path)
 
                     if functions:
                         file_key = str(file_path.relative_to(project_root))
                         self.functions[file_key] = functions
                         self.total_functions += len(functions)
-                        enhanced_count = sum(1 for f in functions if f.get('docstring_enhanced'))
 
                         status_msg = f"✅ {file_path.relative_to(project_root).name}: {len(functions)} functions"
-                        if enhanced_count > 0:
-                            status_msg += f" ({enhanced_count} enhanced)"
-                        if file_warnings > 0:
-                            status_msg += f" ({file_warnings} warnings)"
-                            warning_count += file_warnings
-
                         progress.update(file_task, description=status_msg)
                     else:
                         error_count += 1
                         progress.update(file_task, description=f"❌ {file_path.relative_to(project_root).name}: Parse failed ({error_count}/{max_errors})")
 
-                    # Check error threshold (only parsing errors, not warnings)
                     if error_count >= max_errors:
-                        progress.update(file_task, description=f"🛑 STOPPED: Too many parsing errors ({error_count}/{max_errors}, {warning_count} warnings)")
+                        progress.update(file_task, description=f"🛑 STOPPED: Too many parsing errors ({error_count}/{max_errors})")
                         break
 
                     self.total_files += 1
@@ -537,135 +232,46 @@ Enhanced Docstring:"""
             for file_path in sorted(python_files):
                 print(f"Analyzing: {file_path.relative_to(project_root)}")
 
-                # Capture warnings during file processing
-                import warnings
-                with warnings.catch_warnings(record=True) as w:
-                    warnings.simplefilter("always")
-                    functions = self.extract_functions_from_file(file_path)
-                    # Only count syntax warnings from this specific file
-                    file_warnings = sum(1 for warning in w if issubclass(warning.category, SyntaxWarning))
+                functions = self.extract_functions_from_file(file_path)
 
                 if functions:
                     file_key = str(file_path.relative_to(project_root))
                     self.functions[file_key] = functions
                     self.total_functions += len(functions)
-                    enhanced_count = sum(1 for f in functions if f.get('docstring_enhanced'))
-
-                    status_msg = f"  -> Found {len(functions)} functions"
-                    if enhanced_count > 0:
-                        status_msg += f" ({enhanced_count} enhanced)"
-                    if file_warnings > 0:
-                        status_msg += f" ({file_warnings} warnings)"
-                        warning_count += file_warnings
-
-                    print(status_msg)
+                    print(f"  -> Found {len(functions)} functions")
                 else:
                     error_count += 1
                     print(f"  -> Parse failed ({error_count}/{max_errors})")
 
-                # Check error threshold (only parsing errors, not warnings)
                 if error_count >= max_errors:
-                    print(f"STOPPED: Too many parsing errors ({error_count}/{max_errors}, {warning_count} warnings)")
+                    print(f"STOPPED: Too many parsing errors ({error_count}/{max_errors})")
                     break
 
                 self.total_files += 1
 
         # Check if we stopped due to errors
         if error_count >= max_errors:
-            logger.error(f"[STOPPED] Processing halted due to {error_count} parsing errors (threshold: {max_errors}) - {warning_count} warnings ignored")
-            self._review_error_log()
-            return False  # Indicate failure
+            logger.error(f"[STOPPED] Processing halted due to {error_count} parsing errors")
+            return False
 
-        return True  # Indicate success
-
-    def _review_error_log(self):
-        """Review the error log and display summary of issues."""
-        log_file = Path('build_function_index.log')
-
-        if not log_file.exists():
-            print("\n[WARNING] No log file found to review")
-            return
-
-        try:
-            with open(log_file, 'r', encoding='utf-8') as f:
-                log_content = f.read()
-
-            # Extract error and warning lines
-            error_lines = [line for line in log_content.split('\n') if 'ERROR' in line]
-            warning_lines = [line for line in log_content.split('\n') if 'WARNING' in line]
-
-            print(f"\n{'='*80}")
-            print(f"🚨 ERROR LOG REVIEW - {len(error_lines)} errors, {len(warning_lines)} warnings found")
-            print(f"{'='*80}")
-
-            # Group errors by type
-            parse_errors = [line for line in error_lines if 'Failed to parse' in line]
-            other_errors = [line for line in error_lines if 'Failed to parse' not in line]
-
-            if parse_errors:
-                print(f"\n📁 PARSING ERRORS ({len(parse_errors)}):")
-                for error in parse_errors[:10]:  # Show first 10
-                    # Extract file path from error message
-                    if 'Failed to parse' in error:
-                        file_part = error.split('Failed to parse ')[1].split(':')[0]
-                        print(f"  ❌ {file_part}")
-
-                if len(parse_errors) > 10:
-                    print(f"  ... and {len(parse_errors) - 10} more parsing errors")
-
-            if other_errors:
-                print(f"\n🔧 OTHER ERRORS ({len(other_errors)}):")
-                for error in other_errors[:5]:  # Show first 5
-                    print(f"  ⚠️  {error.split(' - ')[-1]}")  # Show just the message part
-
-            if warning_lines:
-                print(f"\n⚠️  WARNINGS ({len(warning_lines)}):")
-                syntax_warnings = [line for line in warning_lines if 'SyntaxWarning' in line]
-                other_warnings = [line for line in warning_lines if 'SyntaxWarning' not in line]
-
-                if syntax_warnings:
-                    print(f"  📝 Syntax warnings: {len(syntax_warnings)}")
-                    # Show a sample of syntax warning files
-                    sample_warnings = syntax_warnings[:3]
-                    for warning in sample_warnings:
-                        if 'SyntaxWarning:' in warning:
-                            file_part = warning.split('SyntaxWarning:')[0].strip()
-                            print(f"    📄 {file_part}")
-
-                if other_warnings:
-                    print(f"  🔧 Other warnings: {len(other_warnings)}")
-
-            print(f"\n📋 LOG FILE: {log_file.absolute()}")
-            print(f"💡 TIP: Check the log file for full error details and consider fixing syntax issues")
-            print(f"{'='*80}")
-
-        except Exception as e:
-            print(f"\n[ERROR] Failed to review log file: {e}")
-            if self.enhance_docstrings:
-                total_enhanced = sum(
-                    1 for funcs in self.functions.values()
-                    for f in funcs if f.get('docstring_enhanced')
-                )
-                print(f"Enhanced: {total_enhanced} functions with LLM-generated docstrings")
-            print("=" * 80)
-
-        return self.functions
+        return True
 
 
-def save_function_index(functions: Dict[str, List[Dict]], output_file: str, enhanced: bool = False):
-    """Save function index to JSON file."""
-    total_enhanced = sum(
-        1 for funcs in functions.values()
-        for f in funcs if f.get('docstring_enhanced')
-    )
-
+def save_function_index(functions: Dict[str, List[Dict]], output_file: str):
+    """Save function index to JSON file.
+    
+    Args:
+        functions: Dictionary mapping file paths to function lists
+        output_file: Path to save JSON file
+        
+    Returns:
+        Index metadata dictionary
+    """
     index_data = {
         "metadata": {
             "generated": datetime.now().isoformat(),
             "total_files": len(functions),
-            "total_functions": sum(len(funcs) for funcs in functions.values()),
-            "enhanced_count": total_enhanced if enhanced else 0,
-            "enhancement_source": "Grok-2" if enhanced and total_enhanced > 0 else None
+            "total_functions": sum(len(funcs) for funcs in functions.values())
         },
         "functions": functions
     }
@@ -674,189 +280,12 @@ def save_function_index(functions: Dict[str, List[Dict]], output_file: str, enha
         json.dump(index_data, f, indent=2, ensure_ascii=False)
 
     print(f"\n[OK] Function index saved to {output_file}")
-    if total_enhanced > 0:
-        print(f"[OK] {total_enhanced} functions have enhanced docstrings")
     return index_data
 
 
-def store_in_chromadb(index_data: Dict):
-    """Store function index in ChromaDB using compatibility layer.
-    
-    Uses upsert behavior with deterministic IDs to prevent duplicates.
-    Old function index entries are automatically replaced with new ones.
-    """
-    global chromadb_compat
-
-    if not chromadb_compat.is_available():
-        status_info = chromadb_compat.get_status_info()
-        logger.warning(f"[SKIP] ChromaDB not available: {', '.join(status_info['issues'])}")
-        return
-
-    try:
-        logger.info("[INFO] Storing function index in ChromaDB (using upsert to prevent duplicates)...")
-        
-        # Create comprehensive documentation with deterministic ID
-        doc_content = f"""# JellyRancher Function Index
-Generated: {index_data['metadata']['generated']}
-Total Files: {index_data['metadata']['total_files']}
-Total Functions: {index_data['metadata']['total_functions']}
-Enhanced Functions: {index_data['metadata'].get('enhanced_count', 0)}
-
-## Complete Function Glossary
-
-"""
-
-        # Organize by file
-        for file_path, functions in sorted(index_data['functions'].items()):
-            doc_content += f"\n### File: {file_path}\n\n"
-
-            for func in functions:
-                # Function signature
-                params_str = ", ".join([f"{p['name']}: {p['type']}" for p in func['parameters']])
-                signature = f"{func['name']}({params_str}) -> {func['return_type']}"
-
-                if func['is_method'] and func['class']:
-                    doc_content += f"#### `{func['class']}.{signature}`\n\n"
-                else:
-                    doc_content += f"#### `{signature}`\n\n"
-
-                doc_content += f"**Location**: Line {func['line']}\n\n"
-
-                if func.get('docstring_enhanced'):
-                    doc_content += f"**Description** (LLM-Enhanced): {func['docstring']}\n\n"
-                else:
-                    doc_content += f"**Description**: {func['docstring']}\n\n"
-
-                # Parameters detail
-                if func['parameters']:
-                    doc_content += "**Parameters**:\n"
-                    for param in func['parameters']:
-                        doc_content += f"- `{param['name']}` ({param['type']})\n"
-                    doc_content += "\n"
-
-                doc_content += f"**Returns**: {func['return_type']}\n\n"
-                doc_content += "---\n\n"
-
-        # Store main index document with deterministic ID (upsert behavior)
-        main_index_id = "function_index_master"
-        
-        # Use ChromaDB's upsert method by attempting to delete old, then add new
-        try:
-            chromadb_compat.backend.collection.delete(ids=[main_index_id])
-            logger.info(f"[INFO] Deleted old function index master document")
-        except Exception:
-            pass  # No old document exists, that's fine
-        
-        memory_id = chromadb_compat.add_memory(
-            content=doc_content,
-            user_id='function_indexer',
-            metadata={
-                'type': 'function_index_master',
-                'date': datetime.now().strftime('%Y-%m-%d'),
-                'total_files': index_data['metadata']['total_files'],
-                'total_functions': index_data['metadata']['total_functions'],
-                'enhanced_count': index_data['metadata'].get('enhanced_count', 0),
-                'tags': 'function_index,api,reference,glossary,enhanced',
-                'generated': index_data['metadata']['generated']
-            }
-        )
-
-        if memory_id:
-            logger.info(f"[OK] Function index master document stored in ChromaDB")
-        else:
-            logger.warning("[WARNING] Function index storage failed")
-
-        # Delete old individual function entries before storing new ones
-        logger.info("[INFO] Removing old individual function entries...")
-        try:
-            old_functions = chromadb_compat.backend.collection.get(
-                where={"type": "function_definition"}
-            )
-            if old_functions and old_functions.get('ids'):
-                chromadb_compat.backend.collection.delete(ids=old_functions['ids'])
-                logger.info(f"[INFO] Deleted {len(old_functions['ids'])} old function entries")
-        except Exception as e:
-            logger.warning(f"[WARNING] Could not delete old function entries: {e}")
-
-        # Store individual function entries with deterministic IDs (upsert behavior)
-        logger.info("[INFO] Storing individual function entries...")
-        functions_stored = 0
-        for file_path, functions in index_data['functions'].items():
-            for func in functions:
-                # Create deterministic ID based on file path and function name
-                safe_path = file_path.replace('/', '_').replace('\\', '_')
-                func_id = f"func_{safe_path}_{func['name']}"
-                
-                func_content = f"""# Function: {func['name']}
-
-File: {file_path}
-Line: {func['line']}
-{"Class: " + func['class'] if func['is_method'] else "Module-level function"}
-{"Enhanced: Yes (LLM-generated docstring)" if func.get('docstring_enhanced') else ""}
-
-## Signature
-{func['name']}({", ".join([f"{p['name']}: {p['type']}" for p in func['parameters']])}) -> {func['return_type']}
-
-## Description
-{func['docstring']}
-
-## Parameters
-"""
-                for param in func['parameters']:
-                    func_content += f"- {param['name']} ({param['type']})\n"
-
-                func_content += f"\n## Returns\n{func['return_type']}\n"
-
-                # Store with deterministic ID - ChromaDB will handle upsert
-                try:
-                    chromadb_compat.backend.collection.upsert(
-                        documents=[func_content],
-                        metadatas=[{
-                            'type': 'function_definition',
-                            'function_name': func['name'],
-                            'file': file_path,
-                            'line': func['line'],
-                            'is_method': str(func['is_method']),
-                            'class': func['class'] if func['class'] else 'none',
-                            'enhanced': str(func.get('docstring_enhanced', False)),
-                            'tags': f"function,{func['name']},{file_path.split('/')[0] if '/' in file_path else 'root'}",
-                            'user_id': 'function_indexer',
-                            'timestamp': datetime.now().isoformat()
-                        }],
-                        ids=[func_id]
-                    )
-                except Exception as e:
-                    logger.warning(f"[WARNING] Failed to upsert function {func['name']}: {e}")
-                    
-                functions_stored += 1
-
-        if functions_stored > 0:
-            logger.info(f"[OK] {functions_stored} individual function entries stored in ChromaDB")
-
-        stats = chromadb_compat.get_memory_stats()
-        if stats:
-            logger.info(f"[INFO] Total memories in ChromaDB: {stats.get('total_memories', 'unknown')}")
-
-    except Exception as e:
-        logger.error(f"[ERROR] ChromaDB storage failed: {e}")
-        chromadb_compat.issues.append(f"Storage operation failed: {e}")
-
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Build function index with optional LLM docstring enhancement')
-    parser.add_argument('--enhance', action='store_true',
-                       help='Enable LLM docstring enhancement for all functions')
-    parser.add_argument('--enhance-new', action='store_true',
-                       help='Enable LLM docstring enhancement for new/modified functions only')
-
-    args = parser.parse_args()
-
     # Build index
-    enhance_mode = args.enhance or args.enhance_new
-    indexer = FunctionIndexer(
-        enhance_docstrings=enhance_mode,
-        enhance_new_only=args.enhance_new
-    )
+    indexer = FunctionIndexer()
     success = indexer.build_index()
 
     if not success:
@@ -867,50 +296,24 @@ if __name__ == "__main__":
     functions = indexer.functions
 
     # Save to JSON
-    index_data = save_function_index(functions, "function_index.json", enhanced=enhance_mode)
+    index_data = save_function_index(functions, "function_index.json")
 
-    # Store in ChromaDB
+    # Print completion
     if RICH_AVAILABLE:
         console = Console()
-        console.print("\n[bold blue]💾 Storing in ChromaDB...[/bold blue]")
-        store_in_chromadb(index_data)
-
-        # Create beautiful completion message
         completion_lines = [
             "[bold green]🎉 Function Index Complete![/bold green]",
             "",
-            f"[cyan]📄 JSON Index:[/cyan] function_index.json"
+            f"[cyan]📄 JSON Index:[/cyan] function_index.json",
+            f"[cyan]📊 Functions:[/cyan] {index_data['metadata']['total_functions']} functions",
+            f"[cyan]📁 Files:[/cyan] {index_data['metadata']['total_files']} files"
         ]
-
-        if enhance_mode:
-            completion_lines.append(f"[cyan]✨ Enhanced:[/cyan] {index_data['metadata']['enhanced_count']} functions with LLM docstrings")
-
-        # Check ChromaDB status for completion message
-        if chromadb_compat.is_available():
-            completion_lines.append(f"[cyan]🗄️ ChromaDB:[/cyan] {chromadb_compat.get_memory_stats().get('total_memories', 'unknown')} memories stored")
-        else:
-            completion_lines.append(f"[yellow]�️ ChromaDB:[/yellow] Skipped ({', '.join(chromadb_compat.get_status_info()['issues'])})")
-
         console.print(Panel.fit("\n".join(completion_lines), border_style="green", padding=(1, 2)))
     else:
-        print("\nStoring in ChromaDB...")
-        store_in_chromadb(index_data)
-
         print("\n" + "=" * 80)
         print("Function Index Complete!")
         print("=" * 80)
         print(f"JSON Index: function_index.json")
-        if enhance_mode:
-            print(f"Enhanced: {index_data['metadata']['enhanced_count']} functions with LLM docstrings")
-
-        # Check ChromaDB status for completion message
-        if chromadb_compat.is_available():
-            stats = chromadb_compat.get_memory_stats()
-            print(f"ChromaDB: {stats.get('total_memories', 'unknown')} memories stored")
-        else:
-            print(f"ChromaDB: Skipped ({', '.join(chromadb_compat.get_status_info()['issues'])})")
-
-        print("\nExample queries:")
-        print('  mem.query_memory("function_name implementation", limit=5)')
-        print('  mem.query_memory("how to use component_name API", limit=10)')
+        print(f"Functions: {index_data['metadata']['total_functions']}")
+        print(f"Files: {index_data['metadata']['total_files']}")
         print("=" * 80)

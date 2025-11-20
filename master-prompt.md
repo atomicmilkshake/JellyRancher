@@ -42,9 +42,10 @@
    * Do not run Python commands outside this environment.
 
 **2. The "Don't Reinvent the Wheel" Rule:**
-   * **Before implementing new functionality:** You MUST query the LLM-enhanced function index.
-   * **Command:** Run `tools/query_function_index_semantic.py` using natural language queries (e.g., "find TMDB metadata for movies").
+   * **Before implementing new functionality:** You MUST query the function index.
+   * **Command:** Run `.venv\Scripts\python.exe tools/query_function_index_semantic.py search "your query"` using natural language queries (e.g., "find TMDB metadata for movies").
    * Use existing, well-documented code whenever available.
+   * **Note:** Always use .venv Python for consistency. The index uses TF-IDF semantic search (fast, accurate, dependency-free).
 
 **3. Git Workflow (Mandatory):**
    * **Repo:** `https://github.com/atomicmilkshake/JellyRancher`
