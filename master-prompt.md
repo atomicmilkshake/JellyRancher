@@ -126,10 +126,11 @@ When working on PyQt6 GUI code, you cannot visually see the application. To over
    * **Current State:** Properties like `text`, `isChecked`, `currentText` show actual runtime values
 
 **4. Workflow Integration:**
-   * User captures GUI state: `python tools/capture_gui_runtime.py` or presses F12 in Studio
-   * User pastes JSON at the start of GUI-related tasks
-   * You reference the JSON explicitly in your analysis: "Based on gui_runtime_state.json, I can see that ScanView.toolbar_layout has 3 buttons..."
-   * When making changes, explain EXACTLY where in the hierarchy the change goes
+   * **Capture:** User presses F12 in Studio (JSON auto-copied to clipboard) OR runs `python tools/capture_gui_runtime.py`
+   * **Paste:** User presses Ctrl+V to paste JSON at the start of GUI-related tasks
+   * **Analyze:** You reference the JSON explicitly: "Based on gui_runtime_state.json, I can see that ScanView.toolbar_layout has 3 buttons..."
+   * **Code:** When making changes, explain EXACTLY where in the hierarchy the change goes with precise line numbers and parent widgets
+   * **Note:** The F12 capture automatically copies JSON to clipboard - user can paste immediately without opening files
 
 **5. Preventing GUI Drift:**
    * If GUI state is >24 hours old, ask user to re-capture before making changes
