@@ -952,10 +952,14 @@ class JellyRancherStudio(QMainWindow):
                     prop = getattr(widget, prop_name)
                     value = prop() if callable(prop) else prop
                     
-                    # Only include non-empty/non-default values
+                    # Only include non-empty/non-default values that are JSON-serializable
                     if value not in [None, "", False, 0]:
-                        info[prop_name] = value
+                        # Only capture primitive JSON-serializable types
+                        # Skip Qt objects (QModelIndex, QPoint, QColor, etc.)
+                        if isinstance(value, (str, int, float, bool)):
+                            info[prop_name] = value
                 except Exception:
+                    # Silently skip properties that can't be accessed or serialized
                     pass
         
         # Capture layout information
