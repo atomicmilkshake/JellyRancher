@@ -1024,14 +1024,23 @@ class JellyRancherStudio(QMainWindow):
             filename = f"{timestamp_str}_{view_slug}.json"
             output_file = captures_dir / filename
             
-            # Save to file
+            # Custom JSON encoder to handle any remaining Qt objects
+            class QtObjectEncoder(json.JSONEncoder):
+                def default(self, obj):
+                    # Convert any Qt object to its string representation
+                    if hasattr(obj, '__class__') and 'PyQt6' in str(type(obj)):
+                        return f"<{obj.__class__.__name__}>"
+                    # Let the base class handle standard types
+                    return super().default(obj)
+            
+            # Save to file with custom encoder
             with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(capture_data, f, indent=2, ensure_ascii=False)
+                json.dump(capture_data, f, indent=2, ensure_ascii=False, cls=QtObjectEncoder)
             
             # Also update the main gui_runtime_state.json file
             main_state_file = Path("gui_runtime_state.json")
             with open(main_state_file, 'w', encoding='utf-8') as f:
-                json.dump(capture_data, f, indent=2, ensure_ascii=False)
+                json.dump(capture_data, f, indent=2, ensure_ascii=False, cls=QtObjectEncoder)
             
             # Show success notification in status bar
             self.status_label.setText(f"📸 GUI state captured: {filename}")
