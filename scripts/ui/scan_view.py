@@ -293,21 +293,25 @@ class ScanView(QWidget):
         """Create a Jellyfin client if configuration is available."""
         try:
             config_mgr = JellyfinConfigManager()
-            config = config_mgr.load_config()
-            if (
-                config
-                and config.get("enabled")
-                and config.get("server_url")
-                and config.get("api_key")
-            ):
-                client = JellyfinClient(
-                    server_url=config["server_url"],
-                    api_key=config["api_key"],
-                )
-                if client.test_connection():
-                    logger.info("Jellyfin client initialized for ScanView")
-                    return client
-                logger.warning("Jellyfin connection test failed; disabling integration")
+            
+            # Use updated API: is_enabled(), get_server_url(), get_api_key()
+            if config_mgr.is_enabled():
+                server_url = config_mgr.get_server_url()
+                api_key = config_mgr.get_api_key()
+                
+                if server_url and api_key:
+                    client = JellyfinClient(
+                        server_url=server_url,
+                        api_key=api_key,
+                    )
+                    if client.test_connection():
+                        logger.info("Jellyfin client initialized for ScanView")
+                        return client
+                    logger.warning("Jellyfin connection test failed; disabling integration")
+                else:
+                    logger.info("Jellyfin enabled but server_url or api_key missing")
+            else:
+                logger.info("Jellyfin integration is disabled")
         except Exception as exc:
             logger.warning("Unable to initialize Jellyfin client: %s", exc)
         return None
