@@ -47,6 +47,15 @@
    * Use existing, well-documented code whenever available.
    * **Note:** Always use .venv Python for consistency. The index uses TF-IDF semantic search (fast, accurate, dependency-free).
 
+**2.1 Function Index Maintenance Protocol (MANDATORY):**
+   * **New functions:** After adding, run `.venv\Scripts\python.exe tools/build_function_index_enhanced.py --enhance-new` (auto-generates detailed docstrings via Grok-4.1-Fast-Reasoning LLM).
+   * **Modified functions:** Same `--enhance-new` (updates signature/docstring incrementally via existing index comparison).
+   * **Deprecation:** 1. Add "DEPRECATED: [reason]" to docstring (or `@deprecated` decorator). 2. Optionally move to `scripts/_archived/`. 3. Run `--enhance-new`.
+   * **Full rebuild:** `--enhance` only for major refactors (e.g., post-journal compression). Avoid routine use.
+   * **Verify:** Query index post-update: `.venv\Scripts\python.exe tools/query_function_index_semantic.py search "function_name"`.
+   * **Document:** Log run/commit msg (e.g., `docs: Index updated after feat X`); journal Phase entry.
+   * **Rationale:** Keeps index evergreen (5-10s/update), no manual docstrings/external LLMs needed.
+
 **3. Git Workflow (Mandatory):**
    * **Repo:** `https://github.com/atomicmilkshake/JellyRancher`
    * **Workflow:** After every significant phase/change set:

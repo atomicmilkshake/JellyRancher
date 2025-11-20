@@ -229,7 +229,7 @@ def find_files_needing_rename(tv_show_paths: List[str]) -> List[Dict]:
 
 
 def sanitize_filename(filename: str) -> str:
-    """Sanitize filename to remove Windows-illegal characters.
+    r"""Sanitize filename to remove Windows-illegal characters.
     
     Windows forbids: < > : " / \ | ? *
     Replace with alternatives or remove.

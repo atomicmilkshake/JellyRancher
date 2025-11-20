@@ -4,13 +4,14 @@ Build comprehensive function index for JellyRancher project with optional LLM do
 
 Features:
 - Scans all Python files and extracts function signatures, docstrings, and metadata
-- Optional: Auto-generates enhanced docstrings using Grok-Code-Fast-1 LLM
+- Optional: Auto-generates enhanced docstrings using Grok-4.1-Fast-Reasoning LLM
 - Stores enhanced docstrings in function_index.json for TF-IDF search
 
 Usage:
-    .venv\Scripts\python.exe tools/build_function_index_enhanced.py                  # Normal build without enhancement
-    .venv\Scripts\python.exe tools/build_function_index_enhanced.py --enhance        # Build with LLM docstring enhancement
-    .venv\Scripts\python.exe tools/build_function_index_enhanced.py --enhance-new    # Only enhance new/modified functions
+    .venv\\Scripts\\python.exe tools/build_function_index_enhanced.py                  # Normal build without enhancement
+    .venv\\Scripts\\python.exe tools/build_function_index_enhanced.py --enhance        # Build with LLM docstring enhancement
+    .venv\\Scripts\\python.exe tools/build_function_index_enhanced.py --enhance-new    # Only enhance new/modified functions
+    .venv\\Scripts\\python.exe tools/build_function_index_enhanced.py --resume         # Resume enhancement from existing index
 
 Note: Always use .venv Python for consistency.
 """
@@ -21,7 +22,7 @@ import json
 import argparse
 import logging
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 
 # Add scripts to path for PoeClient import
@@ -67,20 +68,46 @@ class FunctionIndexer:
                 data = json.load(f)
                 self.existing_index = data.get('functions', {})
 
+        # Load existing enhanced functions for resume capability
+        self.existing_enhanced_functions = self._load_existing_enhanced_functions()
+
     def _initialize_poe_client(self):
         """Lazy initialization of Poe client for LLM docstring generation."""
         if self.poe_client is None and self.enhance_docstrings:
             try:
                 from ravenmaven_client import PoeClient
-                self.poe_client = PoeClient()
+                self.poe_client = PoeClient(default_model="Grok-4.1-Fast-Reasoning")
                 logger.info("[OK] Poe client initialized for docstring enhancement")
             except Exception as e:
                 logger.error(f"[ERROR] Failed to initialize Poe client: {e}")
-                logger.warning("[WARNING] Continuing without docstring enhancement")
-                self.enhance_docstrings = False
+                raise RuntimeError(f"Poe client initialization failed: {e}")
+
+    def _load_existing_enhanced_functions(self):
+        """Load existing enhanced functions from data/function_index.json"""
+        enhanced_file = Path('data') / 'function_index.json'
+        if enhanced_file.exists():
+            try:
+                with open(enhanced_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    enhanced_functions = []
+                    functions_data = data.get('functions', {})
+                    for file_path, funcs in functions_data.items():
+                        for func in funcs:
+                            if func.get('docstring_enhanced'):
+                                enhanced_functions.append((file_path, func['name']))
+                    # Convert to set of (file_path, function_name) tuples for fast lookup
+                    return set(enhanced_functions)
+            except Exception as e:
+                logger.warning(f"Could not load existing enhanced functions: {e}")
+        return set()
 
     def _needs_enhancement(self, func_info: Dict[str, Any], file_path: str) -> bool:
         """Determine if a function needs docstring enhancement."""
+        # Check if already enhanced in previous runs
+        func_key = (file_path, func_info['name'])
+        if func_key in self.existing_enhanced_functions:
+            return False
+
         docstring = func_info.get('docstring', '')
 
         # Check if already enhanced
@@ -131,67 +158,91 @@ class FunctionIndexer:
             logger.error(f"Failed to extract {function_name} from {file_path}: {e}")
             return None
 
-    def _generate_enhanced_docstring(self, func_info: Dict[str, Any], function_code: str) -> Optional[str]:
-        """Generate enhanced docstring using LLM with JSON schema format."""
+    def _generate_enhanced_docstrings_batch(self, func_batch: List[Tuple[Dict[str, Any], str]]) -> Dict[str, str]:
+        """Generate enhanced docstrings for a batch of functions using LLM."""
         if not self.poe_client:
-            return None
+            raise RuntimeError("Poe client not initialized")
 
-        # Build input using function_analysis_schema.json format
-        function_input = {
-            "function_name": func_info['name'],
-            "file_path": func_info['file'],
-            "line_number": func_info['line'],
-            "function_code": function_code,
-            "existing_docstring": func_info.get('docstring', ''),
-            "module_context": func_info['file'].replace('/', '.').replace('\\', '.').replace('.py', '')
-        }
+        # Build input array for all functions in batch
+        functions_input = []
+        for func_info, function_code in func_batch:
+            function_input = {
+                "function_name": func_info['name'],
+                "file_path": func_info['file'],
+                "line_number": func_info['line'],
+                "function_code": function_code,
+                "existing_docstring": func_info.get('docstring', ''),
+                "module_context": func_info['file'].replace('/', '.').replace('\\', '.').replace('.py', '')
+            }
+            functions_input.append(function_input)
 
-        prompt = f"""You are a Python documentation expert. Analyze this function and generate a comprehensive Google-style docstring.
+        prompt = f"""You are a Python documentation expert. Analyze these functions and generate comprehensive Google-style docstrings for each.
 
 INPUT (JSON format):
-{json.dumps([function_input], indent=2)}
+{json.dumps(functions_input, indent=2)}
 
-Generate a detailed analysis following this structure:
-1. what_it_does: Explain WHY the function exists and WHAT problem it solves (2-4 paragraphs)
-2. how_it_works: Explain HOW it works - algorithm, data flow, implementation details (2-4 paragraphs)  
-3. inputs: All parameters with types, descriptions, constraints
-4. outputs: Return value, exceptions, side effects
-5. enhanced_docstring: Complete Google-style docstring in standard Python format
-6. usage_example: Code example showing how to use it
+For EACH function, generate a detailed analysis and return enhanced_docstring in Google style format with Args, Returns, Raises sections.
 
-Return ONLY a JSON object with this structure (no markdown, no code fences):
-{{
-  "function_name": "{func_info['name']}",
-  "enhanced_docstring": "your complete Google-style docstring here"
-}}
+Return ONLY a JSON array of objects with this structure (no markdown, no code fences):
+[
+  {{
+    "function_name": "function1_name",
+    "enhanced_docstring": "complete Google-style docstring for function1"
+  }},
+  {{
+    "function_name": "function2_name", 
+    "enhanced_docstring": "complete Google-style docstring for function2"
+  }}
+]
 
-The enhanced_docstring should include Args, Returns, Raises sections in Google style format."""
+Each enhanced_docstring should be comprehensive with proper Args, Returns, Raises sections."""
 
         try:
-            response = self.poe_client.send_message(prompt, model="Grok-Code-Fast-1")
+            response = self.poe_client.send_message(prompt, model="Grok-4.1-Fast-Reasoning")
 
-            if response and response.strip():
-                # Parse JSON response
-                try:
-                    # Strip markdown code fences if present
-                    cleaned = response.strip()
-                    if cleaned.startswith('```'):
-                        lines = cleaned.split('\n')
-                        cleaned = '\n'.join(lines[1:-1]) if len(lines) > 2 else cleaned
-                        if cleaned.startswith('json'):
-                            cleaned = '\n'.join(cleaned.split('\n')[1:])
-                    
-                    result = json.loads(cleaned)
-                    return result.get('enhanced_docstring', '').strip()
-                except json.JSONDecodeError:
-                    # Fallback: try to extract docstring from text
-                    logger.warning(f"JSON parse failed for {func_info['name']}, using text extraction")
-                    return response.strip()
+            if not response or not response.strip():
+                raise ValueError(f"Empty response from LLM for batch of {len(func_batch)} functions")
 
+            # Parse JSON response
+            try:
+                # Strip markdown code fences if present
+                cleaned = response.strip()
+                if cleaned.startswith('```'):
+                    lines = cleaned.split('\n')
+                    cleaned = '\n'.join(lines[1:-1]) if len(lines) > 2 else cleaned
+                    if cleaned.startswith('json'):
+                        cleaned = '\n'.join(cleaned.split('\n')[1:])
+                
+                results = json.loads(cleaned)
+                if not isinstance(results, list):
+                    raise ValueError(f"Expected JSON array, got {type(results)}")
+                
+                # Convert to dict keyed by function name
+                enhanced_docstrings = {}
+                for result in results:
+                    if isinstance(result, dict) and 'function_name' in result and 'enhanced_docstring' in result:
+                        func_name = result['function_name']
+                        docstring = result['enhanced_docstring'].strip()
+                        if docstring:
+                            enhanced_docstrings[func_name] = docstring
+                
+                return enhanced_docstrings
+                
+            except json.JSONDecodeError as e:
+                logger.warning(f"Invalid JSON response from LLM for batch: {e}")
+                return {}
+                
         except Exception as e:
-            logger.error(f"Failed to generate docstring for {func_info['name']}: {e}")
+            logger.warning(f"[LLM-BATCH-ERROR] Batch enhancement failed: {e}")
+            return {}
 
-        return None
+    def _save_progress(self):
+        """Save current progress to function_index.json for resume capability."""
+        try:
+            index_data = save_function_index(self.functions, "function_index.json", enhanced=self.enhance_docstrings)
+            logger.info(f"[PROGRESS] Saved {index_data['metadata']['total_functions']} functions to function_index.json")
+        except Exception as e:
+            logger.warning(f"[SAVE-ERROR] Failed to save progress: {e}")
 
     def _enhance_function_docstrings(self, functions: List[Dict[str, Any]], file_path: Path):
         """Enhance docstrings for functions that need it."""
@@ -214,23 +265,20 @@ The enhanced_docstring should include Args, Returns, Raises sections in Google s
             console.print(f"[bold blue]✨ Enhancing {len(functions_to_enhance)} functions in {Path(file_key).name}[/bold blue]")
 
             with Progress(
-                SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
                 BarColumn(),
                 MofNCompleteColumn(),
-                TaskProgressColumn(),
                 TimeRemainingColumn(),
                 console=console,
-                refresh_per_second=2,
+                refresh_per_second=1,
             ) as progress:
-                enhance_task = progress.add_task("🤖 Generating docstrings...", total=len(functions_to_enhance))
+                enhance_task = progress.add_task("🤖 Generating enhanced docstrings...", total=len(functions_to_enhance))
 
+                successful_enhancements = 0
                 for func_info in functions_to_enhance:
-                    progress.update(enhance_task, description=f"🤖 Enhancing: {func_info['name']}")
                     function_code = self._extract_function_code(file_path, func_info['name'], func_info['line'])
 
                     if not function_code:
-                        progress.update(enhance_task, description=f"⚠️  Skipped: {func_info['name']} (code extraction failed)")
                         progress.advance(enhance_task)
                         continue
 
@@ -240,15 +288,19 @@ The enhanced_docstring should include Args, Returns, Raises sections in Google s
                         func_info['docstring'] = enhanced_docstring
                         func_info['docstring_enhanced'] = True
                         func_info['docstring_source'] = 'llm_grok_code_fast_1'
-                        progress.update(enhance_task, description=f"✅ Enhanced: {func_info['name']}")
-                    else:
-                        progress.update(enhance_task, description=f"❌ Failed: {func_info['name']}")
+                        successful_enhancements += 1
+                        
+                        # Show preview only occasionally
+                        if successful_enhancements % 25 == 0:  # Every 25 successful enhancements
+                            preview = enhanced_docstring.split('\n')[0][:50] + "..." if len(enhanced_docstring.split('\n')[0]) > 50 else enhanced_docstring.split('\n')[0]
+                            progress.update(enhance_task, description=f"✅ {successful_enhancements}/{len(functions_to_enhance)} enhanced - Latest: {preview}")
 
                     progress.advance(enhance_task)
         else:
             # Fallback to logger-based progress
             logger.info(f"[ENHANCE] {len(functions_to_enhance)} functions need enhancement in {file_key}")
 
+            successful_enhancements = 0
             for func_info in functions_to_enhance:
                 function_code = self._extract_function_code(file_path, func_info['name'], func_info['line'])
 
@@ -263,7 +315,9 @@ The enhanced_docstring should include Args, Returns, Raises sections in Google s
                     func_info['docstring'] = enhanced_docstring
                     func_info['docstring_enhanced'] = True
                     func_info['docstring_source'] = 'llm_grok_code_fast_1'
-                    logger.info(f"[OK] Enhanced {func_info['name']}")
+                    successful_enhancements += 1
+                    if successful_enhancements % 25 == 0:
+                        logger.info(f"[OK] Enhanced {successful_enhancements}/{len(functions_to_enhance)} functions")
                 else:
                     logger.warning(f"[SKIP] Failed to enhance {func_info['name']}")
 
@@ -281,14 +335,10 @@ The enhanced_docstring should include Args, Returns, Raises sections in Google s
                     func_info = self.extract_function_info(node, file_path)
                     functions.append(func_info)
 
-            # Enhance docstrings if enabled
-            if self.enhance_docstrings and functions:
-                self._enhance_function_docstrings(functions, file_path)
-
             return functions
 
         except Exception as e:
-            logger.error(f"[ERROR] Failed to parse {file_path}: {e}")
+            logger.debug(f"[DEBUG] Failed to parse {file_path}: {e}")
             return []
 
     def extract_function_info(self, node: ast.FunctionDef, file_path: Path) -> Dict[str, Any]:
@@ -357,7 +407,10 @@ The enhanced_docstring should include Args, Returns, Raises sections in Google s
     def build_index(self):
         """Build complete function index."""
         # Initialize RICH console if available
-        console = Console() if RICH_AVAILABLE else None
+        try:
+            console = Console() if RICH_AVAILABLE else None
+        except Exception:
+            console = None
 
         if console:
             # Create beautiful header
@@ -387,25 +440,44 @@ The enhanced_docstring should include Args, Returns, Raises sections in Google s
             print(f"Found {len(python_files)} Python files to analyze")
             print()
 
+        # First pass: count total functions needing enhancement
+        total_to_enhance = 0
+        if self.enhance_docstrings:
+            # Initialize Poe client for LLM enhancement
+            self._initialize_poe_client()
+            
+            console.print("[yellow]🔢 Counting functions needing enhancement...[/yellow]") if console else print("Counting functions needing enhancement...")
+            for file_path in python_files:
+                try:
+                    functions = self.extract_functions_from_file(file_path)
+                    file_key = str(file_path.relative_to(project_root))
+                    functions_to_enhance = [f for f in functions if self._needs_enhancement(f, file_key)]
+                    total_to_enhance += len(functions_to_enhance)
+                except:
+                    pass
+            console.print(f"[green]📊 Found {total_to_enhance} functions needing LLM enhancement[/green]\n") if console else print(f"Found {total_to_enhance} functions needing LLM enhancement\n")
+
         # Set up progress bar for file processing
         error_count = 0
         max_errors = 50
 
         if console:
             with Progress(
-                SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
                 BarColumn(),
                 MofNCompleteColumn(),
-                TaskProgressColumn(),
                 TimeRemainingColumn(),
                 console=console,
-                refresh_per_second=10,
+                refresh_per_second=1,
             ) as progress:
                 file_task = progress.add_task("🔍 Analyzing files...", total=len(python_files))
+                enhance_task = progress.add_task("🤖 Enhancing docstrings...", total=total_to_enhance) if total_to_enhance > 0 else None
 
+                enhanced_count = 0
                 for file_path in sorted(python_files):
-                    progress.update(file_task, description=f"🔍 Analyzing: {file_path.relative_to(project_root).name}")
+                    # Update file progress description occasionally
+                    if self.total_files % 10 == 0 or self.total_files == 0:
+                        progress.update(file_task, description=f"🔍 Analyzing files... ({self.total_files+1}/{len(python_files)})")
 
                     functions = self.extract_functions_from_file(file_path)
 
@@ -413,16 +485,65 @@ The enhanced_docstring should include Args, Returns, Raises sections in Google s
                         file_key = str(file_path.relative_to(project_root))
                         self.functions[file_key] = functions
                         self.total_functions += len(functions)
-                        enhanced_count = sum(1 for f in functions if f.get('docstring_enhanced'))
 
-                        status_msg = f"✅ {file_path.relative_to(project_root).name}: {len(functions)} functions"
-                        if enhanced_count > 0:
-                            status_msg += f" ({enhanced_count} enhanced)"
+                        # Handle enhancement for this file
+                        if self.enhance_docstrings and enhance_task is not None:
+                            functions_to_enhance = [f for f in functions if self._needs_enhancement(f, file_key)]
+                            if functions_to_enhance:
+                                progress.update(file_task, description=f"🔍 Analyzing: {file_path.relative_to(project_root).name} ({len(functions_to_enhance)} to enhance)")
 
-                        progress.update(file_task, description=status_msg)
+                                # Process functions in batches of 6
+                                batch_size = 6
+                                for i in range(0, len(functions_to_enhance), batch_size):
+                                    batch = functions_to_enhance[i:i + batch_size]
+                                    
+                                    # Extract code for all functions in batch
+                                    batch_data = []
+                                    for func_info in batch:
+                                        function_code = self._extract_function_code(file_path, func_info['name'], func_info['line'])
+                                        if function_code:
+                                            batch_data.append((func_info, function_code))
+                                    
+                                    if batch_data:
+                                        # Send batch to LLM
+                                        enhanced_docstrings = self._generate_enhanced_docstrings_batch(batch_data)
+                                        
+                                        # Apply enhanced docstrings
+                                        for func_info, _ in batch_data:
+                                            func_name = func_info['name']
+                                            if func_name in enhanced_docstrings:
+                                                func_info['docstring'] = enhanced_docstrings[func_name]
+                                                func_info['docstring_enhanced'] = True
+                                                func_info['docstring_source'] = 'llm_grok_code_fast_1'
+                                                enhanced_count += 1
+
+                                                # Save progress every 10 successful enhancements
+                                                if enhanced_count % 10 == 0:
+                                                    self._save_progress()
+
+                                                # Show preview very occasionally
+                                                if enhanced_count % 50 == 0:
+                                                    preview = enhanced_docstrings[func_name].split('\n')[0][:40] + "..." if len(enhanced_docstrings[func_name].split('\n')[0]) > 40 else enhanced_docstrings[func_name].split('\n')[0]
+                                                    progress.update(enhance_task, description=f"✅ Enhanced {enhanced_count}/{total_to_enhance}: {preview}")
+                                            else:
+                                                logger.warning(f"[SKIP] No enhanced docstring returned for {func_name}")
+                                    else:
+                                        logger.warning(f"[SKIP] Could not extract code for any functions in batch")
+                                    
+                                    # Advance progress for each function in batch
+                                    for _ in batch:
+                                        progress.advance(enhance_task)
+
+                        # Update file status occasionally
+                        if self.total_files % 15 == 0:
+                            status_parts = [f"✅ {self.total_files+1}/{len(python_files)} files"]
+                            if enhanced_count > 0:
+                                status_parts.append(f"{enhanced_count} enhanced")
+                            progress.update(file_task, description=" | ".join(status_parts))
                     else:
                         error_count += 1
-                        progress.update(file_task, description=f"❌ {file_path.relative_to(project_root).name}: Parse failed ({error_count}/{max_errors})")
+                        if error_count % 5 == 0:
+                            progress.update(file_task, description=f"❌ {error_count} files failed ({self.total_files+1}/{len(python_files)})")
 
                     if error_count >= max_errors:
                         progress.update(file_task, description=f"🛑 STOPPED: Too many parsing errors ({error_count}/{max_errors})")
@@ -432,6 +553,7 @@ The enhanced_docstring should include Args, Returns, Raises sections in Google s
                     progress.advance(file_task)
         else:
             # Fallback to basic progress
+            enhanced_count = 0
             for file_path in sorted(python_files):
                 print(f"Analyzing: {file_path.relative_to(project_root)}")
 
@@ -441,12 +563,45 @@ The enhanced_docstring should include Args, Returns, Raises sections in Google s
                     file_key = str(file_path.relative_to(project_root))
                     self.functions[file_key] = functions
                     self.total_functions += len(functions)
-                    enhanced_count = sum(1 for f in functions if f.get('docstring_enhanced'))
+
+                    # Handle enhancement
+                    if self.enhance_docstrings:
+                        functions_to_enhance = [f for f in functions if self._needs_enhancement(f, file_key)]
+                        
+                        # Process functions in batches of 6
+                        batch_size = 6
+                        for i in range(0, len(functions_to_enhance), batch_size):
+                            batch = functions_to_enhance[i:i + batch_size]
+                            
+                            # Extract code for all functions in batch
+                            batch_data = []
+                            for func_info in batch:
+                                function_code = self._extract_function_code(file_path, func_info['name'], func_info['line'])
+                                if function_code:
+                                    batch_data.append((func_info, function_code))
+                            
+                            if batch_data:
+                                # Send batch to LLM
+                                enhanced_docstrings = self._generate_enhanced_docstrings_batch(batch_data)
+                                
+                                # Apply enhanced docstrings
+                                for func_info, _ in batch_data:
+                                    func_name = func_info['name']
+                                    if func_name in enhanced_docstrings:
+                                        func_info['docstring'] = enhanced_docstrings[func_name]
+                                        func_info['docstring_enhanced'] = True
+                                        func_info['docstring_source'] = 'llm_grok_code_fast_1'
+                                        enhanced_count += 1
+                                        if enhanced_count % 25 == 0:
+                                            print(f"Enhanced {enhanced_count} functions...")
+                                    else:
+                                        logger.warning(f"[SKIP] No enhanced docstring returned for {func_name}")
+                            else:
+                                logger.warning(f"[SKIP] Could not extract code for any functions in batch")
 
                     status_msg = f"  -> Found {len(functions)} functions"
                     if enhanced_count > 0:
-                        status_msg += f" ({enhanced_count} enhanced)"
-
+                        status_msg += f" ({enhanced_count} enhanced so far)"
                     print(status_msg)
                 else:
                     error_count += 1
@@ -467,29 +622,89 @@ The enhanced_docstring should include Args, Returns, Raises sections in Google s
 
 
 def save_function_index(functions: Dict[str, List[Dict]], output_file: str, enhanced: bool = False):
-    """Save function index to JSON file."""
-    total_enhanced = sum(
-        1 for funcs in functions.values()
-        for f in funcs if f.get('docstring_enhanced')
+    """Save function index to JSON file in the format expected by query tool."""
+    
+    # Transform to the format expected by query_function_index_semantic.py
+    transformed_functions = {}
+    
+    for file_path, funcs in functions.items():
+        transformed_funcs = []
+        for func in funcs:
+            # Transform function info to expected format
+            transformed_func = {
+                'name': func['name'],
+                'file_path': file_path,
+                'line': func['line'],
+                'description': func.get('docstring', 'No documentation available'),
+                'implementation': '',  # Not extracted in current format
+                'inputs': {
+                    'parameters': [
+                        {
+                            'name': param['name'],
+                            'type': param['type'],
+                            'description': f"Parameter of type {param['type']}",
+                            'required': param['name'] != 'self'  # Simple heuristic
+                        }
+                        for param in func.get('parameters', [])
+                    ]
+                },
+                'outputs': {
+                    'return_value': {
+                        'type': func.get('return_type', 'Any'),
+                        'description': f"Returns {func.get('return_type', 'Any')}"
+                    }
+                },
+                'notes': [],
+                'usage_example': '',
+                'class_name': func.get('class')
+            }
+            
+            # Add enhancement metadata
+            if func.get('docstring_enhanced'):
+                transformed_func['docstring_enhanced'] = True
+                transformed_func['docstring_source'] = func.get('docstring_source', 'llm')
+            
+            transformed_funcs.append(transformed_func)
+        
+        transformed_functions[file_path] = transformed_funcs
+    
+    # Calculate statistics
+    total_functions = sum(len(funcs) for funcs in transformed_functions.values())
+    functions_with_description = sum(
+        1 for funcs in transformed_functions.values()
+        for f in funcs if f.get('description') and f['description'] != 'No documentation available'
     )
-
+    
+    functions_by_file = {file_path: len(funcs) for file_path, funcs in transformed_functions.items()}
+    
     index_data = {
         "metadata": {
             "generated": datetime.now().isoformat(),
-            "total_files": len(functions),
-            "total_functions": sum(len(funcs) for funcs in functions.values()),
-            "enhanced_count": total_enhanced if enhanced else 0,
-            "enhancement_source": "Grok-Code-Fast-1" if enhanced and total_enhanced > 0 else None
+            "source": "AST extraction with LLM enhancement" if enhanced else "AST extraction",
+            "total_functions": total_functions,
+            "statistics": {
+                "total_functions": total_functions,
+                "functions_with_description": functions_with_description,
+                "functions_with_implementation": 0,  # Not tracked in current format
+                "functions_by_file": functions_by_file
+            }
         },
-        "functions": functions
+        "functions": transformed_functions
     }
 
+    # Ensure data directory exists
+    Path(output_file).parent.mkdir(exist_ok=True)
+    
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(index_data, f, indent=2, ensure_ascii=False)
 
     print(f"\n[OK] Function index saved to {output_file}")
-    if total_enhanced > 0:
-        print(f"[OK] {total_enhanced} functions have LLM-enhanced docstrings")
+    if enhanced:
+        enhanced_count = sum(
+            1 for funcs in transformed_functions.values()
+            for f in funcs if f.get('docstring_enhanced')
+        )
+        print(f"[OK] {enhanced_count} functions have LLM-enhanced docstrings")
     return index_data
 
 
@@ -499,14 +714,16 @@ if __name__ == "__main__":
                        help='Enable LLM docstring enhancement for all functions')
     parser.add_argument('--enhance-new', action='store_true',
                        help='Enable LLM docstring enhancement for new/modified functions only')
+    parser.add_argument('--resume', action='store_true',
+                       help='Resume enhancement from existing function_index.json (skip already enhanced functions)')
 
     args = parser.parse_args()
 
     # Build index
-    enhance_mode = args.enhance or args.enhance_new
+    enhance_mode = args.enhance or args.enhance_new or args.resume
     indexer = FunctionIndexer(
         enhance_docstrings=enhance_mode,
-        enhance_new_only=args.enhance_new
+        enhance_new_only=args.enhance_new  # Only set enhance_new_only for --enhance-new, not --resume
     )
     success = indexer.build_index()
 
@@ -528,11 +745,15 @@ if __name__ == "__main__":
             "",
             f"[cyan]📄 JSON Index:[/cyan] function_index.json",
             f"[cyan]📊 Functions:[/cyan] {index_data['metadata']['total_functions']} functions",
-            f"[cyan]📁 Files:[/cyan] {index_data['metadata']['total_files']} files"
+            f"[cyan]📁 Files:[/cyan] {len(index_data['functions'])} files"
         ]
 
         if enhance_mode:
-            completion_lines.append(f"[cyan]✨ Enhanced:[/cyan] {index_data['metadata']['enhanced_count']} functions with LLM docstrings")
+            enhanced_count = sum(
+                1 for funcs in index_data['functions'].values()
+                for f in funcs if f.get('docstring_enhanced')
+            )
+            completion_lines.append(f"[cyan]✨ Enhanced:[/cyan] {enhanced_count} functions with LLM docstrings")
 
         console.print(Panel.fit("\n".join(completion_lines), border_style="green", padding=(1, 2)))
     else:
@@ -541,7 +762,11 @@ if __name__ == "__main__":
         print("=" * 80)
         print(f"JSON Index: function_index.json")
         if enhance_mode:
-            print(f"Enhanced: {index_data['metadata']['enhanced_count']} functions with LLM docstrings")
+            enhanced_count = sum(
+                1 for funcs in index_data['functions'].values()
+                for f in funcs if f.get('docstring_enhanced')
+            )
+            print(f"Enhanced: {enhanced_count} functions with LLM docstrings")
         print(f"Functions: {index_data['metadata']['total_functions']}")
-        print(f"Files: {index_data['metadata']['total_files']}")
+        print(f"Files: {len(index_data['functions'])}")
         print("=" * 80)

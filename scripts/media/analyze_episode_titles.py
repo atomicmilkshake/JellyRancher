@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 Episode Title Analysis Script
 
 Analyzes episode titles in organized TV shows against canonical data.

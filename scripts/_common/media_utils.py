@@ -501,7 +501,7 @@ def safe_move_incremental(source: Path, destination: Path,
 
 
 def normalize_windows_path(path: Path) -> Path:
-    """
+    r"""
     Convert to extended-length path format for Windows long path support.
     
     Windows has a 260-character limit for paths unless using extended-length

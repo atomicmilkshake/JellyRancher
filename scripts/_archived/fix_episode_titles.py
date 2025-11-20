@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 Episode Title Fixer Script
 
 Applies episode title cleaning recommendations from analysis.

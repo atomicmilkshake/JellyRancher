@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 Create a dummy clone of Q:\#MEDIA with zero-byte decoy files for testing.
 This preserves the directory structure and file names but creates empty files
 instead of copying large media content.
@@ -10,7 +10,7 @@ import shutil
 from pathlib import Path
 
 def create_dummy_clone(source_root: str, dest_root: str):
-    """
+    r"""
     Create a dummy clone with zero-byte files.
 
     Args:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 Pre-cache Wikipedia episode data for TV shows in S:\#MEDIA
 
 This script scans S:\#MEDIA, identifies all TV shows,

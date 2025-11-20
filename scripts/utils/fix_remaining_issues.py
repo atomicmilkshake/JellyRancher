@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 Final Episode Title Fixes Script
 
 Handles the remaining 4 unparsed files that require manual resolution:
