@@ -923,6 +923,110 @@ class JellyRancherStudio(QMainWindow):
         
         logger.info("F12 GUI capture shortcut registered")
     
+    def _show_capture_success_dialog(self, filename: str, view_name: str, timestamp: datetime, json_text: str):
+        """
+        Show enhanced capture success dialog with clipboard integration.
+        
+        Args:
+            filename: Name of the capture file
+            view_name: Name of the captured view
+            timestamp: Capture timestamp
+            json_text: The JSON content (for re-copying if needed)
+        """
+        dialog = QDialog(self)
+        dialog.setWindowTitle("📸 GUI State Captured")
+        dialog.resize(600, 400)
+        
+        layout = QVBoxLayout()
+        
+        # Success message
+        success_label = QLabel("✅ <b>GUI state copied to clipboard!</b>")
+        success_label.setFont(QFont("Segoe UI", 12))
+        success_label.setStyleSheet("color: #27ae60; padding: 10px;")
+        layout.addWidget(success_label)
+        
+        # Instructions
+        instructions = QLabel("Just press <b>Ctrl+V</b> in your next LLM prompt to paste the JSON.")
+        instructions.setFont(QFont("Segoe UI", 10))
+        instructions.setStyleSheet("padding: 5px;")
+        layout.addWidget(instructions)
+        
+        # File paths (selectable text)
+        paths_label = QLabel("📁 <b>Saved to:</b>")
+        paths_label.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        paths_label.setStyleSheet("padding-top: 15px;")
+        layout.addWidget(paths_label)
+        
+        paths_text = QTextEdit()
+        paths_text.setReadOnly(True)
+        paths_text.setMaximumHeight(80)
+        paths_text.setPlainText(
+            f"Main: gui_runtime_state.json\n"
+            f"Backup: gui_captures/{filename}"
+        )
+        paths_text.setStyleSheet("background-color: #ecf0f1; font-family: Consolas, monospace;")
+        layout.addWidget(paths_text)
+        
+        # Metadata
+        meta_label = QLabel(
+            f"<b>View:</b> {view_name} | "
+            f"<b>Timestamp:</b> {timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+        meta_label.setStyleSheet("padding: 10px; color: #566573;")
+        layout.addWidget(meta_label)
+        
+        # Action buttons
+        btn_layout = QHBoxLayout()
+        
+        copy_btn = QPushButton("📋 Copy to Clipboard Again")
+        copy_btn.clicked.connect(lambda: self._copy_to_clipboard(json_text))
+        btn_layout.addWidget(copy_btn)
+        
+        open_folder_btn = QPushButton("📂 Open File Location")
+        open_folder_btn.clicked.connect(lambda: self._open_captures_folder())
+        btn_layout.addWidget(open_folder_btn)
+        
+        layout.addLayout(btn_layout)
+        
+        # Close button
+        close_btn = QPushButton("Close")
+        close_btn.setDefault(True)
+        close_btn.clicked.connect(dialog.accept)
+        layout.addWidget(close_btn)
+        
+        dialog.setLayout(layout)
+        dialog.exec()
+    
+    def _copy_to_clipboard(self, text: str):
+        """Copy text to clipboard and show confirmation."""
+        clipboard = QApplication.clipboard()
+        clipboard.setText(text)
+        self.status_label.setText("📋 Copied to clipboard!")
+        logger.info("JSON re-copied to clipboard")
+    
+    def _open_captures_folder(self):
+        """Open the gui_captures folder in file explorer."""
+        import subprocess
+        import os
+        
+        captures_path = Path("gui_captures").absolute()
+        
+        try:
+            if os.name == 'nt':  # Windows
+                subprocess.run(['explorer', str(captures_path)])
+            elif os.name == 'posix':  # macOS/Linux
+                subprocess.run(['open' if sys.platform == 'darwin' else 'xdg-open', str(captures_path)])
+            
+            logger.info(f"Opened captures folder: {captures_path}")
+        except Exception as e:
+            logger.error(f"Failed to open captures folder: {e}")
+            QMessageBox.warning(
+                self,
+                "Cannot Open Folder",
+                f"Could not open folder:\n{captures_path}\n\n"
+                f"Please open it manually."
+            )
+    
     def _build_widget_tree(self, widget) -> Dict[str, Any]:
         """
         Recursively build a JSON representation of the widget hierarchy.
@@ -1042,21 +1146,17 @@ class JellyRancherStudio(QMainWindow):
             with open(main_state_file, 'w', encoding='utf-8') as f:
                 json.dump(capture_data, f, indent=2, ensure_ascii=False, cls=QtObjectEncoder)
             
-            # Show success notification in status bar
-            self.status_label.setText(f"📸 GUI state captured: {filename}")
-            logger.info(f"GUI state captured to {output_file} and gui_runtime_state.json")
+            # Auto-copy JSON to clipboard
+            json_text = json.dumps(capture_data, indent=2, ensure_ascii=False, cls=QtObjectEncoder)
+            clipboard = QApplication.clipboard()
+            clipboard.setText(json_text)
             
-            # Show brief message box
-            QMessageBox.information(
-                self,
-                "GUI State Captured",
-                f"GUI state has been captured!\n\n"
-                f"📁 Quick capture: gui_captures/{filename}\n"
-                f"📄 Main state: gui_runtime_state.json\n\n"
-                f"Current view: {current_tab_name}\n"
-                f"Timestamp: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-                f"💡 Paste this JSON to LLMs for accurate GUI assistance!"
-            )
+            # Show success notification in status bar
+            self.status_label.setText(f"📸 GUI state captured and copied to clipboard!")
+            logger.info(f"GUI state captured to {output_file} and gui_runtime_state.json, copied to clipboard")
+            
+            # Show enhanced capture dialog
+            self._show_capture_success_dialog(filename, current_tab_name, timestamp, json_text)
             
         except Exception as e:
             logger.error(f"Failed to capture GUI state: {e}", exc_info=True)
