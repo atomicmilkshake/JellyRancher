@@ -365,17 +365,42 @@ class JellyRancherStudio(QMainWindow):
         title_widget.setStyleSheet("background-color: #ecf0f1; border-bottom: 1px solid #bdc3c7;")
         layout.addWidget(title_widget)
         
-        # Tree widget
+        # Tree widget with visual styling
         self.explorer_tree = QTreeWidget()
         self.explorer_tree.setHeaderHidden(True)
-        self.explorer_tree.itemDoubleClicked.connect(self._on_explorer_item_double_clicked)
+        self.explorer_tree.setIndentation(20)  # Clear indentation for hierarchy
+        self.explorer_tree.setAnimated(True)   # Smooth expand/collapse
+        self.explorer_tree.setAlternatingRowColors(True)
+        self.explorer_tree.setStyleSheet("""
+            QTreeWidget {
+                background-color: #fafafa;
+                border: none;
+                font-size: 13px;
+            }
+            QTreeWidget::item {
+                padding: 6px 4px;
+                border-bottom: 1px solid #ecf0f1;
+            }
+            QTreeWidget::item:hover {
+                background-color: #e8f4fc;
+            }
+            QTreeWidget::item:selected {
+                background-color: #3498db;
+                color: white;
+            }
+            QTreeWidget::branch:has-children:!has-siblings:closed,
+            QTreeWidget::branch:closed:has-children:has-siblings {
+                border-image: none;
+                image: url(none);
+            }
+            QTreeWidget::branch:open:has-children:!has-siblings,
+            QTreeWidget::branch:open:has-children:has-siblings {
+                border-image: none;
+                image: url(none);
+            }
+        """)
+        self.explorer_tree.itemClicked.connect(self._on_explorer_item_clicked)
         layout.addWidget(self.explorer_tree)
-        
-        # Tree instructions label (tooltips moved to tree items)
-        instructions = QLabel("Double-click sections to open views")
-        instructions.setStyleSheet("color: #7f8c8d; font-size: 11px; padding: 4px 8px;")
-        instructions.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(instructions)
         
         widget.setLayout(layout)
         return widget
@@ -487,7 +512,7 @@ class JellyRancherStudio(QMainWindow):
         
         # Scans section
         scans_item = QTreeWidgetItem(["📁 Scans"])
-        scans_item.setToolTip(0, "Double-click to scan folders for media files")
+        scans_item.setToolTip(0, "Click to scan folders for media files")
         scans_item.setExpanded(True)
         self.explorer_tree.addTopLevelItem(scans_item)
         
@@ -505,7 +530,7 @@ class JellyRancherStudio(QMainWindow):
         
         # Analyses section
         analyses_item = QTreeWidgetItem(["🤖 Analyses"])
-        analyses_item.setToolTip(0, "Double-click to analyze structure (LLM/Regex/Hybrid)")
+        analyses_item.setToolTip(0, "Click to analyze structure (LLM/Regex/Hybrid)")
         analyses_item.setExpanded(True)
         self.explorer_tree.addTopLevelItem(analyses_item)
         
@@ -523,7 +548,7 @@ class JellyRancherStudio(QMainWindow):
         
         # Action Plans section
         plans_item = QTreeWidgetItem(["📋 Action Plans"])
-        plans_item.setToolTip(0, "Double-click to review and approve reorganization plan")
+        plans_item.setToolTip(0, "Click to review and approve reorganization plan")
         plans_item.setExpanded(True)
         self.explorer_tree.addTopLevelItem(plans_item)
         
@@ -538,12 +563,12 @@ class JellyRancherStudio(QMainWindow):
         
         # Execution section
         execution_item = QTreeWidgetItem(["⚙️ Execution"])
-        execution_item.setToolTip(0, "Double-click to execute approved operations")
+        execution_item.setToolTip(0, "Click to execute approved operations")
         self.explorer_tree.addTopLevelItem(execution_item)
         
         # Reports section
         reports_item = QTreeWidgetItem(["📊 Reports"])
-        reports_item.setToolTip(0, "Double-click to view reports (coming soon)")
+        reports_item.setToolTip(0, "Click to view reports (coming soon)")
         self.explorer_tree.addTopLevelItem(reports_item)
     
     def _close_tab(self, index: int):
@@ -551,12 +576,12 @@ class JellyRancherStudio(QMainWindow):
         if index > 0:  # Don't close welcome tab
             self.tab_widget.removeTab(index)
     
-    def _on_explorer_item_double_clicked(self, item: QTreeWidgetItem, column: int):
-        """Handle double-click on explorer item.
+    def _on_explorer_item_clicked(self, item: QTreeWidgetItem, column: int):
+        """Handle single-click on explorer item.
 
         Works for both section headers (📁 Scans, etc.) and child items underneath them.
-        Double-clicking a section header opens the corresponding view.
-        Double-clicking a child item opens the view with that specific data loaded.
+        Clicking a section header opens the corresponding view.
+        Clicking a child item opens the view with that specific data loaded.
         """
         item_text = item.text(0)
         parent = item.parent()
