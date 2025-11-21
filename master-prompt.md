@@ -52,6 +52,7 @@
    * **Command:** Run `.venv\Scripts\python.exe tools/query_function_index_semantic.py search "your query"` using natural language queries (e.g., "find TMDB metadata for movies").
    * Use existing, well-documented code whenever available.
    * **Note:** Always use .venv Python for consistency. The index uses TF-IDF semantic search (fast, accurate, dependency-free).
+   * **Enforcement:** All function index queries are automatically logged to `data/function_index_queries.log` for audit purposes. Review usage with `.venv\Scripts\python.exe tools/review_index_usage.py`. Queries should be documented in journal entries for significant phases per Section I.2.
 
 **2.1 Function Index Maintenance Protocol (MANDATORY):**
 This protocol ensures the function index remains up-to-date, accurate, and searchable using semantic search (TF-IDF). It explicitly requires writing detailed docstrings in the prescribed JSON format, meeting minimum criteria (to be specified separately if needed).

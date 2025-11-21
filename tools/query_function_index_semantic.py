@@ -12,6 +12,7 @@ import sys
 import argparse
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+from datetime import datetime
 import numpy as np
 
 try:
@@ -229,6 +230,33 @@ class SemanticFunctionSearch:
                 print()
 
 
+def _log_query_to_file(query: str, result_count: int, top_k: int) -> None:
+    """
+    Log function index query to audit file.
+    
+    Per master-prompt.md Section II.2, all function index queries must be logged
+    to enforce the "Don't Reinvent the Wheel" rule. This creates an audit trail
+    of all queries for review and enforcement purposes.
+    
+    Args:
+        query: The search query string
+        result_count: Number of results returned
+        top_k: Maximum number of results requested
+    """
+    try:
+        log_dir = Path('data')
+        log_dir.mkdir(exist_ok=True)
+        
+        log_file = log_dir / 'function_index_queries.log'
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write(f"{timestamp} | QUERY: {query} | RESULTS: {result_count} | TOP-K: {top_k}\n")
+    except Exception as e:
+        # Don't fail the query if logging fails
+        print(f"Warning: Failed to log query: {e}", file=sys.stderr)
+
+
 def main():
     """CLI interface for semantic search."""
     parser = argparse.ArgumentParser(
@@ -260,6 +288,9 @@ def main():
         searcher = SemanticFunctionSearch(args.index)
 
         if args.command == 'search':
+            # Log query to audit file (per master-prompt.md II.2 enforcement)
+            _log_query_to_file(args.query, len(searcher.search(args.query, top_k=args.top_k)), args.top_k)
+            
             results = searcher.search(args.query, top_k=args.top_k)
 
             if not results:
