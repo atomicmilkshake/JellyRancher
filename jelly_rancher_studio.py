@@ -591,6 +591,14 @@ class JellyRancherStudio(QMainWindow):
     def _on_scan_completed(self, scan_id: int):
         """Handle scan completion signal from ScanView."""
         self.status_label.setText(f"Scan session saved (ID #{scan_id})")
+        
+        # CRITICAL: Reload project to refresh scan_sessions list
+        if self.current_project and self.current_project.id:
+            reloaded = self.project_manager.load_project(project_id=self.current_project.id)
+            if reloaded:
+                self.current_project = reloaded
+                self._update_project_explorer()  # Refresh tree with new scan
+        
         self._refresh_current_project("scan")
         
         # Save scan session ID to project state
@@ -609,6 +617,14 @@ class JellyRancherStudio(QMainWindow):
     def _on_analysis_saved(self, analysis_id: int):
         """Handle analysis/metadata completion."""
         self.status_label.setText(f"Analysis saved (ID #{analysis_id})")
+        
+        # CRITICAL: Reload project to refresh analyses list
+        if self.current_project and self.current_project.id:
+            reloaded = self.project_manager.load_project(project_id=self.current_project.id)
+            if reloaded:
+                self.current_project = reloaded
+                self._update_project_explorer()  # Refresh tree with new analysis
+        
         self._refresh_current_project("analysis")
 
     def _on_action_plan_ready(self, action_plan_id: int):
