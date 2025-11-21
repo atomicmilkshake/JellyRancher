@@ -31,7 +31,7 @@ from PyQt6.QtWidgets import (
     QLineEdit, QTextEdit, QDialogButtonBox, QComboBox, QTableWidget,
     QTableWidgetItem, QAbstractItemView
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QEvent
 from PyQt6.QtGui import QAction, QFont, QIcon, QShortcut, QKeySequence
 
 from scripts.core.project_manager import ProjectManager, Project, ProjectState
@@ -384,6 +384,9 @@ class JellyRancherStudio(QMainWindow):
         self.tab_widget.setTabsClosable(True)
         self.tab_widget.tabCloseRequested.connect(self._close_tab)
         
+        # Enable middle-click to close tabs
+        self.tab_widget.tabBar().installEventFilter(self)
+        
         # Welcome tab (shown when no project is open)
         self.welcome_tab = self._create_welcome_tab()
         self.tab_widget.addTab(self.welcome_tab, "Welcome")
@@ -548,6 +551,20 @@ class JellyRancherStudio(QMainWindow):
         """Close a tab."""
         if index > 0:  # Don't close welcome tab
             self.tab_widget.removeTab(index)
+    
+    def eventFilter(self, obj, event):
+        """Handle events for child widgets.
+        
+        Implements middle-click to close tabs on the tab bar.
+        """
+        if obj == self.tab_widget.tabBar() and event.type() == QEvent.Type.MouseButtonPress:
+            if event.button() == Qt.MouseButton.MiddleButton:
+                # Get tab index at click position
+                tab_index = self.tab_widget.tabBar().tabAt(event.pos())
+                if tab_index > 0:  # Don't close welcome tab (index 0)
+                    self.tab_widget.removeTab(tab_index)
+                    return True  # Event handled
+        return super().eventFilter(obj, event)
     
     def _on_explorer_item_clicked(self, item: QTreeWidgetItem, column: int):
         """Handle single-click on explorer item.
