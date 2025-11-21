@@ -371,37 +371,11 @@ class JellyRancherStudio(QMainWindow):
         self.explorer_tree.itemDoubleClicked.connect(self._on_explorer_item_double_clicked)
         layout.addWidget(self.explorer_tree)
         
-        # Action buttons
-        btn_layout = QVBoxLayout()
-        btn_layout.setSpacing(5)
-        btn_layout.setContentsMargins(8, 8, 8, 8)
-        
-        self.btn_scan = QPushButton("▶ Scan Folders")
-        self.btn_scan.setToolTip("Open the Scan view to scan folders for media files. This is the first step in organizing your media library.")
-        self.btn_scan.clicked.connect(self.action_scan)
-        btn_layout.addWidget(self.btn_scan)
-        
-        self.btn_analyze = QPushButton("▶ Analyze Structure")
-        self.btn_analyze.setToolTip("Open the Analysis view to analyze folder structure using LLM, Regex, or Hybrid analysis. Detects movies, TV shows, and generates reorganization plans.")
-        self.btn_analyze.clicked.connect(self.action_analyze)
-        btn_layout.addWidget(self.btn_analyze)
-        
-        self.btn_review = QPushButton("▶ Review Plan")
-        self.btn_review.setToolTip("Open the Review view to review and approve/reject the reorganization plan before execution. Edit proposed paths and actions.")
-        self.btn_review.clicked.connect(self.action_review)
-        btn_layout.addWidget(self.btn_review)
-        
-        self.btn_execute = QPushButton("▶ Execute Operations")
-        self.btn_execute.setToolTip("Open the Execution view to execute the approved reorganization plan. Moves/renames files according to the plan with transaction logging and rollback support.")
-        self.btn_execute.clicked.connect(self.action_execute)
-        btn_layout.addWidget(self.btn_execute)
-        
-        self.btn_subtitles = QPushButton("▶ Manage Subtitles")
-        self.btn_subtitles.setToolTip("Open the Subtitles view to manage subtitle files. Detect coverage, download missing subtitles, and organize subtitle files.")
-        self.btn_subtitles.clicked.connect(self.action_subtitles)
-        btn_layout.addWidget(self.btn_subtitles)
-        
-        layout.addLayout(btn_layout)
+        # Tree instructions label (tooltips moved to tree items)
+        instructions = QLabel("Double-click sections to open views")
+        instructions.setStyleSheet("color: #7f8c8d; font-size: 11px; padding: 4px 8px;")
+        instructions.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(instructions)
         
         widget.setLayout(layout)
         return widget
@@ -513,6 +487,7 @@ class JellyRancherStudio(QMainWindow):
         
         # Scans section
         scans_item = QTreeWidgetItem(["📁 Scans"])
+        scans_item.setToolTip(0, "Double-click to scan folders for media files")
         scans_item.setExpanded(True)
         self.explorer_tree.addTopLevelItem(scans_item)
         
@@ -530,6 +505,7 @@ class JellyRancherStudio(QMainWindow):
         
         # Analyses section
         analyses_item = QTreeWidgetItem(["🤖 Analyses"])
+        analyses_item.setToolTip(0, "Double-click to analyze structure (LLM/Regex/Hybrid)")
         analyses_item.setExpanded(True)
         self.explorer_tree.addTopLevelItem(analyses_item)
         
@@ -547,6 +523,7 @@ class JellyRancherStudio(QMainWindow):
         
         # Action Plans section
         plans_item = QTreeWidgetItem(["📋 Action Plans"])
+        plans_item.setToolTip(0, "Double-click to review and approve reorganization plan")
         plans_item.setExpanded(True)
         self.explorer_tree.addTopLevelItem(plans_item)
         
@@ -561,10 +538,12 @@ class JellyRancherStudio(QMainWindow):
         
         # Execution section
         execution_item = QTreeWidgetItem(["⚙️ Execution"])
+        execution_item.setToolTip(0, "Double-click to execute approved operations")
         self.explorer_tree.addTopLevelItem(execution_item)
         
         # Reports section
         reports_item = QTreeWidgetItem(["📊 Reports"])
+        reports_item.setToolTip(0, "Double-click to view reports (coming soon)")
         self.explorer_tree.addTopLevelItem(reports_item)
     
     def _close_tab(self, index: int):
