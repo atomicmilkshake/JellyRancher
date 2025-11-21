@@ -288,10 +288,10 @@ def main():
         searcher = SemanticFunctionSearch(args.index)
 
         if args.command == 'search':
-            # Log query to audit file (per master-prompt.md II.2 enforcement)
-            _log_query_to_file(args.query, len(searcher.search(args.query, top_k=args.top_k)), args.top_k)
-            
             results = searcher.search(args.query, top_k=args.top_k)
+            
+            # Log query to audit file (per master-prompt.md II.2 enforcement)
+            _log_query_to_file(args.query, len(results), args.top_k)
 
             if not results:
                 print(f"No results found for: {args.query}")
