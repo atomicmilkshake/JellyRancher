@@ -135,7 +135,7 @@ class ScanResultsView(QWidget):
             # Title (above tabs)
             title = QLabel(f"📊 Scan Results - Session #{self.scan_session_id}")
             title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-            title.setStyleSheet("color: #2c3e50; padding: 10px;")
+            title.setStyleSheet("padding: 10px;")  # Color from stylesheet
 
             # NEW: TabWidget for reorganization (top tabs)
             tab_widget = QTabWidget()
@@ -149,6 +149,10 @@ class ScanResultsView(QWidget):
             filters_layout.setContentsMargins(12, 12, 12, 12)
             filters_group = self._create_filter_section()
             filters_layout.addWidget(filters_group)
+            
+            # NEW: Analysis Preview below filters
+            preview_group = self._create_filter_preview()
+            filters_layout.addWidget(preview_group)
             filters_layout.addStretch()
             tab_widget.addTab(filters_widget, "🔍 Filters")
 
@@ -304,7 +308,7 @@ class ScanResultsView(QWidget):
             
             # Filter summary
             self.filter_summary = QLabel("No filters applied")
-            self.filter_summary.setStyleSheet("color: #16a085; font-weight: bold; padding: 5px;")
+            self.filter_summary.setStyleSheet("color: #1abc9c; font-weight: bold; padding: 5px;")  # Bright teal
             layout.addWidget(self.filter_summary)
             
             group.setLayout(layout)
@@ -312,7 +316,90 @@ class ScanResultsView(QWidget):
         except Exception as e:
             logger.error(f"Failed to create filter section: {e}", exc_info=True)
             raise
-    
+
+    def _create_filter_preview(self) -> QGroupBox:
+        """
+        Compact preview section for Filters tab (below filters).
+
+        Shows: totals, reduction, types, dups, size avg, Jellyfin matches.
+        Updates dynamically via _update_filter_preview().
+        """
+        group = QGroupBox("📈 Preview")
+        layout = QVBoxLayout()
+        layout.setSpacing(2)
+        layout.setContentsMargins(10, 6, 10, 6)
+
+        self.preview_totals = QLabel("--")
+        layout.addWidget(self.preview_totals)
+
+        self.preview_reduction = QLabel("--")
+        self.preview_reduction.setStyleSheet("font-weight: bold;")
+        layout.addWidget(self.preview_reduction)
+
+        self.preview_types = QLabel("--")
+        layout.addWidget(self.preview_types)
+
+        stats_layout = QHBoxLayout()
+        self.preview_dups = QLabel("--")
+        stats_layout.addWidget(self.preview_dups)
+        self.preview_jf = QLabel("--")
+        self.preview_jf.setToolTip('Files already in Jellyfin library (matched by provider IDs/metadata during scan).')
+        stats_layout.addWidget(self.preview_jf)
+        self.preview_size = QLabel("--")
+        stats_layout.addStretch()
+        stats_layout.addWidget(self.preview_size)
+        layout.addLayout(stats_layout)
+
+        group.setLayout(layout)
+        group.setMaximumHeight(160)
+        return group
+
+    def _update_filter_preview(self):
+        """Update preview labels with computed stats."""
+        try:
+            total = len(self.scanned_files)
+            filtered = len(self.filtered_files)
+            if total == 0:
+                self.preview_totals.setText("No scan data")
+                return
+
+            total_gb = sum(r.size_bytes for r in self.scanned_files) / (1024**3)
+            self.preview_totals.setText(f"{total} files | {total_gb:.2f} GB | #{self.scan_session_id}")
+
+            red_pct = 100 * (1 - filtered / total)
+            self.preview_reduction.setText(f"{filtered}/{total} ({red_pct:.1f}% reduction)")
+            self.preview_reduction.setStyleSheet(f"font-weight: bold; color: %s;" % 
+                ("#27ae60" if red_pct > 20 else "#f39c12" if red_pct > 5 else "#95a5a6"))
+
+            # Types
+            type_c = {"Video": 0, "Subtitle": 0, "Image": 0, "Other": 0}
+            for r in self.filtered_files:
+                ext = r.extension.lower()
+                if ext in self.video_extensions: type_c["Video"] += 1
+                elif ext in self.subtitle_extensions: type_c["Subtitle"] += 1
+                elif ext in self.image_extensions: type_c["Image"] += 1
+                else: type_c["Other"] += 1
+            types_str = ", ".join(f"{k}:{v}" for k,v in type_c.items())
+            self.preview_types.setText(types_str)
+
+            # Dups
+            dups = len(self.duplicate_groups)
+            self.preview_dups.setText(f"Dups: {dups} groups")
+
+            # Jellyfin
+            jf_matched = sum(1 for r in self.filtered_files if getattr(r, 'jellyfin_matched', False))
+            jf_pct = 100 * jf_matched / filtered if filtered else 0
+            self.preview_jf.setText(f"JF: {jf_matched}/{filtered} ({jf_pct:.0f}%)")
+
+            # Size avg
+            sizes = [r.size_bytes for r in self.filtered_files if r.size_bytes]
+            avg_mb = sum(sizes) / len(sizes) / (1024*1024) if sizes else 0
+            self.preview_size.setText(f"Avg: {avg_mb:.0f} MB")
+
+        except Exception as e:
+            logger.warning(f"Preview update failed: {e}")
+            self.preview_reduction.setText("Update error")
+
     def _create_results_section(self) -> QGroupBox:
         """
         Create the results section with table and controls.
@@ -384,7 +471,7 @@ class ScanResultsView(QWidget):
 
             # Summary label
             self.lbl_summary = QLabel("No files loaded yet")
-            self.lbl_summary.setStyleSheet("color: #566573; padding: 5px;")
+            self.lbl_summary.setStyleSheet("padding: 5px;")  # Color from stylesheet
             layout.addWidget(self.lbl_summary)
 
             group.setLayout(layout)
@@ -517,6 +604,7 @@ class ScanResultsView(QWidget):
             # Populate UI
             self._populate_results_table(self.scanned_files)
             self._update_overview()
+            self._update_filter_preview() # Call after _load_scan_results
             
             # Apply initial filters
             self._apply_filters()
@@ -689,6 +777,7 @@ class ScanResultsView(QWidget):
             # Update UI
             self._update_filter_summary()
             self._populate_results_table(self.filtered_files)
+            self._update_filter_preview() # Call after _apply_filters
             
             logger.debug(f"Applied filters: {len(self.scanned_files)} → {len(self.filtered_files)} files")
             

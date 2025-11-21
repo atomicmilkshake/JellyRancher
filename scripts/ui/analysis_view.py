@@ -117,7 +117,7 @@ class AnalysisView(QWidget):
             # Title
             title = QLabel("Structure Analysis")
             title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-            title.setStyleSheet("color: #2c3e50; padding: 10px;")
+            title.setStyleSheet("padding: 10px;")  # Color from stylesheet
 
             # TabWidget
             self.tab_widget = QTabWidget()
@@ -180,7 +180,7 @@ class AnalysisView(QWidget):
             self.progress_bar.setVisible(False)
             setup_layout.addWidget(self.progress_bar)
             self.lbl_status = QLabel("")
-            self.lbl_status.setStyleSheet("color: #566573; font-style: italic;")
+            self.lbl_status.setStyleSheet("font-style: italic;")  # Color from stylesheet
             setup_layout.addWidget(self.lbl_status)
             setup_layout.addStretch()
 
@@ -374,7 +374,7 @@ class AnalysisView(QWidget):
             self.lbl_status.setText(
                 f"✓ Ready to analyze {total_files} filtered files{filter_text}"
             )
-            self.lbl_status.setStyleSheet("color: #16a085; font-weight: bold; font-style: italic;")
+            self.lbl_status.setStyleSheet("color: #1abc9c; font-weight: bold; font-style: italic;")  # Bright teal
             
             self.btn_run.setEnabled(True)
             self.btn_preview.setEnabled(True)

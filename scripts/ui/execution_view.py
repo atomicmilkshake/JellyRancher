@@ -338,7 +338,7 @@ class ExecutionView(QWidget):
         # Title
         title = QLabel("Execution Monitor")
         title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        title.setStyleSheet("color: #2c3e50; padding: 10px;")
+        title.setStyleSheet("padding: 10px;")  # Color from stylesheet
         layout.addWidget(title)
         
         # Progress section
@@ -376,13 +376,13 @@ class ExecutionView(QWidget):
         mode_layout = QHBoxLayout()
         self.chk_dry_run = QCheckBox("Dry Run Mode (No actual file changes)")
         self.chk_dry_run.setChecked(True)  # Default to dry run for safety
-        self.chk_dry_run.setStyleSheet("font-weight: bold; color: #e67e22;")
+        self.chk_dry_run.setStyleSheet("font-weight: bold; color: #f39c12;")  # Bright orange
         mode_layout.addWidget(self.chk_dry_run)
 
         # Jellyfin refresh option
         self.chk_jellyfin_refresh = QCheckBox("Refresh Jellyfin Library After Execution")
         self.chk_jellyfin_refresh.setChecked(True)  # Default to enabled if configured
-        self.chk_jellyfin_refresh.setStyleSheet("color: #1f6fb2;")
+        self.chk_jellyfin_refresh.setStyleSheet("color: #3498db;")  # Bright blue
         self.chk_jellyfin_refresh.setEnabled(False)  # Will be enabled if Jellyfin is configured
         mode_layout.addWidget(self.chk_jellyfin_refresh)
 
@@ -436,7 +436,7 @@ class ExecutionView(QWidget):
         
         # Summary
         self.lbl_summary = QLabel("No operations executed yet")
-        self.lbl_summary.setStyleSheet("color: #566573; padding: 5px;")
+        self.lbl_summary.setStyleSheet("padding: 5px;")  # Color from stylesheet
         layout.addWidget(self.lbl_summary)
         
         self.setLayout(layout)

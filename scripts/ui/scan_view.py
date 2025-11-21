@@ -326,7 +326,7 @@ class ScanView(QWidget):
             # Title
             title = QLabel("Scan Folders")
             title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-            title.setStyleSheet("color: #2c3e50; padding: 10px;")
+            title.setStyleSheet("padding: 10px;")  # Color from stylesheet
             layout.addWidget(title)
             
             # Folder selection section
@@ -405,7 +405,7 @@ class ScanView(QWidget):
             
             # Estimated time label
             self.lbl_estimate = QLabel("Estimated time: ~30 seconds for 1,000 files")
-            self.lbl_estimate.setStyleSheet("color: #566573; font-style: italic;")
+            self.lbl_estimate.setStyleSheet("font-style: italic;")  # Color from stylesheet
             layout.addWidget(self.lbl_estimate)
             
             group.setLayout(layout)

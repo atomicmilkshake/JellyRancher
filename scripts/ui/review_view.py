@@ -65,6 +65,35 @@ class ReviewView(QWidget):
             operations_ready(int): Emitted when action plan is ready for execution
                                  (passes action_plan_id)
         """
+        try:
+            super().__init__(parent)
+            
+            self.project = project
+            self.project_manager = project_manager
+            self.inventory_repo = InventoryRepository()
+            
+            # Initialize instance variables
+            self.current_action_plan_id = None
+            self.operations = []
+            self.filtered_operations = []
+            self.scanned_files = []
+            self.llm_analysis = None
+            self.canonical_database = None
+            self.app_config = AppConfigManager()
+            self.action_plan_worker = None
+            
+            self._init_ui()
+            
+            logger.info(f"ReviewView initialized successfully for project: {project.name}")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize ReviewView: {e}", exc_info=True)
+            QMessageBox.critical(
+                self,
+                "Initialization Error",
+                f"Failed to initialize review view:\n\n{str(e)}\n\nPlease check the logs for details.",
+            )
+            raise
     
     def _init_ui(self):
         """
@@ -94,7 +123,7 @@ class ReviewView(QWidget):
             # Title
             title = QLabel("Action Plan Review")
             title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-            title.setStyleSheet("color: #2c3e50; padding: 10px;")
+            title.setStyleSheet("padding: 10px;")  # Color from stylesheet
             layout.addWidget(title)
 
             # Search bar with filter dropdown
@@ -189,7 +218,7 @@ class ReviewView(QWidget):
 
             # Summary
             self.lbl_summary = QLabel("No operations to review")
-            self.lbl_summary.setStyleSheet("color: #566573; padding: 5px;")
+            self.lbl_summary.setStyleSheet("padding: 5px;")  # Color from stylesheet
             table_layout.addWidget(self.lbl_summary)
 
             table_group.setLayout(table_layout)

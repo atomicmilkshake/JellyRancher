@@ -49,7 +49,7 @@ from scripts.ui.styles import apply_stylesheet
 logger = logging.getLogger(__name__)
 
 # Global for dark mode state
-DARK_MODE_ENABLED = False
+DARK_MODE_ENABLED = True
 
 
 class NewProjectDialog(QDialog):
@@ -220,7 +220,7 @@ class JellyRancherStudio(QMainWindow):
         
         # Setup UI
         self.setWindowTitle("JellyRancher Studio")
-        self.resize(1400, 900)
+        self.resize(1400, 720)
 
         self._create_menu_bar()
         self._create_main_layout()
@@ -290,7 +290,7 @@ class JellyRancherStudio(QMainWindow):
         view_menu = menubar.addMenu("&View")
 
         dark_mode_action = QAction("&Dark Mode", self, checkable=True)
-        dark_mode_action.setChecked(False)
+        dark_mode_action.setChecked(True)
         dark_mode_action.triggered.connect(self.toggle_dark_mode)
         view_menu.addAction(dark_mode_action)
 
@@ -353,16 +353,16 @@ class JellyRancherStudio(QMainWindow):
         
         title = QLabel("Project Explorer")
         title.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        title.setStyleSheet("color: #2c3e50;")
+        # Title color handled by global stylesheet
         title_layout.addWidget(title)
         
         self.project_name_label = QLabel("(No project loaded)")
         self.project_name_label.setFont(QFont("Segoe UI", 9))
-        self.project_name_label.setStyleSheet("color: #7f8c8d; font-style: italic;")
+        self.project_name_label.setStyleSheet("font-style: italic;")  # Color from stylesheet
         title_layout.addWidget(self.project_name_label)
         
         title_widget.setLayout(title_layout)
-        title_widget.setStyleSheet("background-color: #ecf0f1; border-bottom: 1px solid #bdc3c7;")
+        # Background handled by global stylesheet
         layout.addWidget(title_widget)
         
         # Tree widget with visual styling
@@ -371,34 +371,7 @@ class JellyRancherStudio(QMainWindow):
         self.explorer_tree.setIndentation(20)  # Clear indentation for hierarchy
         self.explorer_tree.setAnimated(True)   # Smooth expand/collapse
         self.explorer_tree.setAlternatingRowColors(True)
-        self.explorer_tree.setStyleSheet("""
-            QTreeWidget {
-                background-color: #fafafa;
-                border: none;
-                font-size: 13px;
-            }
-            QTreeWidget::item {
-                padding: 6px 4px;
-                border-bottom: 1px solid #ecf0f1;
-            }
-            QTreeWidget::item:hover {
-                background-color: #e8f4fc;
-            }
-            QTreeWidget::item:selected {
-                background-color: #3498db;
-                color: white;
-            }
-            QTreeWidget::branch:has-children:!has-siblings:closed,
-            QTreeWidget::branch:closed:has-children:has-siblings {
-                border-image: none;
-                image: url(none);
-            }
-            QTreeWidget::branch:open:has-children:!has-siblings,
-            QTreeWidget::branch:open:has-children:has-siblings {
-                border-image: none;
-                image: url(none);
-            }
-        """)
+        # Tree styling handled by global dark_mode.qss stylesheet
         self.explorer_tree.itemClicked.connect(self._on_explorer_item_clicked)
         layout.addWidget(self.explorer_tree)
         
@@ -426,14 +399,14 @@ class JellyRancherStudio(QMainWindow):
         # Title
         title = QLabel("Welcome to JellyRancher Studio")
         title.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
-        title.setStyleSheet("color: #2c3e50; padding: 20px;")
+        title.setStyleSheet("padding: 20px;")  # Color from stylesheet
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
         
         # Subtitle
         subtitle = QLabel("Your professional media library management workspace")
         subtitle.setFont(QFont("Segoe UI", 12))
-        subtitle.setStyleSheet("color: #566573; padding-bottom: 40px;")
+        subtitle.setStyleSheet("padding-bottom: 40px;")  # Color from stylesheet
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(subtitle)
         
@@ -744,7 +717,7 @@ class JellyRancherStudio(QMainWindow):
                 self.setWindowTitle(f"JellyRancher Studio - {project.name}")
                 self.project_label.setText(f"📁 {project.name}")
                 self.project_name_label.setText(f"📁 {project.name}")
-                self.project_name_label.setStyleSheet("color: #27ae60; font-weight: bold;")
+                self.project_name_label.setStyleSheet("color: #2ecc71; font-weight: bold;")  # Bright green for dark mode
                 self.status_label.setText(f"Loaded project: {project.name}")
                 self._update_project_explorer()
                 self._populate_recent_menu()
@@ -797,7 +770,7 @@ class JellyRancherStudio(QMainWindow):
         # Reset project indicators
         self.setWindowTitle("JellyRancher Studio")
         self.project_name_label.setText("(No project loaded)")
-        self.project_name_label.setStyleSheet("color: #7f8c8d; font-style: italic;")
+        self.project_name_label.setStyleSheet("font-style: italic;")  # Color from stylesheet
         self.project_label.setText("(No project)")
         self.status_label.setText("No project loaded")
         
@@ -1028,7 +1001,7 @@ class JellyRancherStudio(QMainWindow):
         # Success message
         success_label = QLabel("✅ <b>GUI state copied to clipboard!</b>")
         success_label.setFont(QFont("Segoe UI", 12))
-        success_label.setStyleSheet("color: #27ae60; padding: 10px;")
+        success_label.setStyleSheet("color: #2ecc71; padding: 10px;")  # Bright green for dark mode
         layout.addWidget(success_label)
         
         # Instructions
@@ -1050,7 +1023,7 @@ class JellyRancherStudio(QMainWindow):
             f"Main: gui_runtime_state.json\n"
             f"Backup: gui_captures/{filename}"
         )
-        paths_text.setStyleSheet("background-color: #ecf0f1; font-family: Consolas, monospace;")
+        paths_text.setStyleSheet("font-family: Consolas, monospace;")  # Background from stylesheet
         layout.addWidget(paths_text)
         
         # Metadata
@@ -1058,7 +1031,7 @@ class JellyRancherStudio(QMainWindow):
             f"<b>View:</b> {view_name} | "
             f"<b>Timestamp:</b> {timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
         )
-        meta_label.setStyleSheet("padding: 10px; color: #566573;")
+        meta_label.setStyleSheet("padding: 10px;")  # Color from stylesheet
         layout.addWidget(meta_label)
         
         # Action buttons
@@ -1277,7 +1250,7 @@ def main():
     app.setOrganizationName("JellyRancher")
     
     # Apply modern stylesheet
-    apply_stylesheet(app)
+    apply_stylesheet(app, dark_mode=True)
     
     # Create and show main window
     window = JellyRancherStudio()
