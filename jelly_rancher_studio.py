@@ -345,11 +345,25 @@ class JellyRancherStudio(QMainWindow):
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         
-        # Title
+        # Title with project name
+        title_widget = QWidget()
+        title_layout = QVBoxLayout()
+        title_layout.setContentsMargins(8, 8, 8, 4)
+        title_layout.setSpacing(2)
+        
         title = QLabel("Project Explorer")
         title.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        title.setStyleSheet("padding: 8px; background-color: #ecf0f1;")
-        layout.addWidget(title)
+        title.setStyleSheet("color: #2c3e50;")
+        title_layout.addWidget(title)
+        
+        self.project_name_label = QLabel("(No project loaded)")
+        self.project_name_label.setFont(QFont("Segoe UI", 9))
+        self.project_name_label.setStyleSheet("color: #7f8c8d; font-style: italic;")
+        title_layout.addWidget(self.project_name_label)
+        
+        title_widget.setLayout(title_layout)
+        title_widget.setStyleSheet("background-color: #ecf0f1; border-bottom: 1px solid #bdc3c7;")
+        layout.addWidget(title_widget)
         
         # Tree widget
         self.explorer_tree = QTreeWidget()
@@ -363,22 +377,27 @@ class JellyRancherStudio(QMainWindow):
         btn_layout.setContentsMargins(8, 8, 8, 8)
         
         self.btn_scan = QPushButton("▶ Scan Folders")
+        self.btn_scan.setToolTip("Open the Scan view to scan folders for media files. This is the first step in organizing your media library.")
         self.btn_scan.clicked.connect(self.action_scan)
         btn_layout.addWidget(self.btn_scan)
         
         self.btn_analyze = QPushButton("▶ Analyze Structure")
+        self.btn_analyze.setToolTip("Open the Analysis view to analyze folder structure using LLM, Regex, or Hybrid analysis. Detects movies, TV shows, and generates reorganization plans.")
         self.btn_analyze.clicked.connect(self.action_analyze)
         btn_layout.addWidget(self.btn_analyze)
         
         self.btn_review = QPushButton("▶ Review Plan")
+        self.btn_review.setToolTip("Open the Review view to review and approve/reject the reorganization plan before execution. Edit proposed paths and actions.")
         self.btn_review.clicked.connect(self.action_review)
         btn_layout.addWidget(self.btn_review)
         
         self.btn_execute = QPushButton("▶ Execute Operations")
+        self.btn_execute.setToolTip("Open the Execution view to execute the approved reorganization plan. Moves/renames files according to the plan with transaction logging and rollback support.")
         self.btn_execute.clicked.connect(self.action_execute)
         btn_layout.addWidget(self.btn_execute)
         
         self.btn_subtitles = QPushButton("▶ Manage Subtitles")
+        self.btn_subtitles.setToolTip("Open the Subtitles view to manage subtitle files. Detect coverage, download missing subtitles, and organize subtitle files.")
         self.btn_subtitles.clicked.connect(self.action_subtitles)
         btn_layout.addWidget(self.btn_subtitles)
         
@@ -708,6 +727,8 @@ class JellyRancherStudio(QMainWindow):
                 self.current_project = project
                 self.setWindowTitle(f"JellyRancher Studio - {project.name}")
                 self.project_label.setText(f"📁 {project.name}")
+                self.project_name_label.setText(f"📁 {project.name}")
+                self.project_name_label.setStyleSheet("color: #27ae60; font-weight: bold;")
                 self.status_label.setText(f"Loaded project: {project.name}")
                 self._update_project_explorer()
                 self._populate_recent_menu()
@@ -757,8 +778,20 @@ class JellyRancherStudio(QMainWindow):
         if not self.current_project:
             return
         
+        # Reset project indicators
+        self.setWindowTitle("JellyRancher Studio")
+        self.project_name_label.setText("(No project loaded)")
+        self.project_name_label.setStyleSheet("color: #7f8c8d; font-style: italic;")
+        
         # Auto-save before closing
         self._auto_save()
+        
+        # Reset project indicators
+        self.setWindowTitle("JellyRancher Studio")
+        self.project_name_label.setText("(No project loaded)")
+        self.project_name_label.setStyleSheet("color: #7f8c8d; font-style: italic;")
+        self.project_label.setText("(No project)")
+        self.status_label.setText("No project loaded")
         
         self.current_project = None
         self.setWindowTitle("JellyRancher Studio")
