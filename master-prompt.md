@@ -29,8 +29,14 @@
 **4. Journal Formatting Rules (STRICT):**
    * **NO BLANK LINES:** The journal must NOT contain any blank lines between entries, sections, or paragraphs.
    * **NO SEPARATOR LINES:** Do NOT use lines like `---`, `===`, `***`, or similar visual separators.
-   * **Rationale:** These formatting rules ensure the journal remains compact, searchable, and efficient for ingestion by LLMs while maintaining maximum information density.
+   * **Rationale:** These formatting rules ensure the journal remains compact, searchable, and efficient for LLM ingestion while maintaining maximum information density.
    * **Section Headers:** Use markdown headers (##, ###) to separate major sections instead of blank lines or separators.
+
+#### **I.5 Response Style (MANDATORY):**
+* **Tone:** Formal and measured. Use structured paragraphs with complete sentences and professional language. Avoid colloquialisms, slang, excessive brevity, or staccato lists that sacrifice clarity.
+* **Structure:** Narrative flow with logical progression; use bullets or tables sparingly and only for data or comparisons. Explain concepts fully before providing examples.
+* **Rationale:** Ensures responses are precise, readable, and effective for complex codebase discussions without losing meaning.
+* **Enforcement:** Apply this style in all outputs following journal ingestion. Verify compliance in agent-journal.md phase summaries.
 
 ---
 
@@ -48,13 +54,67 @@
    * **Note:** Always use .venv Python for consistency. The index uses TF-IDF semantic search (fast, accurate, dependency-free).
 
 **2.1 Function Index Maintenance Protocol (MANDATORY):**
-   * **New functions:** After adding, run `.venv\Scripts\python.exe tools/build_function_index_enhanced.py --enhance-new` (auto-generates detailed docstrings via Grok-4.1-Fast-Reasoning LLM).
-   * **Modified functions:** Same `--enhance-new` (updates signature/docstring incrementally via existing index comparison).
-   * **Deprecation:** 1. Add "DEPRECATED: [reason]" to docstring (or `@deprecated` decorator). 2. Optionally move to `scripts/_archived/`. 3. Run `--enhance-new`.
-   * **Full rebuild:** `--enhance` only for major refactors (e.g., post-journal compression). Avoid routine use.
-   * **Verify:** Query index post-update: `.venv\Scripts\python.exe tools/query_function_index_semantic.py search "function_name"`.
-   * **Document:** Log run/commit msg (e.g., `docs: Index updated after feat X`); journal Phase entry.
-   * **Rationale:** Keeps index evergreen (5-10s/update), no manual docstrings/external LLMs needed.
+This protocol ensures the function index remains up-to-date, accurate, and searchable using semantic search (TF-IDF). It explicitly requires writing detailed docstrings in the prescribed JSON format, meeting minimum criteria (to be specified separately if needed).
+
+**For New Functions**
+- Write a detailed docstring matching the prescribed JSON format (see below).  
+- Add the function and its docstring to the index using the manual script:  
+  `.venv\Scripts\python.exe tools/add_to_function_index.py --json-entry '[JSON_ARRAY]'`  
+  (Replace `[JSON_ARRAY]` with a JSON array of function entries.)
+
+**For Modified Functions**
+- Update the detailed docstring matching the prescribed JSON format (see below).  
+- Update the function and its docstring in the index using the same manual script.
+
+**Full Rebuild**
+- Only performed with user confirmation. The user must explicitly ask for a rebuild (e.g., when really far behind, with like a dozen new undocumented functions). Use `--enhance` in such cases.
+
+**Verification**
+- Post-update, verify by querying:  
+  `.venv\Scripts\python.exe tools/query_function_index_semantic.py search "function_name"`
+
+**Documentation and Logging**
+- Log the run in the commit message (e.g., `docs: Index updated after feat X`).  
+- Add a journal entry in the current phase documenting the update.
+
+**Prescribed JSON Format for Docstrings:** Each function entry must follow this structure:
+```json
+{
+  "name": "function_name",
+  "file_path": "path/to/file.py",
+  "line": 123,
+  "description": "The function's docstring or description text.",
+  "implementation": "",
+  "inputs": {
+    "parameters": [
+      {
+        "name": "param_name",
+        "type": "str",
+        "description": "Description of the parameter.",
+        "required": true
+      }
+    ]
+  },
+  "outputs": {
+    "return_value": {
+      "type": "str",
+      "description": "Description of the return value."
+    }
+  },
+  "notes": [],
+  "usage_example": "",
+  "class_name": null
+}
+```
+- `description`: Contains the docstring text (detailed and accurate).
+- `implementation`: Always an empty string.
+- `inputs/parameters`: Array of parameter objects with `name`, `type`, `description`, and `required` (boolean).
+- `outputs/return_value`: Object with `type` and `description` for the return value.
+- `notes`: Array for additional notes (typically empty).
+- `usage_example`: String for usage examples (often empty).
+- `class_name`: Null for standalone functions, or string for class methods.
+
+**Rationale:** Keeps the index evergreen, explicitly requires docstring writing, and avoids external LLM dependencies, except in cases of extreme maintenance neglect. Always use `.venv\Scripts\python.exe` for consistency. Use `tools/add_to_function_index.py` for manual updates without LLMs.
 
 **3. Git Workflow (Mandatory):**
    * **Repo:** `https://github.com/atomicmilkshake/JellyRancher`
