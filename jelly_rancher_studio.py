@@ -573,12 +573,24 @@ class JellyRancherStudio(QMainWindow):
             self.tab_widget.removeTab(index)
     
     def _on_explorer_item_double_clicked(self, item: QTreeWidgetItem, column: int):
-        """Handle double-click on explorer item."""
-        parent = item.parent()
-        if not parent:
-            return
+        """Handle double-click on explorer item.
 
-        section = parent.text(0)
+        Works for both section headers (📁 Scans, etc.) and child items underneath them.
+        Double-clicking a section header opens the corresponding view.
+        Double-clicking a child item opens the view with that specific data loaded.
+        """
+        item_text = item.text(0)
+        parent = item.parent()
+
+        # Determine which section we're in
+        if parent:
+            # Child item - use parent's section
+            section = parent.text(0)
+        else:
+            # Top-level section header - use item's own text
+            section = item_text
+
+        # Route to appropriate view based on section
         if section.startswith("📁 Scans"):
             self.action_scan()
         elif section.startswith("🤖 Analyses"):
