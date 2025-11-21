@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QTableWidget, QTableWidgetItem, QTreeWidget, QTreeWidgetItem,
     QHeaderView, QGroupBox, QLineEdit, QMessageBox, QCheckBox,
-    QSlider, QSpinBox, QFileDialog
+    QSlider, QSpinBox, QFileDialog, QTabWidget
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QColor
@@ -121,54 +121,65 @@ class ScanResultsView(QWidget):
     
     def _init_ui(self):
         """
-        Initialize the user interface components with filter controls.
-        
-        Creates the main layout and UI structure for the scan results view,
-        including title, filter controls, results table, and overview sections.
-        
-        The UI layout consists of:
-        1. Title label with session ID
-        2. Filter section (file types, size, duplicates, folders)
-        3. Results section (expandable table with search/export)
-        4. Overview section (summary statistics and folder structure)
-        
-        Layout Configuration:
-            - Vertical box layout with 10px spacing and margins
-            - Title with large, bold font and styled background
-            - Filter section with grouped controls
-            - Results section gets stretch factor 1 (takes available space)
-            - Overview section has expandable folder tree
-        
-        Error Handling:
-            If UI initialization fails, shows critical error dialog and re-raises
-            exception to prevent corrupted interface state.
+        Initialize UI with sub-tabs for height optimization (Phase 37B).
+
+        Replaces vertical VBox with QTabWidget (Filters | Files | Overview)
+        to display one section at a time, reducing height by 60-70%.
+        Each tab contains an existing groupbox; tables/trees scroll within tabs.
+
+        Layout: Title + TabWidget (stretch=1).
+        Tabs use 8px spacing/12px margins for compactness.
+        Preserves all signals, methods, and error handling.
         """
         try:
-            layout = QVBoxLayout()
-            layout.setSpacing(10)
-            layout.setContentsMargins(10, 10, 10, 10)
-
-            # Title
+            # Title (above tabs)
             title = QLabel(f"📊 Scan Results - Session #{self.scan_session_id}")
             title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
             title.setStyleSheet("color: #2c3e50; padding: 10px;")
-            layout.addWidget(title)
-            
-            # Filter section
-            filter_group = self._create_filter_section()
-            layout.addWidget(filter_group)
 
-            # Results section
-            results_group = self._create_results_section()
-            layout.addWidget(results_group, 1)  # Stretch to fill space
+            # NEW: TabWidget for reorganization (top tabs)
+            tab_widget = QTabWidget()
+            tab_widget.setTabPosition(QTabWidget.TabPosition.North)
+            tab_widget.setMinimumHeight(400)  # Usable across tabs
 
-            # Overview section
+            # Tab 1: Filters (compact)
+            filters_widget = QWidget()
+            filters_layout = QVBoxLayout(filters_widget)
+            filters_layout.setSpacing(8)
+            filters_layout.setContentsMargins(12, 12, 12, 12)
+            filters_group = self._create_filter_section()
+            filters_layout.addWidget(filters_group)
+            filters_layout.addStretch()
+            tab_widget.addTab(filters_widget, "🔍 Filters")
+
+            # Tab 2: Files (table)
+            files_widget = QWidget()
+            files_layout = QVBoxLayout(files_widget)
+            files_layout.setSpacing(8)
+            files_layout.setContentsMargins(12, 12, 12, 12)
+            files_group = self._create_results_section()
+            files_layout.addWidget(files_group)
+            tab_widget.addTab(files_widget, "📋 Files")
+
+            # Tab 3: Overview (trees)
+            overview_widget = QWidget()
+            overview_layout = QVBoxLayout(overview_widget)
+            overview_layout.setSpacing(8)
+            overview_layout.setContentsMargins(12, 12, 12, 12)
             overview_group = self._create_overview_section()
-            layout.addWidget(overview_group)
+            overview_layout.addWidget(overview_group)
+            tab_widget.addTab(overview_widget, "📁 Overview")
 
+            # Main layout: title + tabs (stretch)
+            layout = QVBoxLayout(self)
+            layout.setSpacing(0)
+            layout.setContentsMargins(10, 10, 10, 10)
+            layout.addWidget(title)
+            layout.addWidget(tab_widget, 1)
             self.setLayout(layout)
+
         except Exception as e:
-            logger.error(f"Failed to initialize scan results UI: {e}", exc_info=True)
+            logger.error(f"Failed to initialize tabbed UI: {e}", exc_info=True)
             QMessageBox.critical(
                 self,
                 "UI Initialization Error",
