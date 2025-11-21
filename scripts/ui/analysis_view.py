@@ -428,6 +428,78 @@ class AnalysisView(QWidget):
             )
             self.lbl_status.setText("Using default models")
             logger.error(f"Model refresh error: {e}", exc_info=True)
+
+    def _toggle_llm_controls(self):
+        """Show/hide LLM model controls based on selected mode."""
+        try:
+            mode_text = self.mode_combo.currentText()
+            is_llm_mode = "LLM" in mode_text or "Hybrid" in mode_text
+            self.model_group.setVisible(is_llm_mode)
+            self.btn_preview.setEnabled(is_llm_mode or "Hybrid" in mode_text)
+        except Exception as e:
+            logger.error(f"Failed to toggle LLM controls: {e}", exc_info=True)
+
+    def _populate_plan_table(self, analysis_result: dict):
+        """Populate plan table with reorganization plan data (per plan.md Point 5)."""
+        try:
+            plan = analysis_result.get("reorganization_plan", {})
+            folder_changes = plan.get("folder_changes", [])
+            
+            if not folder_changes:
+                self.plan_table.setRowCount(0)
+                return
+            
+            self.plan_table.setRowCount(len(folder_changes))
+            
+            for row, change in enumerate(folder_changes):
+                self.plan_table.setItem(row, 0, QTableWidgetItem(change.get("current_path", "")))
+                self.plan_table.setItem(row, 1, QTableWidgetItem(change.get("proposed_path", "")))
+                self.plan_table.setItem(row, 2, QTableWidgetItem(change.get("action", "UNKNOWN").upper()))
+                self.plan_table.setItem(row, 3, QTableWidgetItem(change.get("subtitle_rename", "N/A")))
+                self.plan_table.setItem(row, 4, QTableWidgetItem(change.get("confidence", "MEDIUM")))
+                self.plan_table.setItem(row, 5, QTableWidgetItem(change.get("reason", "")))
+            
+            self.plan_table.resizeColumnsToContents()
+            logger.info(f"Populated plan table with {len(folder_changes)} operations")
+        except Exception as e:
+            logger.error(f"Failed to populate plan table: {e}", exc_info=True)
+
+    def _populate_metadata_table(self, canonical_db: dict):
+        """Populate metadata table with canonical database results."""
+        try:
+            movies = canonical_db.get("movies", [])
+            tv_shows = canonical_db.get("tv_shows", [])
+            total = len(movies) + len(tv_shows)
+            
+            if total == 0:
+                self.metadata_table.setRowCount(0)
+                return
+            
+            self.metadata_table.setRowCount(total)
+            row = 0
+            
+            for movie in movies:
+                self.metadata_table.setItem(row, 0, QTableWidgetItem(movie.get("title", "Unknown")))
+                self.metadata_table.setItem(row, 1, QTableWidgetItem(str(movie.get("year", "?"))))
+                self.metadata_table.setItem(row, 2, QTableWidgetItem(str(movie.get("tmdb_id", "N/A"))))
+                self.metadata_table.setItem(row, 3, QTableWidgetItem("Movie"))
+                self.metadata_table.setItem(row, 4, QTableWidgetItem("✓"))
+                row += 1
+            
+            for show in tv_shows:
+                self.metadata_table.setItem(row, 0, QTableWidgetItem(show.get("title", "Unknown")))
+                self.metadata_table.setItem(row, 1, QTableWidgetItem(str(show.get("year", "?"))))
+                self.metadata_table.setItem(row, 2, QTableWidgetItem(str(show.get("tmdb_id", "N/A"))))
+                seasons = show.get("number_of_seasons", 0)
+                episodes = show.get("number_of_episodes", 0)
+                self.metadata_table.setItem(row, 3, QTableWidgetItem(f"{seasons} seasons, {episodes} eps"))
+                self.metadata_table.setItem(row, 4, QTableWidgetItem("✓"))
+                row += 1
+            
+            self.metadata_table.resizeColumnsToContents()
+            logger.info(f"Populated metadata table with {total} items")
+        except Exception as e:
+            logger.error(f"Failed to populate metadata table: {e}", exc_info=True)
     
     def _preview_prompt(self):
         """
@@ -758,7 +830,9 @@ class AnalysisView(QWidget):
             output_lines.append("")
             output_lines.append("=" * 80)
 
-            self.results_text.setPlainText("\n".join(output_lines))
+            # NEW: Populate plan table (per plan.md Point 5)
+            self._populate_plan_table(analysis_result)
+            
             self.lbl_status.setText("Analysis complete! Click 'Enrich Metadata' to query TMDB/OMDb.")
 
             self._save_analysis_to_database(output_lines, analysis_result)
@@ -1062,7 +1136,9 @@ class AnalysisView(QWidget):
                     lines.append(f"  • {failure.get('title', 'Unknown')} ({failure.get('type', '?')})")
                 lines.append("")
 
-            self.metadata_output.setPlainText("\n".join(lines))
+            # NEW: Populate metadata table
+            self._populate_metadata_table(canonical_db)
+            
             self.lbl_status.setText("Metadata enrichment complete!")
 
             try:
