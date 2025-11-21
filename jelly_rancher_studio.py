@@ -782,16 +782,11 @@ class JellyRancherStudio(QMainWindow):
         self.setWindowTitle("JellyRancher Studio")
         self.project_name_label.setText("(No project loaded)")
         self.project_name_label.setStyleSheet("color: #7f8c8d; font-style: italic;")
+        self.project_label.setText("(No project)")
+        self.status_label.setText("No project loaded")
         
         # Auto-save before closing
         self._auto_save()
-        
-        # Reset project indicators
-        self.setWindowTitle("JellyRancher Studio")
-        self.project_name_label.setText("(No project loaded)")
-        self.project_name_label.setStyleSheet("color: #7f8c8d; font-style: italic;")
-        self.project_label.setText("(No project)")
-        self.status_label.setText("No project loaded")
         
         self.current_project = None
         self.setWindowTitle("JellyRancher Studio")
