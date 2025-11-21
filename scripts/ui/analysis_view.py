@@ -197,6 +197,8 @@ class AnalysisView(QWidget):
             self.plan_table.horizontalHeader().setStretchLastSection(True)
             self.plan_table.setAlternatingRowColors(True)
             self.plan_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+            self.plan_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)  # Read-only table
+            self.plan_table.setSortingEnabled(True)  # Allow sorting
             plan_layout.addWidget(self.plan_table)
             self.tab_widget.addTab(plan_widget, "📋 Reorg Plan")
 
@@ -442,27 +444,62 @@ class AnalysisView(QWidget):
     def _populate_plan_table(self, analysis_result: dict):
         """Populate plan table with reorganization plan data (per plan.md Point 5)."""
         try:
-            plan = analysis_result.get("reorganization_plan", {})
-            folder_changes = plan.get("folder_changes", [])
+            if not self.plan_table:
+                logger.error("Plan table widget is None - cannot populate")
+                return
             
-            if not folder_changes:
+            # Ensure table is properly initialized
+            if self.plan_table.columnCount() != 6:
+                self.plan_table.setColumnCount(6)
+                self.plan_table.setHorizontalHeaderLabels(["Original Path", "Proposed Path", "Action", "Subtitles", "Confidence", "Notes"])
+            
+            plan = analysis_result.get("reorganization_plan", {})
+            if not plan:
+                logger.warning("No reorganization_plan in analysis_result")
                 self.plan_table.setRowCount(0)
                 return
             
+            folder_changes = plan.get("folder_changes", [])
+            if not folder_changes:
+                logger.info("No folder_changes in reorganization_plan - clearing table")
+                self.plan_table.setRowCount(0)
+                return
+            
+            logger.info(f"Populating plan table with {len(folder_changes)} folder changes")
             self.plan_table.setRowCount(len(folder_changes))
             
             for row, change in enumerate(folder_changes):
-                self.plan_table.setItem(row, 0, QTableWidgetItem(change.get("current_path", "")))
-                self.plan_table.setItem(row, 1, QTableWidgetItem(change.get("proposed_path", "")))
-                self.plan_table.setItem(row, 2, QTableWidgetItem(change.get("action", "UNKNOWN").upper()))
-                self.plan_table.setItem(row, 3, QTableWidgetItem(change.get("subtitle_rename", "N/A")))
-                self.plan_table.setItem(row, 4, QTableWidgetItem(change.get("confidence", "MEDIUM")))
-                self.plan_table.setItem(row, 5, QTableWidgetItem(change.get("reason", "")))
+                if not isinstance(change, dict):
+                    logger.warning(f"Folder change at row {row} is not a dict: {type(change)}")
+                    continue
+                
+                # Convert all values to strings for display
+                current_path = str(change.get("current_path", ""))
+                proposed_path = str(change.get("proposed_path", ""))
+                action = str(change.get("action", "UNKNOWN")).upper()
+                subtitle_rename = str(change.get("subtitle_rename", "N/A"))
+                confidence = str(change.get("confidence", "MEDIUM"))
+                reason = str(change.get("reason", ""))
+                
+                self.plan_table.setItem(row, 0, QTableWidgetItem(current_path))
+                self.plan_table.setItem(row, 1, QTableWidgetItem(proposed_path))
+                self.plan_table.setItem(row, 2, QTableWidgetItem(action))
+                self.plan_table.setItem(row, 3, QTableWidgetItem(subtitle_rename))
+                self.plan_table.setItem(row, 4, QTableWidgetItem(confidence))
+                self.plan_table.setItem(row, 5, QTableWidgetItem(reason))
             
+            # Ensure table is visible and properly sized
+            self.plan_table.setVisible(True)
             self.plan_table.resizeColumnsToContents()
-            logger.info(f"Populated plan table with {len(folder_changes)} operations")
+            self.plan_table.horizontalHeader().setStretchLastSection(True)
+            
+            logger.info(f"Successfully populated plan table with {len(folder_changes)} operations")
         except Exception as e:
             logger.error(f"Failed to populate plan table: {e}", exc_info=True)
+            # Show user-friendly error
+            if self.plan_table:
+                self.plan_table.setRowCount(1)
+                self.plan_table.setItem(0, 0, QTableWidgetItem(f"Error: {str(e)}"))
 
     def _populate_metadata_table(self, canonical_db: dict):
         """Populate metadata table with canonical database results."""
@@ -831,6 +868,11 @@ class AnalysisView(QWidget):
             output_lines.append("=" * 80)
 
             # NEW: Populate plan table (per plan.md Point 5)
+            logger.info(f"Analysis result keys: {list(analysis_result.keys())}")
+            if "reorganization_plan" in analysis_result:
+                logger.info(f"Reorganization plan keys: {list(analysis_result['reorganization_plan'].keys())}")
+                folder_changes = analysis_result['reorganization_plan'].get("folder_changes", [])
+                logger.info(f"Folder changes count: {len(folder_changes)}")
             self._populate_plan_table(analysis_result)
             
             self.lbl_status.setText("Analysis complete! Click 'Enrich Metadata' to query TMDB/OMDb.")
