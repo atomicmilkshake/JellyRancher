@@ -499,7 +499,10 @@ class JellyRancherStudio(QMainWindow):
         
         if self.current_project.scan_sessions:
             for scan_id in self.current_project.scan_sessions:
+                stats = self.project_manager.get_scan_summary(scan_id)
                 scan_item = QTreeWidgetItem([f"Scan #{scan_id}"])
+                stats_item = QTreeWidgetItem([f"{stats['files']} files ({stats['size_gb']:.1f} GB)"])
+                scan_item.addChild(stats_item)
                 scans_item.addChild(scan_item)
         else:
             no_scans = QTreeWidgetItem(["(No scans yet)"])
@@ -513,7 +516,10 @@ class JellyRancherStudio(QMainWindow):
         
         if self.current_project.analyses:
             for analysis_id in self.current_project.analyses:
+                stats = self.project_manager.get_analysis_summary(analysis_id)
                 analysis_item = QTreeWidgetItem([f"Analysis #{analysis_id}"])
+                stats_item = QTreeWidgetItem([f"{stats['issues']} issues ({stats['confidence']})"])
+                analysis_item.addChild(stats_item)
                 analyses_item.addChild(analysis_item)
         else:
             no_analyses = QTreeWidgetItem(["(No analyses yet)"])
@@ -690,6 +696,26 @@ class JellyRancherStudio(QMainWindow):
                 self._update_project_explorer()
                 self._populate_recent_menu()
                 self.project_changed.emit(project)
+
+                # NEW: Auto-resume last view from state
+                state = self.project_manager.load_project_state(project.id)
+                if state and state.current_view:
+                    if state.current_view == 'scan_results' and state.last_scan_session_id:
+                        results_view = ScanResultsView(project, self.project_manager, state.last_scan_session_id, self)
+                        results_view.send_to_analysis.connect(self._on_send_to_analysis)
+                        tab_title = f"📊 Scan Results - Session #{state.last_scan_session_id}"
+                        self.tab_widget.addTab(results_view, tab_title)
+                        self.tab_widget.setCurrentWidget(results_view)
+                        logger.info(f"Auto-opened ScanResultsView from state: {state.last_scan_session_id}")
+                    elif state.current_view == 'analysis_view' and state.last_analysis_id:
+                        # Open AnalysisView with project (load_scan_data handles recent)
+                        analysis_view = AnalysisView(project, self.project_manager, self)
+                        analysis_view.analysis_saved.connect(self._on_analysis_saved)
+                        tab_title = f"🤖 Analysis - {project.name}"
+                        self.tab_widget.addTab(analysis_view, tab_title)
+                        self.tab_widget.setCurrentWidget(analysis_view)
+                        logger.info(f"Auto-opened AnalysisView from state: {state.last_analysis_id}")
+
                 logger.info(f"Loaded project: {project.name}")
             else:
                 QMessageBox.critical(self, "Error", f"Project ID {project_id} not found.")

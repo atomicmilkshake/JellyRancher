@@ -16,7 +16,7 @@ from typing import List, Optional
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QTextEdit,
     QComboBox, QMessageBox, QGroupBox, QHBoxLayout, QProgressBar,
-    QDialog, QDialogButtonBox
+    QDialog, QDialogButtonBox, QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView
 )
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
@@ -86,6 +86,8 @@ class AnalysisView(QWidget):
             self.filtered_files = filtered_files
             self.filter_config = filter_config
             self.using_filtered_data = bool(filtered_files)
+            self.plan_table = None
+            self.metadata_table = None
             
             self._init_ui()
             
@@ -105,18 +107,29 @@ class AnalysisView(QWidget):
             raise
     
     def _init_ui(self):
+        """
+        Tabbed UI refactor (Phase 37D): Setup | Plan Table | Metadata Table per plan.md Point 5.
+
+        Tabs reduce height; replaces textboxes with editable tables for reorg plan/metadata.
+        Setup: modes/buttons/progress. Plan: table (path/action). Metadata: table (title/year/ID).
+        """
         try:
-            layout = QVBoxLayout()
-            layout.setSpacing(10)
-            layout.setContentsMargins(10, 10, 10, 10)
-            
             # Title
             title = QLabel("Structure Analysis")
             title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
             title.setStyleSheet("color: #2c3e50; padding: 10px;")
-            layout.addWidget(title)
-            
-            # Analysis Mode Selection
+
+            # TabWidget
+            self.tab_widget = QTabWidget()
+            self.tab_widget.setTabPosition(QTabWidget.TabPosition.North)
+
+            # Tab 1: Setup
+            setup_widget = QWidget()
+            setup_layout = QVBoxLayout(setup_widget)
+            setup_layout.setSpacing(8)
+            setup_layout.setContentsMargins(12, 12, 12, 12)
+
+            # Modes
             mode_group = QGroupBox("Analysis Mode")
             mode_layout = QHBoxLayout()
             mode_layout.addWidget(QLabel("Mode:"))
@@ -126,126 +139,95 @@ class AnalysisView(QWidget):
                 "⚡ Regex Analysis (Instant, Free, Offline)",
                 "🔀 Hybrid (Regex + LLM for Ambiguous)"
             ])
-            self.mode_combo.setToolTip(
-                "LLM: Uses AI for context understanding and canonical verification\n"
-                "Regex: Fast pattern matching, no API costs\n"
-                "Hybrid: Regex first, LLM only for unclear cases (80-90% cost savings)"
-            )
+            self.mode_combo.setToolTip("LLM: AI context/canonical\nRegex: Fast patterns\nHybrid: 80-90% savings")
+            self.mode_combo.currentTextChanged.connect(self._toggle_llm_controls)
             mode_layout.addWidget(self.mode_combo, 1)
             mode_group.setLayout(mode_layout)
-            layout.addWidget(mode_group)
-            
-            # Model selection (for LLM/Hybrid modes)
-            model_group = QGroupBox("LLM Model Selection")
-            model_layout = QVBoxLayout()
-            
-            model_row = QHBoxLayout()
-            model_row.addWidget(QLabel("Model:"))
+            setup_layout.addWidget(mode_group)
+
+            # LLM Models (initially hidden)
+            self.model_group = QGroupBox("LLM Model")
+            model_layout = QHBoxLayout()
+            model_layout.addWidget(QLabel("Model:"))
             self.model_combo = QComboBox()
             self.model_combo.addItems(["Claude-3.7-Sonnet", "GPT-4", "Gemini-2.5-Pro"])
-            model_row.addWidget(self.model_combo)
-            
+            model_layout.addWidget(self.model_combo)
             btn_refresh = QPushButton("Refresh Models")
             btn_refresh.clicked.connect(self._refresh_models)
-            model_row.addWidget(btn_refresh)
-            model_row.addStretch()
-            
-            model_layout.addLayout(model_row)
-            model_group.setLayout(model_layout)
-            layout.addWidget(model_group)
-            
-            # Action buttons
+            model_layout.addWidget(btn_refresh)
+            self.model_group.setLayout(model_layout)
+            self.model_group.setVisible(False)  # Default regex
+            setup_layout.addWidget(self.model_group)
+
+            # Buttons
             button_layout = QHBoxLayout()
-            
             self.btn_preview = QPushButton("Preview Prompt")
             self.btn_preview.clicked.connect(self._preview_prompt)
             button_layout.addWidget(self.btn_preview)
-            
             self.btn_run = QPushButton("▶ Run Analysis")
             self.btn_run.clicked.connect(self._run_analysis)
-            self.btn_run.setMinimumHeight(40)
-            self.btn_run.setStyleSheet("""
-                QPushButton {
-                    background-color: #9b59b6;
-                    color: white;
-                    font-size: 14px;
-                    font-weight: bold;
-                    border-radius: 4px;
-                }
-                QPushButton:hover {
-                    background-color: #8e44ad;
-                }
-                QPushButton:disabled {
-                    background-color: #bdc3c7;
-                }
-            """)
+            self.btn_run.setMinimumHeight(35)
             button_layout.addWidget(self.btn_run)
-
             self.btn_enrich = QPushButton("✨ Enrich Metadata")
             self.btn_enrich.clicked.connect(self._enrich_metadata)
-            self.btn_enrich.setMinimumHeight(40)
             self.btn_enrich.setEnabled(False)
-            self.btn_enrich.setStyleSheet("""
-                QPushButton {
-                    background-color: #16a085;
-                    color: white;
-                    font-size: 14px;
-                    font-weight: bold;
-                    border-radius: 4px;
-                }
-                QPushButton:hover {
-                    background-color: #138d75;
-                }
-                QPushButton:disabled {
-                    background-color: #bdc3c7;
-                }
-            """)
             button_layout.addWidget(self.btn_enrich)
-
             button_layout.addStretch()
-            
-            layout.addLayout(button_layout)
-            
-            # Progress
+            setup_layout.addLayout(button_layout)
+
+            # Progress/Status
             self.progress_bar = QProgressBar()
-            self.progress_bar.setMaximum(0)  # Indeterminate
             self.progress_bar.setVisible(False)
-            layout.addWidget(self.progress_bar)
-            
+            setup_layout.addWidget(self.progress_bar)
             self.lbl_status = QLabel("")
             self.lbl_status.setStyleSheet("color: #566573; font-style: italic;")
-            layout.addWidget(self.lbl_status)
-            
-            # Results
-            results_group = QGroupBox("Analysis Results")
-            results_layout = QVBoxLayout()
-            
-            self.results_text = QTextEdit()
-            self.results_text.setReadOnly(True)
-            self.results_text.setPlaceholderText("Analysis results will appear here...")
-            results_layout.addWidget(self.results_text)
-            
-            results_group.setLayout(results_layout)
-            layout.addWidget(results_group, 1)
+            setup_layout.addWidget(self.lbl_status)
+            setup_layout.addStretch()
 
-            metadata_group = QGroupBox("Canonical Metadata Database")
-            metadata_layout = QVBoxLayout()
-            metadata_layout.addWidget(QLabel("TMDB/OMDb lookup results:"))
-            self.metadata_output = QTextEdit()
-            self.metadata_output.setReadOnly(True)
-            self.metadata_output.setPlaceholderText("Click 'Enrich Metadata' to build the canonical database...")
-            metadata_layout.addWidget(self.metadata_output)
-            metadata_group.setLayout(metadata_layout)
-            layout.addWidget(metadata_group)
-            
+            self.tab_widget.addTab(setup_widget, "⚙️ Setup")
+
+            # Tab 2: Plan Table (per plan.md Point 5)
+            plan_widget = QWidget()
+            plan_layout = QVBoxLayout(plan_widget)
+            plan_layout.setSpacing(8)
+            plan_layout.setContentsMargins(12, 12, 12, 12)
+            self.plan_table = QTableWidget()
+            self.plan_table.setColumnCount(6)
+            self.plan_table.setHorizontalHeaderLabels(["Original Path", "Proposed Path", "Action", "Subtitles", "Confidence", "Notes"])
+            self.plan_table.horizontalHeader().setStretchLastSection(True)
+            self.plan_table.setAlternatingRowColors(True)
+            self.plan_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+            plan_layout.addWidget(self.plan_table)
+            self.tab_widget.addTab(plan_widget, "📋 Reorg Plan")
+
+            # Tab 3: Metadata Table
+            meta_widget = QWidget()
+            meta_layout = QVBoxLayout(meta_widget)
+            meta_layout.setSpacing(8)
+            meta_layout.setContentsMargins(12, 12, 12, 12)
+            self.metadata_table = QTableWidget()
+            self.metadata_table.setColumnCount(5)
+            self.metadata_table.setHorizontalHeaderLabels(["Title", "Year", "TMDb ID", "Seasons/Eps", "Status"])
+            self.metadata_table.horizontalHeader().setStretchLastSection(True)
+            self.metadata_table.setAlternatingRowColors(True)
+            meta_layout.addWidget(self.metadata_table)
+            self.tab_widget.addTab(meta_widget, "📊 Metadata")
+
+            # Main layout: title + tabs
+            layout = QVBoxLayout(self)
+            layout.setSpacing(0)
+            layout.setContentsMargins(10, 10, 10, 10)
+            layout.addWidget(title)
+            layout.addWidget(self.tab_widget, 1)
             self.setLayout(layout)
-            
-            # Load scan data after UI is ready
+
+            # Load data
             self._load_scan_data()
-            
+            self._toggle_llm_controls()  # Initial state
+
         except Exception as e:
-            logger.error(f"Failed to initialize AnalysisView UI: {e}", exc_info=True)
-            QMessageBox.critical(self, "UI Error", f"Failed to initialize analysis interface: {str(e)}")
+            logger.error(f"Failed to initialize tabbed UI: {e}", exc_info=True)
+            QMessageBox.critical(self, "UI Error", f"Failed to initialize analysis interface:\n\n{str(e)}")
             raise
     
     def _load_scan_data(self):

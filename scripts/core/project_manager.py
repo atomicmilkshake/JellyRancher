@@ -511,6 +511,46 @@ class ProjectManager:
         except Exception as e:
             logger.error(f"Unexpected error loading project state for {project_id}: {e}", exc_info=True)
             return None
+
+    def get_scan_summary(self, session_id: int) -> dict:
+        """Get scan statistics summary by session ID."""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'SELECT total_files, total_size_bytes FROM project_scan_sessions WHERE id = ?',
+                    (session_id,)
+                )
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        'files': row[0],
+                        'size_gb': row[1] / (1024**3) if row[1] else 0.0
+                    }
+                return {'files': 0, 'size_gb': 0.0}
+        except Exception as e:
+            logger.error(f"Failed to get scan summary for {session_id}: {e}")
+            return {'files': 0, 'size_gb': 0.0}
+
+    def get_analysis_summary(self, analysis_id: int) -> dict:
+        """Get analysis summary by ID."""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'SELECT issues_found, confidence FROM project_analyses WHERE id = ?',
+                    (analysis_id,)
+                )
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        'issues': row[0] or 0,
+                        'confidence': row[1] or 'UNKNOWN'
+                    }
+                return {'issues': 0, 'confidence': 'UNKNOWN'}
+        except Exception as e:
+            logger.error(f"Failed to get analysis summary for {analysis_id}: {e}")
+            return {'issues': 0, 'confidence': 'UNKNOWN'}
     
     def get_recent_projects(self, limit: int = 5) -> List[Project]:
         """
