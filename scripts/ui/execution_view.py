@@ -289,6 +289,7 @@ class ExecutionView(QWidget):
         If action_plan_id is provided, the view automatically loads
         and prepares the action plan for execution.
         """
+        super().__init__(parent)
         try:
             self.project = project
             self.project_manager = project_manager
