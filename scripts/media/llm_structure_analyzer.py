@@ -514,12 +514,15 @@ IMPORTANT: Return ONLY the JSON object, no additional text before or after.
         # Skip metadata keys
         metadata_keys = {'project_name', 'scan_id', 'total_files'}
         
-        for folder_path, folder_data in sorted(structure_summary.items()):
-            if folder_path in metadata_keys:
-                continue
-            
-            if not isinstance(folder_data, dict):
-                continue
+        # Filter and sort folder entries (convert keys to strings for sorting)
+        folder_items = [
+            (folder_path, folder_data) 
+            for folder_path, folder_data in structure_summary.items()
+            if str(folder_path) not in metadata_keys and isinstance(folder_data, dict)
+        ]
+        folder_items.sort(key=lambda x: str(x[0]))
+        
+        for folder_path, folder_data in folder_items:
             
             stats['folders'] += 1
             folder_path_str = str(folder_path)
