@@ -76,25 +76,27 @@ class ExecutionWorker(QThread):
         The method handles dry-run mode for testing without actual changes.
         """
         try:
-            conn = sqlite3.connect("data/media_library.db")
-            cursor = conn.cursor()
+            # Load from Round-Up database
+            if not hasattr(self, 'project') or not hasattr(self.project, 'roundup') or not self.project.roundup:
+                self.log_message.emit("No Round-Up found - cannot execute operations")
+                self.finished.emit(0, 0, "")
+                return
             
-            # Get approved operations
-            cursor.execute('''
-                SELECT id, operation_type, current_path, proposed_path
-                FROM project_operations
-                WHERE action_plan_id = ? AND user_approved = 1
-            ''', (self.action_plan_id,))
+            from scripts.core.roundup_manager import RoundUpManager
             
-            operations = cursor.fetchall()
-            total = len(operations)
+            roundup = self.project.roundup
+            manager = self.project.manager if hasattr(self.project, 'manager') else RoundUpManager()
+            
+            # Get approved review actions
+            actions = manager.get_review_actions(roundup)
+            approved_actions = [a for a in actions if a.get('status') == 'approved']
+            total = len(approved_actions)
             success_count = 0
             fail_count = 0
             
             if total == 0:
                 self.log_message.emit("No approved operations to execute")
                 self.finished.emit(0, 0, "")
-                conn.close()
                 return
             
             # Initialize TransactionManager
@@ -469,28 +471,36 @@ class ExecutionView(QWidget):
             return
 
         try:
-            conn = sqlite3.connect("data/media_library.db")
-            cursor = conn.cursor()
-
-            cursor.execute('''
-                SELECT total_operations, approved_count, executed
-                FROM project_action_plans
-                WHERE id = ?
-            ''', (self.action_plan_id,))
-
-            row = cursor.fetchone()
-            if row:
-                total, approved, executed = row
+            # Load from Round-Up database
+            if hasattr(self, 'project') and hasattr(self.project, 'roundup') and self.project.roundup:
+                from scripts.core.roundup_manager import RoundUpManager
+                
+                roundup = self.project.roundup
+                manager = self.project.manager if hasattr(self.project, 'manager') else RoundUpManager()
+                
+                actions = manager.get_review_actions(roundup)
+                approved = sum(1 for a in actions if a.get('status') == 'approved')
+                total = len(actions)
+                
                 self.lbl_status.setText(
-                    f"Action Plan #{self.action_plan_id}: {approved} operations approved"
+                    f"Review Actions: {approved} operations approved"
                 )
-
-                if executed:
+                
+                # Check execution log for already executed
+                import sqlite3
+                conn = sqlite3.connect(str(roundup.path / "data.db"))
+                cursor = conn.cursor()
+                cursor.execute('SELECT COUNT(*) FROM execution_log')
+                executed_count = cursor.fetchone()[0]
+                conn.close()
+                
+                if executed_count > 0:
                     self.btn_execute.setEnabled(False)
                     self.btn_rollback.setEnabled(True)
-                    self.lbl_summary.setText("This action plan has already been executed")
-
-            conn.close()
+                    self.lbl_summary.setText("Operations have already been executed")
+            else:
+                self.lbl_status.setText("No Round-Up found")
+                self.lbl_summary.setText("Please open a Round-Up to view action plan")
 
         except sqlite3.Error as e:
             logger.error(f"Database error loading action plan: {e}", exc_info=True)

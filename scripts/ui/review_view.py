@@ -1350,50 +1350,33 @@ class ReviewView(QWidget):
             sqlite3.Error: If database operations fail
         """
         try:
-            conn = sqlite3.connect("data/media_library.db")
-            cursor = conn.cursor()
-
-            # Create action plan
-            approved_count = sum(1 for op in self.operations if op.user_approved)
-
-            cursor.execute('''
-                INSERT INTO project_action_plans
-                (project_id, plan_name, total_operations, approved_count, rejected_count)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (
-                self.project.id,
-                f"Action Plan {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-                len(self.operations),
-                approved_count,
-                len(self.operations) - approved_count
-            ))
-
-            self.current_action_plan_id = cursor.lastrowid
-
-            # Save operations
-            for op in self.operations:
-                cursor.execute('''
-                    INSERT INTO project_operations
-                    (action_plan_id, operation_type, current_path, proposed_path,
-                     confidence, user_approved, notes, current_md5, proposed_md5, jellyfin_status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    self.current_action_plan_id,
-                    op.action_type.name if isinstance(op.action_type, ActionType) else str(op.action_type),
-                    str(op.source_path),
-                    str(op.destination_path) if op.destination_path else None,
-                    op.confidence.name if isinstance(op.confidence, Confidence) else str(op.confidence),
-                    1 if op.user_approved else 0,
-                    op.notes,
-                    op.current_md5,
-                    op.proposed_md5,
-                    op.jellyfin_status
-                ))
-
-            conn.commit()
-            conn.close()
-
-            logger.info(f"Saved action plan to database: ID={self.current_action_plan_id}")
+            # Save to Round-Up database
+            if hasattr(self.project, 'roundup') and self.project.roundup:
+                from scripts.core.roundup_manager import RoundUpManager
+                
+                roundup = self.project.roundup
+                manager = self.project.manager if hasattr(self.project, 'manager') else RoundUpManager()
+                
+                # Convert operations to review_actions format
+                actions = []
+                for op in self.operations:
+                    actions.append({
+                        'original_path': str(op.current_path),
+                        'proposed_path': str(op.proposed_path) if op.proposed_path else None,
+                        'action': op.action_type.value if hasattr(op.action_type, 'value') else str(op.action_type),
+                        'status': 'approved' if op.user_approved else 'rejected',
+                        'confidence': op.confidence if hasattr(op, 'confidence') else 0.5,
+                        'user_edited': 1 if hasattr(op, 'user_edited') and op.user_edited else 0,
+                        'notes': op.reason if hasattr(op, 'reason') else None
+                    })
+                
+                manager.save_review_actions(roundup, actions)
+                self.current_action_plan_id = len(actions)  # Use count as ID
+                logger.info(f"Saved {len(actions)} review actions to Round-Up")
+            else:
+                logger.warning("No Round-Up found, cannot save action plan")
+                QMessageBox.warning(self, "No Round-Up", "Cannot save action plan: No Round-Up is open.")
+                return
 
         except sqlite3.Error as e:
             logger.error(f"Database error saving action plan: {e}", exc_info=True)
