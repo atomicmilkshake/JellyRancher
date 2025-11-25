@@ -504,12 +504,17 @@ class ScanResultsLoadWorker(QThread):
 
             # Load from Round-Up database (no legacy fallback)
             scanned_files = None
+            
+            print(f"WORKER DEBUG: roundup_db_path = {self.roundup_db_path}")
+            print(f"WORKER DEBUG: path exists = {self.roundup_db_path.exists() if self.roundup_db_path else 'N/A'}")
 
             if self.roundup_db_path and self.roundup_db_path.exists():
+                print(f"WORKER DEBUG: Loading from Round-Up database...")
                 scanned_files = self._load_from_roundup(sqlite3, json)
-                logger.info("Loaded scan data from Round-Up database")
+                print(f"WORKER DEBUG: Loaded {len(scanned_files)} files")
             else:
-                raise ValueError("No Round-Up database found. Please run a scan first.")
+                print(f"WORKER DEBUG: No database found!")
+                raise ValueError(f"No Round-Up database found at {self.roundup_db_path}. Please run a scan first.")
 
             # If we have valid cached data, use it instead of recomputing
             if cached_data and cached_data.get('scan_file_count') == len(scanned_files):
@@ -607,6 +612,7 @@ class ScanResultsLoadWorker(QThread):
 
         cursor.execute('SELECT COUNT(*) FROM scan_files')
         total_count = cursor.fetchone()[0]
+        print(f"WORKER DEBUG: scan_files count = {total_count}")
 
         if total_count == 0:
             conn.close()
@@ -633,15 +639,15 @@ class ScanResultsLoadWorker(QThread):
                         pass
 
                 # Create FileRecord from Round-Up data
+                # FileRecord requires: absolute_path, size_bytes, extension, parent_folder, scan_timestamp
+                abs_path = Path(row['path'])
                 record = FileRecord(
-                    absolute_path=Path(row['path']),
-                    relative_path=row['relative_path'] or '',
-                    filename=row['filename'],
-                    extension=row['extension'] or '',
+                    absolute_path=abs_path,
                     size_bytes=row['size_bytes'] or 0,
-                    md5_hash=row['md5_hash'] or '',
-                    created_at=row['created_at'] or '',
-                    modified_at=row['modified_at'] or '',
+                    extension=row['extension'] or '',
+                    parent_folder=abs_path.parent,
+                    scan_timestamp=datetime.fromisoformat(row['created_at']) if row['created_at'] else datetime.now(),
+                    md5_hash=row['md5_hash'] or None,
                 )
                 scanned_files.append(record)
             except Exception as e:

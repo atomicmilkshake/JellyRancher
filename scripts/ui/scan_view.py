@@ -875,6 +875,10 @@ class ScanView(QWidget):
                         self.project.roundup, file_dicts
                     )
                     logger.info(f"Saved {saved_count} files to Round-Up database")
+                    
+                    # Invalidate structure cache since scan data changed
+                    self.project.manager.invalidate_structure_cache(self.project.roundup)
+                    logger.info("Invalidated structure cache after new scan")
                 except Exception as e:
                     logger.error(f"Failed to save to Round-Up database: {e}", exc_info=True)
 

@@ -1355,32 +1355,78 @@ class JellyRancherStudio(QMainWindow):
 
 def global_exception_handler(exc_type, exc_value, exc_traceback):
     """
-    Global exception handler for uncaught exceptions.
-    Logs the exception and shows a user-friendly dialog.
+    Global exception handler - HALTS application on any uncaught exception.
+    
+    Designed for development: prints full traceback to console AND log file,
+    shows dialog with complete error details, then exits immediately.
+    This allows the developer to immediately see and fix the problem.
     """
     # Don't handle KeyboardInterrupt
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
     
-    # Log the full traceback
     import traceback
-    error_msg = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
-    logger.critical(f"Uncaught exception:\n{error_msg}")
     
-    # Try to show error dialog if Qt app is running
+    # Build full traceback string
+    error_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+    error_msg = "".join(error_lines)
+    
+    # === CONSOLE OUTPUT (immediate visibility) ===
+    print("\n" + "=" * 80, file=sys.stderr)
+    print("🛑 FATAL ERROR - APPLICATION HALTED", file=sys.stderr)
+    print("=" * 80, file=sys.stderr)
+    print(error_msg, file=sys.stderr)
+    print("=" * 80 + "\n", file=sys.stderr)
+    
+    # === LOG FILE OUTPUT ===
     try:
-        from PyQt6.QtWidgets import QMessageBox, QApplication
+        logger.critical(f"FATAL ERROR - APPLICATION HALTED:\n{error_msg}")
+    except Exception:
+        pass  # Logger might not be available
+    
+    # === GUI DIALOG with full traceback (copyable) ===
+    try:
+        from PyQt6.QtWidgets import QMessageBox, QApplication, QTextEdit, QVBoxLayout, QDialog, QPushButton
+        from PyQt6.QtGui import QFont
         app = QApplication.instance()
         if app:
-            QMessageBox.critical(
-                None,
-                "JellyRancher Error",
-                f"An unexpected error occurred:\n\n{exc_type.__name__}: {exc_value}\n\n"
-                f"Please check the log file for details."
+            # Custom dialog with scrollable, copyable traceback
+            dialog = QDialog()
+            dialog.setWindowTitle("🛑 FATAL ERROR - Application Halted")
+            dialog.resize(800, 500)
+            layout = QVBoxLayout(dialog)
+            
+            # Error summary
+            summary = QMessageBox()
+            layout.addWidget(QMessageBox().findChild(type(None)))  # Skip this
+            
+            # Full traceback in scrollable text area
+            text_area = QTextEdit()
+            text_area.setReadOnly(True)
+            text_area.setFont(QFont("Consolas", 10))
+            text_area.setPlainText(
+                f"Exception Type: {exc_type.__name__}\n"
+                f"Exception Value: {exc_value}\n\n"
+                f"{'='*60}\n"
+                f"FULL TRACEBACK (copy this for debugging):\n"
+                f"{'='*60}\n\n"
+                f"{error_msg}"
             )
-    except Exception:
-        pass  # Qt not available or crashed
+            layout.addWidget(text_area)
+            
+            # Close button
+            btn = QPushButton("Exit Application")
+            btn.clicked.connect(dialog.accept)
+            layout.addWidget(btn)
+            
+            dialog.exec()
+    except Exception as dialog_error:
+        print(f"Could not show error dialog: {dialog_error}", file=sys.stderr)
+    
+    # === HALT APPLICATION ===
+    print("Application terminated due to unhandled exception.", file=sys.stderr)
+    sys.exit(1)
 
 
 def main():

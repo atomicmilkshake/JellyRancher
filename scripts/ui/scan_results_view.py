@@ -97,9 +97,15 @@ class ScanResultsView(QWidget):
 
             # Get Round-Up database path if using adapter pattern
             self.roundup_db_path: Optional[Path] = None
+            print(f"DEBUG: hasattr(project, 'roundup') = {hasattr(project, 'roundup')}")
+            print(f"DEBUG: project.roundup = {getattr(project, 'roundup', 'NOT SET')}")
             if hasattr(project, 'roundup') and project.roundup:
                 self.roundup_db_path = project.roundup.path / "data.db"
-                logger.debug(f"Using Round-Up database: {self.roundup_db_path}")
+                print(f"DEBUG: roundup_db_path = {self.roundup_db_path}")
+                print(f"DEBUG: roundup_db_path.exists() = {self.roundup_db_path.exists()}")
+                logger.info(f"Round-Up database path: {self.roundup_db_path}")
+            else:
+                print(f"DEBUG: Not using Round-Up mode - project.roundup is None or not set")
 
             self.scanned_files: List[FileRecord] = []
             self.filtered_files: List[FileRecord] = []
@@ -1174,57 +1180,67 @@ class ScanResultsView(QWidget):
             - Shows warning dialog if entire table population fails
         
         Performance:
+            - Batches updates with setUpdatesEnabled(False)
+            - Uses set for O(1) filter membership lookup
             - Processes all files in single pass
-            - Handles large file lists efficiently
-            - Uses QTableWidgetItem for each cell
         """
         try:
+            # Disable updates for performance during bulk insert
+            self.results_table.setUpdatesEnabled(False)
+            self.results_table.setSortingEnabled(False)
+            
+            # Build set for O(1) lookup instead of O(n) list scan
+            filtered_set = set(id(f) for f in self.filtered_files)
+            
             self.results_table.setRowCount(len(files))
+            gray_color = QColor("#95a5a6")
+            green_color = QColor("#27ae60")
             
             for row, file_record in enumerate(files):
                 try:
-                    # Check if file is in filtered list
-                    is_included = file_record in self.filtered_files
+                    # O(1) lookup using object id
+                    is_included = id(file_record) in filtered_set
+                    row_color = None if is_included else gray_color
                     
                     # Filename
                     item = QTableWidgetItem(file_record.absolute_path.name)
-                    if not is_included:
-                        item.setForeground(QColor("#95a5a6"))
+                    if row_color:
+                        item.setForeground(row_color)
                     self.results_table.setItem(row, 0, item)
                     
                     # Path
                     item = QTableWidgetItem(str(file_record.absolute_path.parent))
-                    if not is_included:
-                        item.setForeground(QColor("#95a5a6"))
+                    if row_color:
+                        item.setForeground(row_color)
                     self.results_table.setItem(row, 1, item)
                     
                     # Size (MB)
                     size_mb = file_record.size_bytes / (1024 * 1024)
                     item = QTableWidgetItem(f"{size_mb:.1f}")
-                    if not is_included:
-                        item.setForeground(QColor("#95a5a6"))
+                    if row_color:
+                        item.setForeground(row_color)
                     self.results_table.setItem(row, 2, item)
                     
                     # Type
                     item = QTableWidgetItem(file_record.extension)
-                    if not is_included:
-                        item.setForeground(QColor("#95a5a6"))
+                    if row_color:
+                        item.setForeground(row_color)
                     self.results_table.setItem(row, 3, item)
                     
                     # MD5
                     md5_text = file_record.md5_hash[:8] + "..." if file_record.md5_hash else "N/A"
                     item = QTableWidgetItem(md5_text)
-                    if not is_included:
-                        item.setForeground(QColor("#95a5a6"))
+                    if row_color:
+                        item.setForeground(row_color)
                     self.results_table.setItem(row, 4, item)
                     
                     # Status
                     if is_included:
                         item = QTableWidgetItem("✓ Included")
-                        item.setForeground(QColor("#27ae60"))
+                        item.setForeground(green_color)
                     else:
                         item = QTableWidgetItem("✗ Filtered")
-                        item.setForeground(QColor("#95a5a6"))
+                        item.setForeground(gray_color)
                     self.results_table.setItem(row, 5, item)
                     
                 except AttributeError as e:
@@ -1241,6 +1257,10 @@ class ScanResultsView(QWidget):
         except Exception as e:
             logger.error(f"Failed to populate results table: {e}", exc_info=True)
             QMessageBox.warning(self, "Table Error", f"Failed to populate results table:\n\n{str(e)}")
+        finally:
+            # Re-enable updates after bulk insert (always runs)
+            self.results_table.setSortingEnabled(True)
+            self.results_table.setUpdatesEnabled(True)
     
     def _filter_results(self, search_text: str):
         """

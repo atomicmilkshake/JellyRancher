@@ -1245,6 +1245,173 @@ class RoundUpManager:
         with open(config_file, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
 
+    # ========================================================================
+    # Structure Cache Methods (for scan results performance)
+    # ========================================================================
+
+    def get_structure_cache(self, roundup: RoundUp) -> Optional[Dict[str, Any]]:
+        """
+        Get cached folder structure and duplicate groups for a Round-Up.
+        
+        Returns None if no cache exists or cache is invalid.
+        The cache is invalidated when scan_file_count changes.
+        
+        Args:
+            roundup: The RoundUp to get cache for
+            
+        Returns:
+            Dict with 'folder_structure', 'duplicate_groups', 'scan_file_count'
+            or None if no valid cache
+        """
+        try:
+            db_path = roundup.path / "data.db"
+            if not db_path.exists():
+                return None
+                
+            conn = sqlite3.connect(str(db_path))
+            cursor = conn.cursor()
+            
+            # Check if cache table exists
+            cursor.execute("""
+                SELECT name FROM sqlite_master 
+                WHERE type='table' AND name='structure_cache'
+            """)
+            if not cursor.fetchone():
+                conn.close()
+                return None
+            
+            # Get cached data
+            cursor.execute("""
+                SELECT folder_structure, duplicate_groups, scan_file_count, cached_at
+                FROM structure_cache
+                WHERE id = 1
+            """)
+            row = cursor.fetchone()
+            conn.close()
+            
+            if not row:
+                return None
+            
+            folder_structure_json, duplicate_groups_json, scan_file_count, cached_at = row
+            
+            # Parse JSON, converting string keys back to Path objects for folder_structure
+            folder_structure_raw = json.loads(folder_structure_json)
+            folder_structure = {Path(k): v for k, v in folder_structure_raw.items()}
+            
+            duplicate_groups = json.loads(duplicate_groups_json)
+            
+            logger.info(f"Retrieved structure cache: {len(folder_structure)} folders, "
+                       f"{len(duplicate_groups)} duplicate groups (cached at {cached_at})")
+            
+            return {
+                'folder_structure': folder_structure,
+                'duplicate_groups': duplicate_groups,
+                'scan_file_count': scan_file_count,
+                'cached_at': cached_at
+            }
+            
+        except Exception as e:
+            logger.warning(f"Failed to get structure cache: {e}")
+            return None
+
+    def save_structure_cache(
+        self, 
+        roundup: RoundUp, 
+        folder_structure: Dict[Path, Dict[str, Any]], 
+        duplicate_groups: Dict[str, list],
+        scan_file_count: int
+    ):
+        """
+        Save folder structure and duplicate groups to cache.
+        
+        The cache includes scan_file_count so we can detect when
+        the scan data has changed and invalidate the cache.
+        
+        Args:
+            roundup: The RoundUp to save cache for
+            folder_structure: Dict mapping folder paths to stats
+            duplicate_groups: Dict mapping MD5 hashes to file lists
+            scan_file_count: Number of files in the scan (for invalidation)
+        """
+        try:
+            db_path = roundup.path / "data.db"
+            if not db_path.exists():
+                logger.warning("Cannot save cache - database doesn't exist")
+                return
+                
+            conn = sqlite3.connect(str(db_path))
+            cursor = conn.cursor()
+            
+            # Create cache table if needed
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS structure_cache (
+                    id INTEGER PRIMARY KEY DEFAULT 1,
+                    folder_structure TEXT NOT NULL,
+                    duplicate_groups TEXT NOT NULL,
+                    scan_file_count INTEGER NOT NULL,
+                    cached_at TEXT NOT NULL
+                )
+            """)
+            
+            # Convert Path keys to strings for JSON serialization
+            folder_structure_serializable = {str(k): v for k, v in folder_structure.items()}
+            
+            # For duplicate_groups, we can't serialize FileRecord objects directly
+            # So we serialize just the essential info (paths)
+            duplicate_groups_serializable = {}
+            for md5, records in duplicate_groups.items():
+                duplicate_groups_serializable[md5] = [
+                    str(getattr(r, 'absolute_path', r)) for r in records
+                ]
+            
+            # Upsert cache
+            now = datetime.now().isoformat()
+            cursor.execute("""
+                INSERT OR REPLACE INTO structure_cache 
+                (id, folder_structure, duplicate_groups, scan_file_count, cached_at)
+                VALUES (1, ?, ?, ?, ?)
+            """, (
+                json.dumps(folder_structure_serializable),
+                json.dumps(duplicate_groups_serializable),
+                scan_file_count,
+                now
+            ))
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"Saved structure cache: {len(folder_structure)} folders, "
+                       f"{len(duplicate_groups)} duplicate groups, {scan_file_count} files")
+            
+        except Exception as e:
+            logger.warning(f"Failed to save structure cache: {e}")
+
+    def invalidate_structure_cache(self, roundup: RoundUp):
+        """
+        Invalidate the structure cache for a Round-Up.
+        
+        Call this when scan data changes (e.g., after a new scan).
+        
+        Args:
+            roundup: The RoundUp to invalidate cache for
+        """
+        try:
+            db_path = roundup.path / "data.db"
+            if not db_path.exists():
+                return
+                
+            conn = sqlite3.connect(str(db_path))
+            cursor = conn.cursor()
+            
+            cursor.execute("DELETE FROM structure_cache WHERE id = 1")
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"Invalidated structure cache for {roundup.name}")
+            
+        except Exception as e:
+            logger.warning(f"Failed to invalidate structure cache: {e}")
+
 
 def main():
     """CLI entry point for testing RoundUpManager."""

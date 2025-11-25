@@ -13,22 +13,23 @@ from PyQt6.QtWidgets import QMessageBox, QWidget
 logger = logging.getLogger(__name__)
 
 
-def safe_slot(show_error: bool = True, default_return: Any = None):
+def safe_slot(show_error: bool = True, default_return: Any = None, halt_on_error: bool = True):
     """
     Decorator for Qt slots that provides comprehensive error handling.
     
     Args:
         show_error: Whether to show a message box on error (default True)
         default_return: Value to return on error (default None)
+        halt_on_error: Whether to re-raise exception to trigger global handler (default True)
     
     Usage:
         @safe_slot()
         def on_button_clicked(self):
-            # risky operation
+            # risky operation - will HALT app on error
             
-        @safe_slot(show_error=False)
+        @safe_slot(halt_on_error=False)
         def on_timer_tick(self):
-            # silent error handling
+            # non-critical - won't halt app
     """
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
@@ -52,42 +53,66 @@ def safe_slot(show_error: bool = True, default_return: Any = None):
                     QMessageBox.warning(
                         parent,
                         "Operation Failed",
-                        f"An error occurred:\n\n{str(e)}"
+                        f"An error occurred in {class_name}.{func_name}:\n\n{str(e)}"
                     )
+                
+                # Re-raise to trigger global exception handler (HALT)
+                if halt_on_error:
+                    raise
                 
                 return default_return
         return wrapper
     return decorator
 
 
-def safe_worker(func: Callable) -> Callable:
+def safe_worker(halt_on_error: bool = True):
     """
     Decorator for QThread worker run() methods.
-    Catches exceptions and emits error signal if available.
+    Catches exceptions, emits error signal, and optionally halts app.
+    
+    Args:
+        halt_on_error: Whether to re-raise to halt app (default True)
     
     Usage:
         class MyWorker(QThread):
             error = pyqtSignal(str)
             
-            @safe_worker
+            @safe_worker()
             def run(self):
-                # worker code
+                # worker code - will HALT app on error
+                
+            @safe_worker(halt_on_error=False)
+            def run(self):
+                # worker code - will emit error but continue
     """
-    @functools.wraps(func)
-    def wrapper(self, *args, **kwargs):
-        try:
-            return func(self, *args, **kwargs)
-        except Exception as e:
-            error_msg = f"{type(e).__name__}: {str(e)}"
-            logger.error(
-                f"Worker {self.__class__.__name__} failed: {error_msg}",
-                exc_info=True
-            )
-            
-            # Emit error signal if available
-            if hasattr(self, 'error') and callable(getattr(self.error, 'emit', None)):
-                self.error.emit(error_msg)
-    return wrapper
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(self, *args, **kwargs):
+            try:
+                return func(self, *args, **kwargs)
+            except Exception as e:
+                import traceback
+                error_msg = f"{type(e).__name__}: {str(e)}"
+                full_tb = traceback.format_exc()
+                
+                # Log with full traceback
+                logger.error(
+                    f"Worker {self.__class__.__name__} failed:\n{full_tb}"
+                )
+                
+                # Print to console for immediate visibility
+                print(f"\n🛑 WORKER ERROR in {self.__class__.__name__}:", file=__import__('sys').stderr)
+                print(full_tb, file=__import__('sys').stderr)
+                
+                # Emit error signal if available
+                if hasattr(self, 'error') and callable(getattr(self.error, 'emit', None)):
+                    self.error.emit(error_msg)
+                
+                # Re-raise to halt application
+                if halt_on_error:
+                    raise
+        return wrapper
+    return decorator
 
 
 def log_exceptions(

@@ -51,26 +51,6 @@ class NewRoundUpDialog(QDialog):
         self.name_input.setMinimumHeight(35)
         layout.addWidget(self.name_input)
 
-        # Source folders (optional at creation)
-        folders_label = QLabel("Source Folders (optional - can add later):")
-        folders_label.setFont(QFont("Segoe UI", 10))
-        layout.addWidget(folders_label)
-
-        folders_layout = QHBoxLayout()
-        self.folders_input = QLineEdit()
-        self.folders_input.setPlaceholderText("Click 'Browse' to select folders...")
-        self.folders_input.setReadOnly(True)
-        folders_layout.addWidget(self.folders_input)
-
-        browse_btn = QPushButton("Browse...")
-        browse_btn.clicked.connect(self._browse_folders)
-        folders_layout.addWidget(browse_btn)
-
-        layout.addLayout(folders_layout)
-
-        # Store selected folders
-        self.selected_folders: List[str] = []
-
         # Spacer
         layout.addStretch()
 
@@ -86,19 +66,6 @@ class NewRoundUpDialog(QDialog):
 
         # Focus on name input
         self.name_input.setFocus()
-
-    def _browse_folders(self):
-        """Open folder browser dialog."""
-        folder = QFileDialog.getExistingDirectory(
-            self,
-            "Select Source Folder",
-            "",
-            QFileDialog.Option.ShowDirsOnly
-        )
-        if folder:
-            if folder not in self.selected_folders:
-                self.selected_folders.append(folder)
-            self.folders_input.setText("; ".join(self.selected_folders))
 
     def _validate_and_accept(self):
         """Validate input before accepting."""
@@ -117,7 +84,7 @@ class NewRoundUpDialog(QDialog):
         """Get the entered data."""
         return {
             'name': self.name_input.text().strip(),
-            'source_folders': self.selected_folders
+            'source_folders': []  # Folders are added in Scan view
         }
 
 
