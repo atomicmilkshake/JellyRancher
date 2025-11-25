@@ -46,6 +46,7 @@ Cache Structure:
 
 import json
 import hashlib
+import logging
 from pathlib import Path
 from typing import Dict, Optional, List, Any
 from datetime import datetime, timedelta
@@ -54,6 +55,8 @@ from urllib.parse import quote
 import re
 from bs4 import BeautifulSoup
 import time
+
+logger = logging.getLogger(__name__)
 
 class TVEpisodeCache:
     """Manages canonical TV episode data caching and retrieval."""

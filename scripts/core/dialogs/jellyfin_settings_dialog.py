@@ -20,6 +20,7 @@ Usage:
         config = dialog.get_config()
 """
 
+import logging
 import sys
 from pathlib import Path
 from typing import Optional, Dict
@@ -31,6 +32,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont
+
+logger = logging.getLogger(__name__)
 
 # Add paths
 sys.path.insert(0, str(Path(__file__).parent.parent))

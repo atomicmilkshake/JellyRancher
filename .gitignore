@@ -196,6 +196,10 @@ $RECYCLE.BIN/
 # ===================================
 # Project Specific
 # ===================================
+# Round-Up files (user session data)
+*.roundup/
+roundups/
+
 # Application data (may contain sensitive info)
 data/
 !data/.gitkeep

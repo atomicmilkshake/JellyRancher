@@ -1,7 +1,18 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git commit:*)"
+      "Bash(python scripts/utils/consolidate_docs.py:*)",
+      "Bash(.venv/Scripts/python.exe:*)",
+      "Bash(python -m py_compile:*)",
+      "Bash(.venvScriptspython.exe -m py_compile scripts/core/workers.py scripts/ui/scan_view.py)",
+      "Bash(python:*)",
+      "Bash(.venvScriptspython.exe tools/query_function_index_semantic.py search \"parse media filename\")",
+      "Bash(.venvScriptspython.exe tools/query_function_index_semantic.py search \"extract title year season episode\")",
+      "Bash(.venvScriptspython.exe tools/query_function_index_semantic.py search \"media name detection heuristics\")",
+      "Bash(.venvScriptspython.exe tools/query_function_index_semantic.py search \"folder structure analysis\")",
+      "Bash(.venvScriptspython.exe tools/query_function_index_semantic.py search \"wikipedia parse\")",
+      "Bash(.venvScriptspython.exe tools/query_function_index_semantic.py search \"wikipedia scrape extract\")",
+      "Bash(.venvScriptspython.exe tools/query_function_index_semantic.py search \"episode list wikipedia\")"
     ],
     "deny": [],
     "ask": []

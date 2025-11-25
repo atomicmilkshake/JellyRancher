@@ -9,9 +9,8 @@ Provides reusable QThread implementations for:
 - Action plan generation
 
 These workers were originally embedded in `jelly_rancher_clean.py`.
-Extracting them into this module ensures both the legacy "clean" GUI and
-the modern JellyRancher Studio share identical workflow behavior,
-achieving feature parity and avoiding divergence.
+Extracting them into this module ensures JellyRancher Studio uses
+proper background threading for consistent workflow behavior.
 """
 
 from __future__ import annotations
@@ -446,4 +445,211 @@ class ActionPlanWorker(QThread):
         except Exception as e:  # pragma: no cover - logic errors
             logger.error("Action plan generation failed: %s", e, exc_info=True)
             self.error.emit(str(e))
+
+
+class ScanResultsLoadWorker(QThread):
+    """
+    Worker thread for loading scan results from database.
+
+    Prevents GUI freezing when loading large scan sessions (5000+ files)
+    by performing database I/O and computation in background.
+
+    Loads from Round-Up's scan_files table.
+    """
+
+    progress = pyqtSignal(str, int, int)  # message, current, total
+    finished = pyqtSignal(list, dict, dict)  # files, folder_structure, duplicate_groups
+    error = pyqtSignal(str)
+
+    def __init__(
+        self,
+        scan_session_id: int,
+        inventory_repo: InventoryRepository,
+        roundup_db_path: Optional[Path] = None,
+        roundup_manager: Optional[Any] = None,
+        roundup: Optional[Any] = None,
+    ):
+        """
+        Initialize scan results loader.
+
+        Args:
+            scan_session_id: Unused, kept for backwards compatibility
+            inventory_repo: Unused, kept for backwards compatibility
+            roundup_db_path: Path to Round-Up's data.db
+            roundup_manager: RoundUpManager instance for caching (optional)
+            roundup: RoundUp instance for caching (optional)
+        """
+        super().__init__()
+        self.scan_session_id = scan_session_id
+        self.inventory_repo = inventory_repo
+        self.roundup_db_path = roundup_db_path
+        self.roundup_manager = roundup_manager
+        self.roundup = roundup
+
+    def run(self):
+        """Load scan results and compute statistics in background thread."""
+        import sqlite3
+        import json
+        from collections import defaultdict
+
+        try:
+            # Check for cached structure data first (fast path)
+            cached_data = None
+            if self.roundup_manager and self.roundup:
+                self.progress.emit("Checking cache...", 0, 4)
+                try:
+                    cached_data = self.roundup_manager.get_structure_cache(self.roundup)
+                except Exception as e:
+                    logger.warning("Failed to check structure cache: %s", e)
+
+            # Load from Round-Up database (no legacy fallback)
+            scanned_files = None
+
+            if self.roundup_db_path and self.roundup_db_path.exists():
+                scanned_files = self._load_from_roundup(sqlite3, json)
+                logger.info("Loaded scan data from Round-Up database")
+            else:
+                raise ValueError("No Round-Up database found. Please run a scan first.")
+
+            # If we have valid cached data, use it instead of recomputing
+            if cached_data and cached_data.get('scan_file_count') == len(scanned_files):
+                self.progress.emit("Using cached statistics...", 3, 4)
+                folder_structure = cached_data.get('folder_structure', {})
+                duplicate_groups = cached_data.get('duplicate_groups', {})
+                logger.info("Using cached structure: %d folders, %d duplicate groups",
+                           len(folder_structure), len(duplicate_groups))
+                self.progress.emit("Load complete! (cached)", 4, 4)
+                self.finished.emit(scanned_files, folder_structure, duplicate_groups)
+                return
+
+            self.progress.emit("Computing folder structure...", 2, 4)
+
+            # Step 3: Compute folder structure
+            folder_structure = {}
+            folder_stats = defaultdict(
+                lambda: {"file_count": 0, "total_size": 0, "file_types": defaultdict(int)}
+            )
+
+            for record in scanned_files:
+                try:
+                    parent = record.absolute_path.parent
+                    stats = folder_stats[parent]
+                    stats["file_count"] += 1
+                    stats["total_size"] += record.size_bytes
+                    stats["file_types"][record.extension] += 1
+                except Exception as e:
+                    logger.warning("Error processing record for folder structure: %s", e)
+                    continue
+
+            # Convert defaultdict to regular dict for signal emission
+            folder_structure = {
+                k: {
+                    "file_count": v["file_count"],
+                    "total_size": v["total_size"],
+                    "file_types": dict(v["file_types"]),
+                }
+                for k, v in folder_stats.items()
+            }
+
+            self.progress.emit("Detecting duplicates...", 3, 4)
+
+            # Step 4: Compute duplicate groups
+            md5_map = defaultdict(list)
+            for record in scanned_files:
+                md5_value = getattr(record, "md5_hash", None)
+                if md5_value:
+                    md5_map[md5_value].append(record)
+
+            duplicate_groups = {
+                md5: records for md5, records in md5_map.items() if len(records) >= 2
+            }
+
+            # Save to cache for next time (if Round-Up mode)
+            if self.roundup_manager and self.roundup:
+                try:
+                    self.roundup_manager.save_structure_cache(
+                        self.roundup, folder_structure, duplicate_groups, len(scanned_files)
+                    )
+                except Exception as e:
+                    logger.warning("Failed to save structure cache: %s", e)
+
+            self.progress.emit("Load complete!", 4, 4)
+
+            self.finished.emit(scanned_files, folder_structure, duplicate_groups)
+            logger.info(
+                "Loaded %d files for session %d (%d folders, %d duplicate groups)",
+                len(scanned_files),
+                self.scan_session_id,
+                len(folder_structure),
+                len(duplicate_groups),
+            )
+
+        except sqlite3.Error as e:
+            logger.error("Database error loading scan results: %s", e, exc_info=True)
+            self.error.emit(f"Database error: {e}")
+        except json.JSONDecodeError as e:
+            logger.error("Invalid scan options JSON: %s", e, exc_info=True)
+            self.error.emit(f"Invalid session data: {e}")
+        except ValueError as e:
+            logger.error("Scan session validation error: %s", e, exc_info=True)
+            self.error.emit(str(e))
+        except Exception as e:
+            logger.error("Failed to load scan results: %s", e, exc_info=True)
+            self.error.emit(str(e))
+
+    def _load_from_roundup(self, sqlite3, json) -> List[FileRecord]:
+        """Load scan results from Round-Up's scan_files table."""
+        self.progress.emit("Loading from Round-Up database...", 0, 4)
+
+        conn = sqlite3.connect(str(self.roundup_db_path))
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT COUNT(*) FROM scan_files')
+        total_count = cursor.fetchone()[0]
+
+        if total_count == 0:
+            conn.close()
+            raise ValueError("No scan data found in Round-Up database")
+
+        self.progress.emit(f"Loading {total_count} files from Round-Up...", 1, 4)
+
+        cursor.execute('''
+            SELECT id, path, relative_path, filename, extension, size_bytes,
+                   md5_hash, created_at, modified_at, metadata_json
+            FROM scan_files
+            ORDER BY path
+        ''')
+
+        scanned_files: List[FileRecord] = []
+        for row in cursor.fetchall():
+            try:
+                # Parse metadata JSON if present
+                metadata = {}
+                if row['metadata_json']:
+                    try:
+                        metadata = json.loads(row['metadata_json'])
+                    except json.JSONDecodeError:
+                        pass
+
+                # Create FileRecord from Round-Up data
+                record = FileRecord(
+                    absolute_path=Path(row['path']),
+                    relative_path=row['relative_path'] or '',
+                    filename=row['filename'],
+                    extension=row['extension'] or '',
+                    size_bytes=row['size_bytes'] or 0,
+                    md5_hash=row['md5_hash'] or '',
+                    created_at=row['created_at'] or '',
+                    modified_at=row['modified_at'] or '',
+                )
+                scanned_files.append(record)
+            except Exception as e:
+                logger.warning("Error converting Round-Up row to FileRecord: %s", e)
+                continue
+
+        conn.close()
+        logger.info("Loaded %d files from Round-Up database", len(scanned_files))
+        return scanned_files
+
 

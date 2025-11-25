@@ -1,0 +1,29 @@
+## Phase 22: Jellyfin-Aware LLM Analysis & Metadata Lookup
+**Date:** 2025-11-14 15:16:00 | **Status:** Complete
+
+### Accomplishment
+Successfully enhanced the LLM analysis (Point 3) and metadata lookup (Point 4) phases to be "Jellyfin-Aware". The application now leverages existing metadata from Jellyfin to make the reorganization process faster, more accurate, and more efficient.
+
+### Implementation Summary
+
+1.  **Jellyfin-Aware LLM Analysis:**
+    *   Modified `LLMAnalysisWorker` in `jelly_rancher_clean.py` to accept the full list of `scanned_files`.
+    *   The `_build_structure_summary` method now includes a `jellyfin_provider_ids` field for each folder, populated with the TMDB, TVDB, or IMDb IDs of any files in that folder that were successfully matched with Jellyfin.
+    *   This provides the LLM with crucial context, allowing it to make more intelligent reorganization proposals based on canonical identifiers rather than just file and folder names.
+
+2.  **Jellyfin-Aware Metadata Lookup:**
+    *   Modified `MediaMetadataLookup` in `scripts/media/media_metadata_lookup.py` to accept an optional `jellyfin_provider_ids` dictionary in its `lookup_movie` and `lookup_tv_show` methods.
+    *   If a TMDB or TVDB ID is provided, the lookup class now performs a direct lookup using that ID, bypassing the less reliable search-by-name functionality.
+    *   New private methods `_get_movie_details_tmdb`, `_get_tv_details_tmdb`, and `_get_tv_details_tmdb_by_external_id` were added to handle these direct lookups.
+    *   The `MetadataLookupWorker` in `jelly_rancher_clean.py` was updated to pass these `ProviderIds` from the `scanned_files` to the `MediaMetadataLookup` methods.
+
+### Key Breakthrough
+By passing Jellyfin's existing `ProviderIds` to the metadata lookup phase, we can significantly reduce API calls to TMDB/OMDb. If Jellyfin already knows the canonical ID for a piece of media, we can trust it and avoid a redundant, time-consuming, and potentially inaccurate search. This makes the application more robust and efficient, especially for large libraries that are already partially organized in Jellyfin.
+
+### Files Modified
+- `jelly_rancher_clean.py`: Updated `LLMAnalysisWorker`, `MetadataLookupWorker`, `step_3_llm_proposal`, and `step_4_metadata`.
+- `scripts/media/media_metadata_lookup.py`: Updated `lookup_movie` and `lookup_tv_show` methods and added new private methods for direct ID lookups.
+
+### Next Steps
+With the "Context (Read-Only)" phase of the Jellyfin integration now complete for Points 1-4 of the workflow, the application is fully "Jellyfin-Aware" during its analysis and planning stages. The next logical step is to begin work on **Point 5: Produce Editable Table for Review**, which will display all of this enriched data to the user for final approval before any file operations are executed.
+

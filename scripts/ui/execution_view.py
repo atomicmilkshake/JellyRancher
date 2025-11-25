@@ -256,7 +256,7 @@ class ExecutionWorker(QThread):
 class ExecutionView(QWidget):
     """
     Execution View - Real-time execution monitor.
-    
+
     Features:
     - Real-time progress bar
     - Transaction log viewer
@@ -264,7 +264,10 @@ class ExecutionView(QWidget):
     - Rollback capability
     - Post-execution summary
     """
-    
+
+    # Signal emitted when execution completes (success_count, fail_count, batch_id)
+    execution_completed = pyqtSignal(int, int, str)
+
     def __init__(self, project: Project, project_manager: ProjectManager, action_plan_id: int = None, parent=None):
         """
         Initialize the Execution View widget.
@@ -738,6 +741,10 @@ class ExecutionView(QWidget):
                     f"Batch ID: {batch_id}\n"
                     f"Use 'Rollback All' if you need to undo these changes."
                 )
+
+            # Emit completion signal for Studio to update Round-Up state
+            self.execution_completed.emit(success_count, fail_count, batch_id)
+
         except Exception as e:
             logger.error(f"Failed to handle execution completion: {e}", exc_info=True)
             QMessageBox.critical(

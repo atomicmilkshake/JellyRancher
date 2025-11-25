@@ -551,6 +551,49 @@ class ReviewView(QWidget):
             except Exception as ui_error:
                 logger.error(f"Failed to update UI after action plan error: {ui_error}", exc_info=True)
     
+    def set_preloaded_operations(self, operations: List[ProposedOperation]):
+        """
+        Set pre-loaded operations from AnalysisView.
+        
+        This allows the Analysis tab to pass extrapolated file-level operations
+        directly to the Review tab, bypassing the normal action plan generation.
+        
+        Args:
+            operations: List of ProposedOperation objects from ExtrapolationEngine
+        """
+        try:
+            if not operations:
+                logger.warning("set_preloaded_operations called with empty list")
+                self.lbl_summary.setText("No operations to review.")
+                return
+            
+            self.operations = operations
+            self.filtered_operations = operations.copy()
+            
+            # Populate the table
+            self._populate_table()
+            
+            # Enable action buttons
+            self.btn_export.setEnabled(True)
+            self.btn_dry_run.setEnabled(True)
+            
+            # Update summary
+            approved = sum(1 for op in self.operations if op.user_approved)
+            moves = sum(1 for op in self.operations if op.action_type == ActionType.MOVE)
+            reviews = sum(1 for op in self.operations if op.action_type == ActionType.REVIEW)
+            
+            self.lbl_summary.setText(
+                f"Loaded {len(operations)} operations from Analysis | "
+                f"Moves: {moves} | Review needed: {reviews} | Approved: {approved}"
+            )
+            self.lbl_summary.setStyleSheet("color: #2ecc71; font-weight: bold;")
+            
+            logger.info(f"Set {len(operations)} preloaded operations in ReviewView")
+            
+        except Exception as e:
+            logger.error(f"Failed to set preloaded operations: {e}", exc_info=True)
+            QMessageBox.critical(self, "Error", f"Failed to load operations:\n{e}")
+    
     def _populate_table(self):
         """
         Populate the operations review table with proposed operations.

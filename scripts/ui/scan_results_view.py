@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QTableWidget, QTableWidgetItem, QTreeWidget, QTreeWidgetItem,
     QHeaderView, QGroupBox, QLineEdit, QMessageBox, QCheckBox,
-    QSlider, QSpinBox, QFileDialog, QTabWidget
+    QSlider, QSpinBox, QFileDialog, QTabWidget, QProgressBar
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QColor
@@ -26,6 +26,8 @@ from PyQt6.QtGui import QFont, QColor
 from scripts.core.file_scanner import FileRecord, ScanStatistics
 from scripts.core.project_manager import ProjectManager, Project
 from scripts.core.inventory_repository import InventoryRepository
+from scripts.core.jellyfin_config import JellyfinConfigManager
+from scripts.core.workers import ScanResultsLoadWorker
 import sqlite3
 import csv
 import json
@@ -93,22 +95,31 @@ class ScanResultsView(QWidget):
             self.inventory_repo = InventoryRepository()
             self.scan_session_id = scan_session_id
 
+            # Get Round-Up database path if using adapter pattern
+            self.roundup_db_path: Optional[Path] = None
+            if hasattr(project, 'roundup') and project.roundup:
+                self.roundup_db_path = project.roundup.path / "data.db"
+                logger.debug(f"Using Round-Up database: {self.roundup_db_path}")
+
             self.scanned_files: List[FileRecord] = []
             self.filtered_files: List[FileRecord] = []
             self.folder_structure: Dict[Path, Dict[str, Any]] = {}
             self.duplicate_groups: Dict[str, List[FileRecord]] = {}
-            
+
             # Filter state
             self.excluded_folders: Set[Path] = set()
             self.excluded_files: Set[Path] = set()
-            
+
             # File type categories
             self.video_extensions = {'.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv', '.m4v', '.ts', '.webm'}
             self.subtitle_extensions = {'.srt', '.sub', '.idx', '.ass', '.ssa', '.vtt'}
             self.image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff'}
 
+            # Worker reference for async loading
+            self.load_worker: Optional[ScanResultsLoadWorker] = None
+
             self._init_ui()
-            self._load_scan_results()
+            self._load_scan_results_async()
             logger.info(f"ScanResultsView initialized for session ID: {scan_session_id}")
         except Exception as e:
             logger.error(f"Failed to initialize ScanResultsView: {e}", exc_info=True)
@@ -136,6 +147,25 @@ class ScanResultsView(QWidget):
             title = QLabel(f"📊 Scan Results - Session #{self.scan_session_id}")
             title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
             title.setStyleSheet("padding: 10px;")  # Color from stylesheet
+
+            # Progress bar for async loading (hidden by default)
+            self.progress_container = QWidget()
+            progress_layout = QVBoxLayout(self.progress_container)
+            progress_layout.setContentsMargins(10, 5, 10, 5)
+            progress_layout.setSpacing(4)
+
+            self.progress_status = QLabel("Loading scan results...")
+            self.progress_status.setStyleSheet("font-weight: bold;")
+            progress_layout.addWidget(self.progress_status)
+
+            self.progress_bar = QProgressBar()
+            self.progress_bar.setMinimum(0)
+            self.progress_bar.setMaximum(4)  # 4 steps in loading
+            self.progress_bar.setValue(0)
+            self.progress_bar.setTextVisible(True)
+            progress_layout.addWidget(self.progress_bar)
+
+            self.progress_container.setVisible(False)  # Hidden until loading starts
 
             # NEW: TabWidget for reorganization (top tabs)
             tab_widget = QTabWidget()
@@ -174,11 +204,12 @@ class ScanResultsView(QWidget):
             overview_layout.addWidget(overview_group)
             tab_widget.addTab(overview_widget, "📁 Overview")
 
-            # Main layout: title + tabs (stretch)
+            # Main layout: title + progress + tabs (stretch)
             layout = QVBoxLayout(self)
             layout.setSpacing(0)
             layout.setContentsMargins(10, 10, 10, 10)
             layout.addWidget(title)
+            layout.addWidget(self.progress_container)
             layout.addWidget(tab_widget, 1)
             self.setLayout(layout)
 
@@ -319,86 +350,244 @@ class ScanResultsView(QWidget):
 
     def _create_filter_preview(self) -> QGroupBox:
         """
-        Compact preview section for Filters tab (below filters).
+        Rich statistics preview section for Filters tab.
 
-        Shows: totals, reduction, types, dups, size avg, Jellyfin matches.
+        Shows comprehensive scan statistics:
+        - Total files and size
+        - File type breakdown with counts and percentages
+        - Size distribution (min, max, avg, median)
+        - Folder statistics
+        - Duplicate information
+        - Jellyfin matches
+        - Extension breakdown (top 10)
+        - Filter reduction impact
+
         Updates dynamically via _update_filter_preview().
         """
-        group = QGroupBox("📈 Preview")
+        group = QGroupBox("📊 Scan Statistics")
         layout = QVBoxLayout()
-        layout.setSpacing(2)
-        layout.setContentsMargins(10, 6, 10, 6)
+        layout.setSpacing(4)
+        layout.setContentsMargins(12, 10, 12, 10)
 
+        # Row 1: Totals (bold header)
         self.preview_totals = QLabel("--")
+        self.preview_totals.setStyleSheet("font-weight: bold; font-size: 12px;")
         layout.addWidget(self.preview_totals)
 
+        # Row 2: Filter reduction
         self.preview_reduction = QLabel("--")
         self.preview_reduction.setStyleSheet("font-weight: bold;")
         layout.addWidget(self.preview_reduction)
 
+        # Separator
+        sep1 = QLabel("─" * 40)
+        sep1.setStyleSheet("color: #555;")
+        layout.addWidget(sep1)
+
+        # Row 3: File Types breakdown
+        types_header = QLabel("📁 File Types:")
+        types_header.setStyleSheet("font-weight: bold; margin-top: 4px;")
+        layout.addWidget(types_header)
         self.preview_types = QLabel("--")
         layout.addWidget(self.preview_types)
 
-        stats_layout = QHBoxLayout()
+        # Row 4: Size Distribution
+        size_header = QLabel("📏 Size Distribution:")
+        size_header.setStyleSheet("font-weight: bold; margin-top: 4px;")
+        layout.addWidget(size_header)
+        self.preview_size_stats = QLabel("--")
+        layout.addWidget(self.preview_size_stats)
+
+        # Row 5: Folder Statistics
+        folder_header = QLabel("📂 Folder Statistics:")
+        folder_header.setStyleSheet("font-weight: bold; margin-top: 4px;")
+        layout.addWidget(folder_header)
+        self.preview_folders = QLabel("--")
+        layout.addWidget(self.preview_folders)
+
+        # Row 6: Duplicates and Jellyfin
+        extras_layout = QHBoxLayout()
         self.preview_dups = QLabel("--")
-        stats_layout.addWidget(self.preview_dups)
+        extras_layout.addWidget(self.preview_dups)
         self.preview_jf = QLabel("--")
         self.preview_jf.setToolTip('Files already in Jellyfin library (matched by provider IDs/metadata during scan).')
-        stats_layout.addWidget(self.preview_jf)
-        self.preview_size = QLabel("--")
-        stats_layout.addStretch()
-        stats_layout.addWidget(self.preview_size)
-        layout.addLayout(stats_layout)
+        extras_layout.addWidget(self.preview_jf)
+        extras_layout.addStretch()
+        layout.addLayout(extras_layout)
+
+        # Row 7: Top Extensions
+        ext_header = QLabel("🏷️ Top Extensions:")
+        ext_header.setStyleSheet("font-weight: bold; margin-top: 4px;")
+        layout.addWidget(ext_header)
+        self.preview_extensions = QLabel("--")
+        self.preview_extensions.setWordWrap(True)
+        layout.addWidget(self.preview_extensions)
+
+        # Legacy compatibility
+        self.preview_types_legacy = self.preview_types
+        self.preview_size = QLabel("")  # Hidden, for compatibility
 
         group.setLayout(layout)
-        group.setMaximumHeight(160)
+        group.setMinimumHeight(280)
         return group
 
     def _update_filter_preview(self):
-        """Update preview labels with computed stats."""
+        """Update preview labels with comprehensive scan statistics."""
         try:
             total = len(self.scanned_files)
             filtered = len(self.filtered_files)
+
             if total == 0:
-                self.preview_totals.setText("No scan data")
+                self.preview_totals.setText("No scan data - run a scan first")
+                self.preview_reduction.setText("--")
+                self.preview_types.setText("--")
+                self.preview_size_stats.setText("--")
+                self.preview_folders.setText("--")
+                self.preview_dups.setText("--")
+                self.preview_jf.setText("--")
+                self.preview_extensions.setText("--")
                 return
 
-            total_gb = sum(r.size_bytes for r in self.scanned_files) / (1024**3)
-            self.preview_totals.setText(f"{total} files | {total_gb:.2f} GB | #{self.scan_session_id}")
+            # === TOTALS ===
+            total_bytes = sum(r.size_bytes for r in self.scanned_files)
+            total_gb = total_bytes / (1024**3)
+            self.preview_totals.setText(
+                f"🔢 {total:,} files | {total_gb:.2f} GB total | Session #{self.scan_session_id}"
+            )
 
-            red_pct = 100 * (1 - filtered / total)
-            self.preview_reduction.setText(f"{filtered}/{total} ({red_pct:.1f}% reduction)")
-            self.preview_reduction.setStyleSheet(f"font-weight: bold; color: %s;" % 
-                ("#27ae60" if red_pct > 20 else "#f39c12" if red_pct > 5 else "#95a5a6"))
+            # === FILTER REDUCTION ===
+            red_pct = 100 * (1 - filtered / total) if total > 0 else 0
+            filtered_bytes = sum(r.size_bytes for r in self.filtered_files)
+            filtered_gb = filtered_bytes / (1024**3)
+            color = "#27ae60" if red_pct > 20 else "#f39c12" if red_pct > 5 else "#95a5a6"
+            self.preview_reduction.setText(
+                f"🎯 After filters: {filtered:,}/{total:,} files ({filtered_gb:.2f} GB) — {red_pct:.1f}% reduction"
+            )
+            self.preview_reduction.setStyleSheet(f"font-weight: bold; color: {color};")
 
-            # Types
-            type_c = {"Video": 0, "Subtitle": 0, "Image": 0, "Other": 0}
-            for r in self.filtered_files:
+            # === FILE TYPES BREAKDOWN ===
+            type_counts = {"Video": 0, "Subtitle": 0, "Image": 0, "Other": 0}
+            type_sizes = {"Video": 0, "Subtitle": 0, "Image": 0, "Other": 0}
+            for r in self.scanned_files:
                 ext = r.extension.lower()
-                if ext in self.video_extensions: type_c["Video"] += 1
-                elif ext in self.subtitle_extensions: type_c["Subtitle"] += 1
-                elif ext in self.image_extensions: type_c["Image"] += 1
-                else: type_c["Other"] += 1
-            types_str = ", ".join(f"{k}:{v}" for k,v in type_c.items())
-            self.preview_types.setText(types_str)
+                size = r.size_bytes or 0
+                if ext in self.video_extensions:
+                    type_counts["Video"] += 1
+                    type_sizes["Video"] += size
+                elif ext in self.subtitle_extensions:
+                    type_counts["Subtitle"] += 1
+                    type_sizes["Subtitle"] += size
+                elif ext in self.image_extensions:
+                    type_counts["Image"] += 1
+                    type_sizes["Image"] += size
+                else:
+                    type_counts["Other"] += 1
+                    type_sizes["Other"] += size
 
-            # Dups
+            types_parts = []
+            for typ in ["Video", "Subtitle", "Image", "Other"]:
+                count = type_counts[typ]
+                if count > 0:
+                    pct = 100 * count / total
+                    size_mb = type_sizes[typ] / (1024**2)
+                    types_parts.append(f"{typ}: {count:,} ({pct:.1f}%, {size_mb:.0f} MB)")
+            self.preview_types.setText(" | ".join(types_parts) if types_parts else "No files")
+
+            # === SIZE DISTRIBUTION ===
+            sizes = [r.size_bytes for r in self.scanned_files if r.size_bytes and r.size_bytes > 0]
+            if sizes:
+                min_mb = min(sizes) / (1024**2)
+                max_mb = max(sizes) / (1024**2)
+                avg_mb = sum(sizes) / len(sizes) / (1024**2)
+                sorted_sizes = sorted(sizes)
+                median_mb = sorted_sizes[len(sorted_sizes) // 2] / (1024**2)
+
+                # Format sizes appropriately
+                def fmt_size(mb):
+                    if mb >= 1024:
+                        return f"{mb/1024:.1f} GB"
+                    elif mb >= 1:
+                        return f"{mb:.0f} MB"
+                    else:
+                        return f"{mb*1024:.0f} KB"
+
+                self.preview_size_stats.setText(
+                    f"Min: {fmt_size(min_mb)} | Max: {fmt_size(max_mb)} | "
+                    f"Avg: {fmt_size(avg_mb)} | Median: {fmt_size(median_mb)}"
+                )
+            else:
+                self.preview_size_stats.setText("No size data available")
+
+            # === FOLDER STATISTICS ===
+            unique_folders = set()
+            depth_counts = {}
+            for r in self.scanned_files:
+                try:
+                    parent = r.absolute_path.parent
+                    unique_folders.add(parent)
+                    depth = len(parent.parts)
+                    depth_counts[depth] = depth_counts.get(depth, 0) + 1
+                except Exception:
+                    pass
+
+            if unique_folders:
+                max_depth = max(depth_counts.keys()) if depth_counts else 0
+                min_depth = min(depth_counts.keys()) if depth_counts else 0
+                self.preview_folders.setText(
+                    f"{len(unique_folders):,} unique folders | "
+                    f"Depth: {min_depth}-{max_depth} levels | "
+                    f"Avg files/folder: {total / len(unique_folders):.1f}"
+                )
+            else:
+                self.preview_folders.setText("No folder data")
+
+            # === DUPLICATES ===
             dups = len(self.duplicate_groups)
-            self.preview_dups.setText(f"Dups: {dups} groups")
+            dup_files = sum(len(files) for files in self.duplicate_groups.values())
+            if dups > 0:
+                dup_size = sum(
+                    sum(r.size_bytes for r in files[1:])  # Skip first (keep one)
+                    for files in self.duplicate_groups.values()
+                )
+                dup_gb = dup_size / (1024**3)
+                self.preview_dups.setText(f"🔁 Dups: {dups} groups ({dup_files} files, {dup_gb:.2f} GB recoverable)")
+            else:
+                self.preview_dups.setText("🔁 Dups: None detected")
 
-            # Jellyfin
-            jf_matched = sum(1 for r in self.filtered_files if getattr(r, 'jellyfin_matched', False))
-            jf_pct = 100 * jf_matched / filtered if filtered else 0
-            self.preview_jf.setText(f"JF: {jf_matched}/{filtered} ({jf_pct:.0f}%)")
+            # === JELLYFIN MATCHES ===
+            jf_matched = sum(1 for r in self.scanned_files if getattr(r, 'jellyfin_matched', False))
+            jf_pct = 100 * jf_matched / total if total > 0 else 0
+            if jf_matched > 0:
+                self.preview_jf.setText(f"📺 Jellyfin: {jf_matched:,}/{total:,} ({jf_pct:.0f}%)")
+            else:
+                # Check Jellyfin config to provide informative message
+                try:
+                    jf_config = JellyfinConfigManager()
+                    if not jf_config.is_configured():
+                        self.preview_jf.setText("📺 Jellyfin: Not configured")
+                        self.preview_jf.setToolTip("Configure Jellyfin server in Tools → Settings to enable cross-reference")
+                    elif not jf_config.is_enabled():
+                        self.preview_jf.setText("📺 Jellyfin: Disabled")
+                        self.preview_jf.setToolTip("Jellyfin integration is disabled in settings")
+                    else:
+                        self.preview_jf.setText("📺 Jellyfin: 0 matches")
+                        self.preview_jf.setToolTip("Jellyfin configured but no scanned files matched library items")
+                except Exception:
+                    self.preview_jf.setText("📺 Jellyfin: No matches")
 
-            # Size avg
-            sizes = [r.size_bytes for r in self.filtered_files if r.size_bytes]
-            avg_mb = sum(sizes) / len(sizes) / (1024*1024) if sizes else 0
-            self.preview_size.setText(f"Avg: {avg_mb:.0f} MB")
+            # === TOP EXTENSIONS ===
+            ext_counts = {}
+            for r in self.scanned_files:
+                ext = r.extension.lower() or "(none)"
+                ext_counts[ext] = ext_counts.get(ext, 0) + 1
+
+            sorted_exts = sorted(ext_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+            ext_parts = [f".{ext}: {count:,}" for ext, count in sorted_exts]
+            self.preview_extensions.setText(" | ".join(ext_parts) if ext_parts else "No extensions")
 
         except Exception as e:
-            logger.warning(f"Preview update failed: {e}")
-            self.preview_reduction.setText("Update error")
+            logger.warning(f"Preview update failed: {e}", exc_info=True)
+            self.preview_totals.setText(f"Error computing statistics: {e}")
 
     def _create_results_section(self) -> QGroupBox:
         """
@@ -533,109 +722,156 @@ class ScanResultsView(QWidget):
             logger.error(f"Failed to create overview section: {e}", exc_info=True)
             raise
 
-    def _load_scan_results(self):
+    def _load_scan_results_async(self):
         """
-        Load scan results from database by session ID.
-        
-        Retrieves scan session metadata and associated file records from
-        the database, then populates the UI with the results.
-        
-        The loading process:
-        1. Connects to media library database
-        2. Retrieves session metadata (file count, total size, scan options)
-        3. Loads FileRecord objects from inventory repository
-        4. Computes folder structure hierarchy
-        5. Populates results table with file data
-        6. Updates overview trees and statistics
-        7. Enables export and analysis functionality
-        
-        Data Validation:
-            - Verifies session exists in database
-            - Checks file count consistency between metadata and loaded records
-            - Validates JSON scan options format
-        
-        Error Handling:
-            - Database errors: Shows connection/query failure dialogs
-            - JSON errors: Shows data corruption warnings
-            - Session not found: Shows validation error dialogs
-            - General errors: Shows generic load failure dialogs
-        
-        UI Updates:
-            - Results table populated with sortable file data
-            - Overview trees show folder hierarchy and duplicates
-            - Summary label shows file count and total size
-            - Export and analysis buttons enabled for successful loads
+        Start async loading of scan results from database.
+
+        Creates a ScanResultsLoadWorker to load data in background thread,
+        preventing UI freezing for large scan sessions (5000+ files).
+
+        Shows progress bar during loading, hides on completion.
         """
         try:
-            # Load session metadata
-            conn = sqlite3.connect("data/media_library.db")
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                SELECT total_files, total_size_bytes, scan_options_json 
-                FROM project_scan_sessions 
-                WHERE id = ?
-            ''', (self.scan_session_id,))
-            
-            row = cursor.fetchone()
-            if not row:
-                raise ValueError(f"Scan session {self.scan_session_id} not found")
-            
-            total_files, total_size_bytes, options_json = row
-            options = json.loads(options_json) if options_json else {}
-            
-            conn.close()
-            
-            # Load FileRecords from inventory
-            inventory_sessions = options.get('inventory_session_ids', [])
-            self.scanned_files = []
-            for session_id in inventory_sessions:
-                self.scanned_files.extend(self.inventory_repo.get_all_files(session_id))
-            
-            if len(self.scanned_files) != total_files:
-                logger.warning(f"Mismatch: DB reports {total_files} files, loaded {len(self.scanned_files)}")
-            
-            # Initialize filtered_files to all files
+            # Show progress UI
+            self.progress_container.setVisible(True)
+            self.progress_bar.setValue(0)
+            self.progress_status.setText("Starting load...")
+            self.lbl_summary.setText("Loading scan results...")
+
+            # Create and configure worker
+            # Pass Round-Up database path for Round-Up mode (preferred)
+            # Falls back to legacy mode if not available
+            # Also pass roundup_manager and roundup for caching support
+            roundup_manager = None
+            roundup = None
+            if hasattr(self.project, 'roundup') and self.project.roundup:
+                roundup = self.project.roundup
+                roundup_manager = self.project.manager
+
+            self.load_worker = ScanResultsLoadWorker(
+                scan_session_id=self.scan_session_id,
+                inventory_repo=self.inventory_repo,
+                roundup_db_path=self.roundup_db_path,
+                roundup_manager=roundup_manager,
+                roundup=roundup,
+            )
+
+            # Connect signals
+            self.load_worker.progress.connect(self._on_load_progress)
+            self.load_worker.finished.connect(self._on_load_finished)
+            self.load_worker.error.connect(self._on_load_error)
+
+            # Start background loading
+            self.load_worker.start()
+            logger.info(f"Started async load for session {self.scan_session_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to start async load: {e}", exc_info=True)
+            self.progress_container.setVisible(False)
+            self.lbl_summary.setText(f"Error: {str(e)}")
+            QMessageBox.critical(
+                self, "Load Error", f"Failed to start loading:\n\n{str(e)}"
+            )
+
+    def _on_load_progress(self, message: str, current: int, total: int):
+        """
+        Handle progress updates from the load worker.
+
+        Args:
+            message: Status message to display
+            current: Current step (0-based)
+            total: Total number of steps
+        """
+        try:
+            self.progress_status.setText(message)
+            self.progress_bar.setMaximum(total)
+            self.progress_bar.setValue(current)
+        except Exception as e:
+            logger.warning(f"Error updating progress: {e}")
+
+    def _on_load_finished(
+        self,
+        scanned_files: List[FileRecord],
+        folder_structure: Dict[Path, Dict[str, Any]],
+        duplicate_groups: Dict[str, List[FileRecord]],
+    ):
+        """
+        Handle successful completion of async load.
+
+        Populates UI with loaded data on the main thread.
+
+        Args:
+            scanned_files: List of loaded FileRecord objects
+            folder_structure: Computed folder hierarchy
+            duplicate_groups: MD5-keyed duplicate file groups
+        """
+        try:
+            # Hide progress UI
+            self.progress_container.setVisible(False)
+
+            # Store loaded data
+            self.scanned_files = scanned_files
+            self.folder_structure = folder_structure
+            self.duplicate_groups = duplicate_groups
+
+            # Initialize filtered files
             self.filtered_files = self.scanned_files.copy()
-            
-            # Compute folder structure
-            self._compute_folder_structure()
-            
-            # Populate UI
+
+            # Populate UI (must happen on main thread)
             self._populate_results_table(self.scanned_files)
             self._update_overview()
-            self._update_filter_preview() # Call after _load_scan_results
-            
+            self._update_filter_preview()
+
             # Apply initial filters
             self._apply_filters()
-            
+
             # Update summary
-            total_size_gb = total_size_bytes / (1024 ** 3) if total_size_bytes else 0
+            total_size_bytes = sum(r.size_bytes for r in self.scanned_files)
+            total_size_gb = total_size_bytes / (1024**3) if total_size_bytes else 0
             self.lbl_summary.setText(
                 f"Loaded {len(self.scanned_files)} files ({total_size_gb:.2f} GB) "
                 f"from session #{self.scan_session_id}"
             )
-            
+
+            # Enable buttons
             self.btn_export.setEnabled(True)
             self.btn_send_to_analysis.setEnabled(True)
-            logger.info(f"Loaded {len(self.scanned_files)} files for session {self.scan_session_id}")
-            
-        except sqlite3.Error as e:
-            logger.error(f"Database error loading scan results: {e}", exc_info=True)
-            self.lbl_summary.setText(f"Database error loading results: {str(e)}")
-            QMessageBox.critical(self, "Database Error", f"Failed to load scan results from database:\n\n{str(e)}")
-        except json.JSONDecodeError as e:
-            logger.error(f"Invalid scan options JSON: {e}", exc_info=True)
-            self.lbl_summary.setText("Error: Invalid scan session data")
-            QMessageBox.critical(self, "Data Error", f"Invalid scan session configuration:\n\n{str(e)}")
-        except ValueError as e:
-            logger.error(f"Scan session validation error: {e}", exc_info=True)
-            self.lbl_summary.setText(f"Error: {str(e)}")
-            QMessageBox.critical(self, "Session Error", f"Scan session error:\n\n{str(e)}")
+
+            logger.info(
+                f"Async load complete: {len(self.scanned_files)} files, "
+                f"{len(self.folder_structure)} folders, "
+                f"{len(self.duplicate_groups)} duplicate groups"
+            )
+
         except Exception as e:
-            logger.error(f"Failed to load scan results: {e}", exc_info=True)
-            self.lbl_summary.setText(f"Error loading results: {str(e)}")
-            QMessageBox.critical(self, "Load Error", f"Failed to load scan results:\n\n{str(e)}")
+            logger.error(f"Error handling load completion: {e}", exc_info=True)
+            self.lbl_summary.setText(f"Error displaying results: {str(e)}")
+            QMessageBox.warning(
+                self, "Display Error", f"Failed to display loaded results:\n\n{str(e)}"
+            )
+
+    def _on_load_error(self, error_message: str):
+        """
+        Handle error from the load worker.
+
+        Args:
+            error_message: Error description from worker
+        """
+        try:
+            # Hide progress UI
+            self.progress_container.setVisible(False)
+
+            # Show error
+            self.lbl_summary.setText(f"Load error: {error_message}")
+            QMessageBox.critical(
+                self,
+                "Load Error",
+                f"Failed to load scan results:\n\n{error_message}",
+            )
+            logger.error(f"Async load failed: {error_message}")
+
+        except Exception as e:
+            logger.error(f"Error handling load error: {e}", exc_info=True)
     
     def _compute_folder_structure(self):
         """

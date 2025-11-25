@@ -1,0 +1,433 @@
+{
+  "metadata": {
+    "captured_at": "2025-11-21T04:29:53.626915",
+    "current_view": "Welcome",
+    "project": "Dogshit",
+    "main_window_class": "JellyRancherStudio",
+    "pyqt_version": "PyQt6",
+    "capture_method": "F12 Quick Capture"
+  },
+  "tree": {
+    "object_name": "(unnamed)",
+    "class_name": "JellyRancherStudio",
+    "isEnabled": true,
+    "isVisible": true,
+    "layout_type": "QLayout",
+    "layout_spacing": 6,
+    "layout_margins": {
+      "left": 11,
+      "top": 11,
+      "right": 11,
+      "bottom": 11
+    },
+    "children": [
+      {
+        "object_name": "(unnamed)",
+        "class_name": "QMenuBar",
+        "isEnabled": true,
+        "isVisible": true,
+        "children": [
+          {
+            "object_name": "qt_menubar_ext_button",
+            "class_name": "QToolButton",
+            "isEnabled": true
+          },
+          {
+            "object_name": "(unnamed)",
+            "class_name": "QMenu",
+            "title": "&File",
+            "isEnabled": true
+          },
+          {
+            "object_name": "(unnamed)",
+            "class_name": "QMenu",
+            "title": "&Edit",
+            "isEnabled": true
+          },
+          {
+            "object_name": "(unnamed)",
+            "class_name": "QMenu",
+            "title": "&View",
+            "isEnabled": true
+          },
+          {
+            "object_name": "(unnamed)",
+            "class_name": "QMenu",
+            "title": "&Tools",
+            "isEnabled": true
+          },
+          {
+            "object_name": "(unnamed)",
+            "class_name": "QMenu",
+            "title": "&Help",
+            "isEnabled": true
+          },
+          {
+            "object_name": "(unnamed)",
+            "class_name": "QMenu",
+            "isEnabled": true
+          }
+        ]
+      },
+      {
+        "object_name": "(unnamed)",
+        "class_name": "QMenu",
+        "title": "Open &Recent",
+        "isEnabled": true
+      },
+      {
+        "object_name": "(unnamed)",
+        "class_name": "QWidget",
+        "isEnabled": true,
+        "isVisible": true,
+        "layout_type": "QHBoxLayout",
+        "layout_spacing": 6,
+        "layout_margins": {
+          "left": 9,
+          "top": 9,
+          "right": 9,
+          "bottom": 9
+        },
+        "children": [
+          {
+            "object_name": "(unnamed)",
+            "class_name": "QSplitter",
+            "isEnabled": true,
+            "isVisible": true,
+            "children": [
+              {
+                "object_name": "(unnamed)",
+                "class_name": "QTabWidget",
+                "isEnabled": true,
+                "isVisible": true,
+                "children": [
+                  {
+                    "object_name": "qt_tabwidget_stackedwidget",
+                    "class_name": "QStackedWidget",
+                    "isEnabled": true,
+                    "isVisible": true,
+                    "layout_type": "QStackedLayout",
+                    "layout_spacing": 6,
+                    "layout_margins": {
+                      "left": 9,
+                      "top": 9,
+                      "right": 9,
+                      "bottom": 9
+                    },
+                    "children": [
+                      {
+                        "object_name": "(unnamed)",
+                        "class_name": "QWidget",
+                        "isEnabled": true,
+                        "isVisible": true,
+                        "layout_type": "QVBoxLayout",
+                        "layout_spacing": 6,
+                        "layout_margins": {
+                          "left": 9,
+                          "top": 9,
+                          "right": 9,
+                          "bottom": 9
+                        },
+                        "children": [
+                          {
+                            "object_name": "(unnamed)",
+                            "class_name": "QLabel",
+                            "text": "Welcome to JellyRancher Studio",
+                            "isEnabled": true,
+                            "isVisible": true
+                          },
+                          {
+                            "object_name": "(unnamed)",
+                            "class_name": "QLabel",
+                            "text": "Your professional media library management workspace",
+                            "isEnabled": true,
+                            "isVisible": true
+                          },
+                          {
+                            "object_name": "(unnamed)",
+                            "class_name": "QPushButton",
+                            "text": "Create New Project",
+                            "isEnabled": true,
+                            "isVisible": true
+                          },
+                          {
+                            "object_name": "(unnamed)",
+                            "class_name": "QPushButton",
+                            "text": "Open Existing Project",
+                            "isEnabled": true,
+                            "isVisible": true
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "object_name": "qt_tabwidget_tabbar",
+                    "class_name": "QTabBar",
+                    "isEnabled": true,
+                    "isVisible": true,
+                    "children": [
+                      {
+                        "object_name": "(unnamed)",
+                        "class_name": "QAbstractButton",
+                        "toolTip": "Close Tab",
+                        "isEnabled": true,
+                        "isVisible": true
+                      },
+                      {
+                        "object_name": "ScrollLeftButton",
+                        "class_name": "QToolButton"
+                      },
+                      {
+                        "object_name": "ScrollRightButton",
+                        "class_name": "QToolButton"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "object_name": "(unnamed)",
+                "class_name": "QWidget",
+                "isEnabled": true,
+                "isVisible": true,
+                "layout_type": "QVBoxLayout",
+                "layout_spacing": 6,
+                "layout_margins": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 0
+                },
+                "children": [
+                  {
+                    "object_name": "(unnamed)",
+                    "class_name": "QWidget",
+                    "isEnabled": true,
+                    "isVisible": true,
+                    "layout_type": "QVBoxLayout",
+                    "layout_spacing": 2,
+                    "layout_margins": {
+                      "left": 8,
+                      "top": 8,
+                      "right": 8,
+                      "bottom": 4
+                    },
+                    "children": [
+                      {
+                        "object_name": "(unnamed)",
+                        "class_name": "QLabel",
+                        "text": "Project Explorer",
+                        "isEnabled": true,
+                        "isVisible": true
+                      },
+                      {
+                        "object_name": "(unnamed)",
+                        "class_name": "QLabel",
+                        "text": "📁 Dogshit",
+                        "isEnabled": true,
+                        "isVisible": true
+                      }
+                    ]
+                  },
+                  {
+                    "object_name": "(unnamed)",
+                    "class_name": "QTreeWidget",
+                    "isEnabled": true,
+                    "isVisible": true,
+                    "children": [
+                      {
+                        "object_name": "qt_scrollarea_viewport",
+                        "class_name": "QWidget",
+                        "isEnabled": true,
+                        "isVisible": true
+                      },
+                      {
+                        "object_name": "qt_scrollarea_hcontainer",
+                        "class_name": "QWidget",
+                        "isEnabled": true,
+                        "layout_type": "QBoxLayout",
+                        "layout_spacing": 0,
+                        "layout_margins": {
+                          "left": 0,
+                          "top": 0,
+                          "right": 0,
+                          "bottom": 0
+                        },
+                        "children": [
+                          {
+                            "object_name": "(unnamed)",
+                            "class_name": "QScrollBar",
+                            "isEnabled": true
+                          }
+                        ]
+                      },
+                      {
+                        "object_name": "qt_scrollarea_vcontainer",
+                        "class_name": "QWidget",
+                        "isEnabled": true,
+                        "layout_type": "QBoxLayout",
+                        "layout_spacing": 0,
+                        "layout_margins": {
+                          "left": 0,
+                          "top": 0,
+                          "right": 0,
+                          "bottom": 0
+                        },
+                        "children": [
+                          {
+                            "object_name": "(unnamed)",
+                            "class_name": "QScrollBar",
+                            "isEnabled": true
+                          }
+                        ]
+                      },
+                      {
+                        "object_name": "(unnamed)",
+                        "class_name": "QHeaderView",
+                        "isEnabled": true,
+                        "children": [
+                          {
+                            "object_name": "qt_scrollarea_viewport",
+                            "class_name": "QWidget",
+                            "isEnabled": true
+                          },
+                          {
+                            "object_name": "qt_scrollarea_hcontainer",
+                            "class_name": "QWidget",
+                            "isEnabled": true,
+                            "layout_type": "QBoxLayout",
+                            "layout_spacing": 0,
+                            "layout_margins": {
+                              "left": 0,
+                              "top": 0,
+                              "right": 0,
+                              "bottom": 0
+                            },
+                            "children": [
+                              {
+                                "object_name": "(unnamed)",
+                                "class_name": "QScrollBar",
+                                "isEnabled": true
+                              }
+                            ]
+                          },
+                          {
+                            "object_name": "qt_scrollarea_vcontainer",
+                            "class_name": "QWidget",
+                            "isEnabled": true,
+                            "layout_type": "QBoxLayout",
+                            "layout_spacing": 0,
+                            "layout_margins": {
+                              "left": 0,
+                              "top": 0,
+                              "right": 0,
+                              "bottom": 0
+                            },
+                            "children": [
+                              {
+                                "object_name": "(unnamed)",
+                                "class_name": "QScrollBar",
+                                "isEnabled": true
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "object_name": "(unnamed)",
+                    "class_name": "QPushButton",
+                    "text": "▶ Scan Folders",
+                    "toolTip": "Open the Scan view to scan folders for media files. This is the first step in organizing your media library.",
+                    "isEnabled": true,
+                    "isVisible": true
+                  },
+                  {
+                    "object_name": "(unnamed)",
+                    "class_name": "QPushButton",
+                    "text": "▶ Analyze Structure",
+                    "toolTip": "Open the Analysis view to analyze folder structure using LLM, Regex, or Hybrid analysis. Detects movies, TV shows, and generates reorganization plans.",
+                    "isEnabled": true,
+                    "isVisible": true
+                  },
+                  {
+                    "object_name": "(unnamed)",
+                    "class_name": "QPushButton",
+                    "text": "▶ Review Plan",
+                    "toolTip": "Open the Review view to review and approve/reject the reorganization plan before execution. Edit proposed paths and actions.",
+                    "isEnabled": true,
+                    "isVisible": true
+                  },
+                  {
+                    "object_name": "(unnamed)",
+                    "class_name": "QPushButton",
+                    "text": "▶ Execute Operations",
+                    "toolTip": "Open the Execution view to execute the approved reorganization plan. Moves/renames files according to the plan with transaction logging and rollback support.",
+                    "isEnabled": true,
+                    "isVisible": true
+                  },
+                  {
+                    "object_name": "(unnamed)",
+                    "class_name": "QPushButton",
+                    "text": "▶ Manage Subtitles",
+                    "toolTip": "Open the Subtitles view to manage subtitle files. Detect coverage, download missing subtitles, and organize subtitle files.",
+                    "isEnabled": true,
+                    "isVisible": true
+                  }
+                ]
+              },
+              {
+                "object_name": "qt_splithandle_",
+                "class_name": "QSplitterHandle",
+                "isEnabled": true
+              },
+              {
+                "object_name": "qt_splithandle_",
+                "class_name": "QSplitterHandle",
+                "isEnabled": true,
+                "isVisible": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "object_name": "(unnamed)",
+        "class_name": "QStatusBar",
+        "isEnabled": true,
+        "isVisible": true,
+        "layout_type": "QHBoxLayout",
+        "layout_spacing": 6,
+        "layout_margins": {
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "children": [
+          {
+            "object_name": "(unnamed)",
+            "class_name": "QSizeGrip",
+            "isEnabled": true
+          },
+          {
+            "object_name": "(unnamed)",
+            "class_name": "QLabel",
+            "text": "Loaded project: Dogshit",
+            "isEnabled": true,
+            "isVisible": true
+          },
+          {
+            "object_name": "(unnamed)",
+            "class_name": "QLabel",
+            "text": "📁 Dogshit",
+            "isEnabled": true,
+            "isVisible": true
+          }
+        ]
+      }
+    ]
+  }
+}

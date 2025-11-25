@@ -25,10 +25,13 @@ Usage:
 """
 
 import json
+import logging
 import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any
+
+logger = logging.getLogger(__name__)
 
 # Try relative import first, fall back to absolute
 try:
@@ -147,10 +150,9 @@ class SnapshotManager:
                     subtitle_files.append(file_info)
             
             except Exception as e:
+                logger.warning(f"Could not process {file_path}: {e}")
                 if console:
                     console.print(f"⚠️  [yellow]Warning: Could not process {file_path}: {e}[/yellow]")
-                else:
-                    print(f"⚠️  Warning: Could not process {file_path}: {e}")
                 continue
         
         return {
@@ -188,9 +190,7 @@ class SnapshotManager:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         snapshot_id = f"snapshot_{timestamp}"
         
-        print(f"\n📸 Creating snapshot: {snapshot_id}")
-        print(f"   Type: {snapshot_type}")
-        print(f"   Root: {media_root}")
+        logger.info(f"Creating snapshot: {snapshot_id}, type={snapshot_type}, root={media_root}")
         
         # Scan directory
         scan_results = SnapshotManager._scan_directory(
@@ -217,10 +217,8 @@ class SnapshotManager:
         with open(snapshot_file, 'w', encoding='utf-8') as f:
             json.dump(snapshot, f, indent=2)
         
-        print(f"✅ Snapshot created: {snapshot_id}")
-        print(f"   Media files: {snapshot['total_media']}")
-        print(f"   Subtitle files: {snapshot['total_subtitles']}")
-        print(f"   Saved to: {snapshot_file}")
+        logger.info(f"Snapshot created: {snapshot_id} - {snapshot['total_media']} media, "
+                   f"{snapshot['total_subtitles']} subtitles -> {snapshot_file}")
         
         # Clean up old snapshots
         SnapshotManager._cleanup_old_snapshots()

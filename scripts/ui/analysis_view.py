@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
 """
-Analysis View - LLM-powered folder structure analysis
+Analysis View - Unified analysis workflow with folder-to-file extrapolation.
 
-Implements Point 2-3 from plan.md: LLM Analysis and Metadata Lookup
-Allows users to analyze folder structure and get reorganization recommendations.
+Redesigned per analysis-tab-redesign.plan.md:
+- Single scrollable view with collapsible sections (not tabs)
+- Section 1: Source Data - folder structure preview
+- Section 2: Analysis Controls - mode selector, buttons
+- Section 3: Analysis Output - LLM results, detected media
+- Section 4: Extrapolated Actions Table - color-coded file operations
+- Section 5: Snapshot & Metadata - pre-operation safety, TMDB enrichment
+
+Key feature: ExtrapolationEngine converts folder-level LLM suggestions to file-level actions.
 """
 
 import logging
@@ -12,63 +19,90 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QPushButton, QTextEdit,
-    QComboBox, QMessageBox, QGroupBox, QHBoxLayout, QProgressBar,
-    QDialog, QDialogButtonBox, QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit,
+    QComboBox, QMessageBox, QGroupBox, QProgressBar, QScrollArea,
+    QDialog, QDialogButtonBox, QTableWidget, QTableWidgetItem, QHeaderView,
+    QTreeWidget, QTreeWidgetItem, QCheckBox, QFrame, QSplitter, QApplication
 )
-from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QFont, QColor, QBrush
+from PyQt6.QtCore import Qt, pyqtSignal
 
 from scripts.core.project_manager import ProjectManager, Project
 from scripts.core.file_scanner import FileScanner, FileRecord
 from scripts.core.inventory_repository import InventoryRepository
+from scripts.core.action_plan import ProposedOperation, ActionType, Confidence
+from scripts.core.extrapolation_engine import ExtrapolationEngine
 from scripts.ai.ravenmaven_client import PoeClient
 from scripts.core.workers import LLMAnalysisWorker, MetadataLookupWorker
 from scripts.core.regex_analysis_worker import RegexAnalysisWorker, HybridAnalysisWorker
 from scripts.media.llm_structure_analyzer import LLMStructureAnalyzer
-from scripts.media.regex_structure_analyzer import RegexStructureAnalyzer
 
 logger = logging.getLogger(__name__)
 
 
+# Color scheme for confidence levels (per user spec Point 5)
+CONFIDENCE_COLORS = {
+    Confidence.HIGH: QColor(144, 238, 144),      # Green - Auto-safe
+    Confidence.MEDIUM: QColor(255, 255, 150),    # Yellow - Review recommended
+    Confidence.LOW: QColor(255, 200, 100),       # Orange - Manual decision needed
+    Confidence.MANUAL: QColor(255, 150, 150),    # Red - Cannot process
+    Confidence.NONE: QColor(173, 216, 230),      # Blue - No action needed
+}
+
+
+class CollapsibleSection(QGroupBox):
+    """A QGroupBox that can be collapsed/expanded by clicking the title."""
+    
+    def __init__(self, title: str, parent=None, initially_collapsed: bool = False):
+        super().__init__(title, parent)
+        self.setCheckable(True)
+        self.setChecked(not initially_collapsed)
+        self.toggled.connect(self._on_toggled)
+        self._content_widget = None
+        
+    def setContentWidget(self, widget: QWidget):
+        """Set the content widget that will be shown/hidden."""
+        self._content_widget = widget
+        layout = QVBoxLayout()
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.addWidget(widget)
+        self.setLayout(layout)
+        self._on_toggled(self.isChecked())
+    
+    def _on_toggled(self, checked: bool):
+        """Handle collapse/expand."""
+        if self._content_widget:
+            self._content_widget.setVisible(checked)
+
+
 class AnalysisView(QWidget):
     """
-    Analysis View - LLM analysis interface.
+    Analysis View - Unified workflow from folder analysis to file-level actions.
     
-    Features:
-    - Model selection
-    - Prompt preview
-    - Run analysis
-    - View results
-    - Save to database
+    Flow:
+    1. Show folder structure (what LLM/Regex will see)
+    2. Run analysis (LLM/Regex/Hybrid)
+    3. Extrapolate folder-level changes to file-level operations
+    4. Display color-coded actions table for user review
+    5. Optional metadata enrichment and snapshots
     """
     
-    # Signals notify Studio to refresh project explorer/state when new data exists
+    # Signals notify Studio when data is saved
     analysis_saved = pyqtSignal(int)
     metadata_built = pyqtSignal(int)
+    send_to_review = pyqtSignal(list)  # Emit extrapolated operations to ReviewView
 
-    def __init__(self, project: Project, project_manager: ProjectManager, parent=None, filtered_files: List[FileRecord] = None, filter_config: dict = None):
-        """
-        Initialize the Analysis View widget.
-        
-        Sets up the UI for LLM-powered folder structure analysis and metadata lookup.
-        This view implements Points 2-3 of the JellyRancher workflow, allowing users to
-        analyze folder structures and get reorganization recommendations.
-        
-        Args:
-            project: The current Project instance containing scan data and settings
-            project_manager: ProjectManager instance for database operations
-            parent: Parent QWidget (typically the main application window)
-            
-        Raises:
-            Exception: If initialization fails, shows critical error dialog to user
-            
-        Signals:
-            analysis_saved(int): Emitted when analysis results are saved to database
-            metadata_built(int): Emitted when metadata enrichment is completed
-        """
+    def __init__(
+        self, 
+        project: Project, 
+        project_manager: ProjectManager, 
+        parent=None, 
+        filtered_files: List[FileRecord] = None, 
+        filter_config: dict = None
+    ):
+        """Initialize the Analysis View."""
         try:
             super().__init__(parent)
             
@@ -76,187 +110,325 @@ class AnalysisView(QWidget):
             self.project_manager = project_manager
             self.inventory_repo = InventoryRepository()
             
-            # Initialize instance variables
+            # State variables
             self.current_analysis_id = None
             self.analysis_results = None
             self.folder_structure = None
             self.scanned_files = []
+            self.extrapolated_operations: List[ProposedOperation] = []
+            self.detected_media = []
+            self.canonical_database = None
             
             # Handle filtered data from ScanResultsView
             self.filtered_files = filtered_files
             self.filter_config = filter_config
             self.using_filtered_data = bool(filtered_files)
-            self.plan_table = None
-            self.metadata_table = None
+            
+            # Workers
+            self.analysis_worker = None
+            self.metadata_worker = None
             
             self._init_ui()
             
-            # If filtered data provided, use it immediately instead of loading from DB
+            # Load data
             if self.using_filtered_data:
                 self._use_filtered_data()
+            else:
+                self._load_scan_data()
             
-            logger.info(f"AnalysisView initialized successfully (filtered_data={self.using_filtered_data})")
+            logger.info(f"AnalysisView initialized (filtered={self.using_filtered_data})")
             
         except Exception as e:
             logger.error(f"Failed to initialize AnalysisView: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "Initialization Error",
-                f"Failed to initialize analysis view:\n\n{str(e)}\n\nPlease check the logs for details.",
-            )
+            QMessageBox.critical(self, "Initialization Error", f"Failed to initialize: {e}")
             raise
     
     def _init_ui(self):
-        """
-        Tabbed UI refactor (Phase 37D): Setup | Plan Table | Metadata Table per plan.md Point 5.
-
-        Tabs reduce height; replaces textboxes with editable tables for reorg plan/metadata.
-        Setup: modes/buttons/progress. Plan: table (path/action). Metadata: table (title/year/ID).
-        """
-        try:
+        """Build the unified scrollable UI with collapsible sections."""
+        # Main layout with scroll area
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
             # Title
-            title = QLabel("Structure Analysis")
-            title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-            title.setStyleSheet("padding: 10px;")  # Color from stylesheet
+        title = QLabel("Analysis")
+        title.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        title.setStyleSheet("padding: 12px; background: transparent;")
+        main_layout.addWidget(title)
+        
+        # Scroll area for content
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setSpacing(12)
+        content_layout.setContentsMargins(12, 0, 12, 12)
+        
+        # Section 1: Source Data (Collapsible, initially collapsed)
+        self._create_source_data_section(content_layout)
+        
+        # Section 2: Analysis Controls (Always visible)
+        self._create_controls_section(content_layout)
+        
+        # Section 3: Analysis Output (Collapsible)
+        self._create_output_section(content_layout)
+        
+        # Section 4: Extrapolated Actions Table (Main content)
+        self._create_actions_table_section(content_layout)
+        
+        # Section 5: Snapshot & Metadata (Collapsible)
+        self._create_snapshot_metadata_section(content_layout)
+        
+        # Stretch at bottom
+        content_layout.addStretch()
+        
+        scroll.setWidget(content_widget)
+        main_layout.addWidget(scroll, 1)
 
-            # TabWidget
-            self.tab_widget = QTabWidget()
-            self.tab_widget.setTabPosition(QTabWidget.TabPosition.North)
+    def _create_source_data_section(self, parent_layout: QVBoxLayout):
+        """Section 1: Folder structure preview - what the LLM will see."""
+        section = CollapsibleSection("📁 Source Data (What Analysis Will See)", initially_collapsed=True)
+        
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Info label
+        self.source_info_label = QLabel("Load scan data to preview folder structure")
+        self.source_info_label.setStyleSheet("color: #888; font-style: italic;")
+        layout.addWidget(self.source_info_label)
+        
+        # Folder structure tree
+        self.folder_tree = QTreeWidget()
+        self.folder_tree.setHeaderLabels(["Folder", "Files", "Size", "Types"])
+        self.folder_tree.setAlternatingRowColors(True)
+        self.folder_tree.setMaximumHeight(200)
+        layout.addWidget(self.folder_tree)
+        
+        section.setContentWidget(content)
+        parent_layout.addWidget(section)
+        self.source_section = section
 
-            # Tab 1: Setup
-            setup_widget = QWidget()
-            setup_layout = QVBoxLayout(setup_widget)
-            setup_layout.setSpacing(8)
-            setup_layout.setContentsMargins(12, 12, 12, 12)
+    def _create_controls_section(self, parent_layout: QVBoxLayout):
+        """Section 2: Analysis controls - mode, model, buttons."""
+        group = QGroupBox("⚙️ Analysis Controls")
+        layout = QVBoxLayout()
+        layout.setSpacing(10)
+        
+        # Row 1: Mode and Model selection
+        row1 = QHBoxLayout()
+        
+        row1.addWidget(QLabel("Mode:"))
+        self.mode_combo = QComboBox()
+        self.mode_combo.addItems([
+            "🤖 LLM Analysis (Deep, Canonical, API Cost)",
+            "⚡ Regex Analysis (Instant, Free, Offline)",
+            "🔀 Hybrid (Regex + LLM for Ambiguous)"
+        ])
+        self.mode_combo.setToolTip(
+            "LLM: Uses AI to understand context and suggest canonical naming\n"
+            "Regex: Fast pattern matching, free, works offline\n"
+            "Hybrid: Best of both - regex first, LLM for ambiguous cases"
+        )
+        self.mode_combo.currentTextChanged.connect(self._on_mode_changed)
+        row1.addWidget(self.mode_combo, 2)
+        
+        row1.addWidget(QLabel("Model:"))
+        self.model_combo = QComboBox()
+        self.model_combo.addItems(["Claude-3.7-Sonnet", "GPT-4", "Gemini-2.5-Pro"])
+        row1.addWidget(self.model_combo, 1)
+        
+        self.btn_refresh_models = QPushButton("🔄")
+        self.btn_refresh_models.setToolTip("Refresh available models from Poe API")
+        self.btn_refresh_models.setMaximumWidth(40)
+        self.btn_refresh_models.clicked.connect(self._refresh_models)
+        row1.addWidget(self.btn_refresh_models)
+        
+        layout.addLayout(row1)
+        
+        # Row 2: Action buttons
+        row2 = QHBoxLayout()
+        
+        self.btn_preview = QPushButton("👁️ Preview Prompt")
+        self.btn_preview.setToolTip("See the exact prompt that will be sent to the LLM")
+        self.btn_preview.clicked.connect(self._preview_prompt)
+        row2.addWidget(self.btn_preview)
+        
+        self.btn_run = QPushButton("▶️ Run Analysis")
+        self.btn_run.setToolTip("Execute analysis using selected mode")
+        self.btn_run.setStyleSheet("font-weight: bold;")
+        self.btn_run.clicked.connect(self._run_analysis)
+        row2.addWidget(self.btn_run)
+        
+        self.btn_snapshot = QPushButton("📸 Create Snapshot")
+        self.btn_snapshot.setToolTip("Create a pre-operation snapshot for rollback capability")
+        self.btn_snapshot.clicked.connect(self._create_snapshot)
+        row2.addWidget(self.btn_snapshot)
+        
+        row2.addStretch()
+        layout.addLayout(row2)
+        
+        # Progress bar and status
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        layout.addWidget(self.progress_bar)
+        
+        self.status_label = QLabel("")
+        self.status_label.setStyleSheet("font-style: italic;")
+        layout.addWidget(self.status_label)
+        
+        group.setLayout(layout)
+        parent_layout.addWidget(group)
+        
+        # Initial state
+        self._on_mode_changed()
 
-            # Modes
-            mode_group = QGroupBox("Analysis Mode")
-            mode_layout = QHBoxLayout()
-            mode_layout.addWidget(QLabel("Mode:"))
-            self.mode_combo = QComboBox()
-            self.mode_combo.addItems([
-                "🤖 LLM Analysis (Deep, Canonical, API Cost)",
-                "⚡ Regex Analysis (Instant, Free, Offline)",
-                "🔀 Hybrid (Regex + LLM for Ambiguous)"
-            ])
-            self.mode_combo.setToolTip("LLM: AI context/canonical\nRegex: Fast patterns\nHybrid: 80-90% savings")
-            self.mode_combo.currentTextChanged.connect(self._toggle_llm_controls)
-            mode_layout.addWidget(self.mode_combo, 1)
-            mode_group.setLayout(mode_layout)
-            setup_layout.addWidget(mode_group)
+    def _create_output_section(self, parent_layout: QVBoxLayout):
+        """Section 3: Analysis output - detected media, folder changes."""
+        section = CollapsibleSection("📊 Analysis Output", initially_collapsed=True)
+        
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Detected media summary
+        self.detected_media_label = QLabel("Run analysis to see detected media")
+        self.detected_media_label.setStyleSheet("color: #888;")
+        layout.addWidget(self.detected_media_label)
+        
+        # Raw output text (for LLM reasoning)
+        self.output_text = QTextEdit()
+        self.output_text.setReadOnly(True)
+        self.output_text.setMaximumHeight(150)
+        self.output_text.setPlaceholderText("Analysis output will appear here...")
+        layout.addWidget(self.output_text)
+        
+        section.setContentWidget(content)
+        parent_layout.addWidget(section)
+        self.output_section = section
 
-            # LLM Models (initially hidden)
-            self.model_group = QGroupBox("LLM Model")
-            model_layout = QHBoxLayout()
-            model_layout.addWidget(QLabel("Model:"))
-            self.model_combo = QComboBox()
-            self.model_combo.addItems(["Claude-3.7-Sonnet", "GPT-4", "Gemini-2.5-Pro"])
-            model_layout.addWidget(self.model_combo)
-            btn_refresh = QPushButton("Refresh Models")
-            btn_refresh.clicked.connect(self._refresh_models)
-            model_layout.addWidget(btn_refresh)
-            self.model_group.setLayout(model_layout)
-            self.model_group.setVisible(False)  # Default regex
-            setup_layout.addWidget(self.model_group)
+    def _create_actions_table_section(self, parent_layout: QVBoxLayout):
+        """Section 4: Color-coded extrapolated actions table (main content)."""
+        group = QGroupBox("📋 Extrapolated File Actions")
+        layout = QVBoxLayout()
+        
+        # Stats bar
+        stats_layout = QHBoxLayout()
+        self.stats_label = QLabel("Run analysis to generate file-level actions")
+        self.stats_label.setStyleSheet("color: #888;")
+        stats_layout.addWidget(self.stats_label)
+        stats_layout.addStretch()
+        
+        # Legend
+        legend = QHBoxLayout()
+        legend.addWidget(QLabel("Legend:"))
+        for conf, color in [
+            (Confidence.HIGH, "green"), 
+            (Confidence.MEDIUM, "yellow"),
+            (Confidence.LOW, "orange"),
+            (Confidence.MANUAL, "red"),
+            (Confidence.NONE, "lightblue")
+        ]:
+            lbl = QLabel(f"● {conf.name}")
+            lbl.setStyleSheet(f"color: {color};")
+            legend.addWidget(lbl)
+        legend.addStretch()
+        stats_layout.addLayout(legend)
+        layout.addLayout(stats_layout)
+        
+        # Actions table
+        self.actions_table = QTableWidget()
+        self.actions_table.setColumnCount(7)
+        self.actions_table.setHorizontalHeaderLabels([
+            "Status", "Original Path", "Proposed Path", "Action", "Subtitles", "Confidence", "Notes"
+        ])
+        self.actions_table.setAlternatingRowColors(True)
+        self.actions_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.actions_table.setSortingEnabled(True)
+        self.actions_table.horizontalHeader().setStretchLastSection(True)
+        self.actions_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.actions_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        layout.addWidget(self.actions_table, 1)
+        
+        # Bulk operations bar
+        bulk_layout = QHBoxLayout()
+        
+        self.btn_select_all = QPushButton("Select All")
+        self.btn_select_all.clicked.connect(lambda: self.actions_table.selectAll())
+        bulk_layout.addWidget(self.btn_select_all)
+        
+        self.btn_approve_selected = QPushButton("✓ Approve Selected")
+        self.btn_approve_selected.clicked.connect(self._approve_selected)
+        bulk_layout.addWidget(self.btn_approve_selected)
+        
+        self.btn_reject_selected = QPushButton("✗ Reject Selected")
+        self.btn_reject_selected.clicked.connect(self._reject_selected)
+        bulk_layout.addWidget(self.btn_reject_selected)
+        
+        bulk_layout.addStretch()
+        
+        self.btn_send_to_review = QPushButton("➡️ Send to Review")
+        self.btn_send_to_review.setToolTip("Send approved operations to Review tab for final confirmation")
+        self.btn_send_to_review.setStyleSheet("font-weight: bold;")
+        self.btn_send_to_review.clicked.connect(self._send_to_review)
+        self.btn_send_to_review.setEnabled(False)
+        bulk_layout.addWidget(self.btn_send_to_review)
+        
+        layout.addLayout(bulk_layout)
+        
+        group.setLayout(layout)
+        parent_layout.addWidget(group, 1)
 
-            # Buttons
-            button_layout = QHBoxLayout()
-            self.btn_preview = QPushButton("Preview Prompt")
-            self.btn_preview.clicked.connect(self._preview_prompt)
-            button_layout.addWidget(self.btn_preview)
-            self.btn_run = QPushButton("▶ Run Analysis")
-            self.btn_run.clicked.connect(self._run_analysis)
-            self.btn_run.setMinimumHeight(35)
-            button_layout.addWidget(self.btn_run)
-            self.btn_enrich = QPushButton("✨ Enrich Metadata")
-            self.btn_enrich.clicked.connect(self._enrich_metadata)
-            self.btn_enrich.setEnabled(False)
-            button_layout.addWidget(self.btn_enrich)
-            button_layout.addStretch()
-            setup_layout.addLayout(button_layout)
+    def _create_snapshot_metadata_section(self, parent_layout: QVBoxLayout):
+        """Section 5: Snapshot management and metadata enrichment."""
+        section = CollapsibleSection("🔒 Snapshots & Metadata", initially_collapsed=True)
+        
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Snapshot info
+        snapshot_row = QHBoxLayout()
+        self.snapshot_label = QLabel("No snapshots created")
+        self.snapshot_label.setStyleSheet("color: #888;")
+        snapshot_row.addWidget(self.snapshot_label)
+        snapshot_row.addStretch()
+        
+        self.btn_restore_snapshot = QPushButton("↩️ Restore Latest")
+        self.btn_restore_snapshot.setEnabled(False)
+        self.btn_restore_snapshot.clicked.connect(self._restore_snapshot)
+        snapshot_row.addWidget(self.btn_restore_snapshot)
+        layout.addLayout(snapshot_row)
+        
+        # Metadata enrichment
+        meta_row = QHBoxLayout()
+        self.btn_enrich = QPushButton("✨ Enrich with TMDB/TVDB")
+        self.btn_enrich.setToolTip("Query canonical metadata databases for official titles, years, episode info")
+        self.btn_enrich.clicked.connect(self._enrich_metadata)
+        self.btn_enrich.setEnabled(False)
+        meta_row.addWidget(self.btn_enrich)
+        
+        self.metadata_status = QLabel("")
+        meta_row.addWidget(self.metadata_status)
+        meta_row.addStretch()
+        layout.addLayout(meta_row)
+        
+        section.setContentWidget(content)
+        parent_layout.addWidget(section)
+        self.snapshot_section = section
 
-            # Progress/Status
-            self.progress_bar = QProgressBar()
-            self.progress_bar.setVisible(False)
-            setup_layout.addWidget(self.progress_bar)
-            self.lbl_status = QLabel("")
-            self.lbl_status.setStyleSheet("font-style: italic;")  # Color from stylesheet
-            setup_layout.addWidget(self.lbl_status)
-            setup_layout.addStretch()
-
-            self.tab_widget.addTab(setup_widget, "⚙️ Setup")
-
-            # Tab 2: Plan Table (per plan.md Point 5)
-            plan_widget = QWidget()
-            plan_layout = QVBoxLayout(plan_widget)
-            plan_layout.setSpacing(8)
-            plan_layout.setContentsMargins(12, 12, 12, 12)
-            self.plan_table = QTableWidget()
-            self.plan_table.setColumnCount(6)
-            self.plan_table.setHorizontalHeaderLabels(["Original Path", "Proposed Path", "Action", "Subtitles", "Confidence", "Notes"])
-            self.plan_table.horizontalHeader().setStretchLastSection(True)
-            self.plan_table.setAlternatingRowColors(True)
-            self.plan_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-            self.plan_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)  # Read-only table
-            self.plan_table.setSortingEnabled(True)  # Allow sorting
-            plan_layout.addWidget(self.plan_table)
-            self.tab_widget.addTab(plan_widget, "📋 Reorg Plan")
-
-            # Tab 3: Metadata Table
-            meta_widget = QWidget()
-            meta_layout = QVBoxLayout(meta_widget)
-            meta_layout.setSpacing(8)
-            meta_layout.setContentsMargins(12, 12, 12, 12)
-            self.metadata_table = QTableWidget()
-            self.metadata_table.setColumnCount(5)
-            self.metadata_table.setHorizontalHeaderLabels(["Title", "Year", "TMDb ID", "Seasons/Eps", "Status"])
-            self.metadata_table.horizontalHeader().setStretchLastSection(True)
-            self.metadata_table.setAlternatingRowColors(True)
-            meta_layout.addWidget(self.metadata_table)
-            self.tab_widget.addTab(meta_widget, "📊 Metadata")
-
-            # Main layout: title + tabs
-            layout = QVBoxLayout(self)
-            layout.setSpacing(0)
-            layout.setContentsMargins(10, 10, 10, 10)
-            layout.addWidget(title)
-            layout.addWidget(self.tab_widget, 1)
-            self.setLayout(layout)
-
-            # Load data
-            self._load_scan_data()
-            self._toggle_llm_controls()  # Initial state
-
-        except Exception as e:
-            logger.error(f"Failed to initialize tabbed UI: {e}", exc_info=True)
-            QMessageBox.critical(self, "UI Error", f"Failed to initialize analysis interface:\n\n{str(e)}")
-            raise
+    # =========================================================================
+    # Data Loading
+    # =========================================================================
     
     def _load_scan_data(self):
-        """
-        Load scan data from the most recent scan session for the current project.
-        
-        Retrieves the latest scan session from the database and loads associated file records.
-        This data is used as input for LLM analysis and metadata enrichment operations.
-        
-        The method:
-        1. Connects to the media library database
-        2. Finds the most recent scan session for the current project
-        3. Parses scan options to extract folder paths and inventory session IDs
-        4. Loads all file records from associated inventory sessions
-        5. Updates UI status to reflect loaded data
-        
-        If no scan data is found, the UI will show appropriate messaging to the user.
-        
-        Raises:
-            sqlite3.Error: If database operations fail
-            json.JSONDecodeError: If scan options JSON is malformed
-        """
+        """Load scan data from the database."""
         try:
             conn = sqlite3.connect("data/media_library.db")
             cursor = conn.cursor()
             
-            # Get most recent scan session for this project
             cursor.execute('''
                 SELECT id, total_files, scan_options_json 
                 FROM project_scan_sessions 
@@ -276,708 +448,611 @@ class AnalysisView(QWidget):
                 for session_id in inventory_sessions:
                     self.scanned_files.extend(self.inventory_repo.get_all_files(session_id))
 
-                if not self.scanned_files:
-                    self.lbl_status.setText(
-                        "Scan data found but inventory is unavailable. Please run a new scan."
-                    )
-                    self.btn_run.setEnabled(False)
-                    self.btn_preview.setEnabled(False)
-                    self.folder_structure = None
-                else:
+                if self.scanned_files:
                     scanner = FileScanner()
                     self.folder_structure = scanner.get_folder_structure(self.scanned_files)
                     self.folder_structure['project_name'] = self.project.name
                     self.folder_structure['scan_id'] = scan_id
                     self.folder_structure['total_files'] = len(self.scanned_files)
-                    if self.using_filtered_data:
-                        # Don't overwrite status if we're using filtered data
-                        pass
-                    else:
-                        self.lbl_status.setText(
-                            f"Ready to analyze {len(self.scanned_files)} files from {len(folders)} folder(s)"
-                        )
+                    
+                    self._update_source_data_display()
+                    self._set_status(f"Ready: {len(self.scanned_files)} files from {len(folders)} folder(s)")
                     self.btn_run.setEnabled(True)
                     self.btn_preview.setEnabled(True)
+                else:
+                    self._set_status("Scan data found but inventory unavailable. Please run a new scan.", error=True)
+                    self.btn_run.setEnabled(False)
             else:
-                self.lbl_status.setText("No scan data found. Please run a scan first.")
+                self._set_status("No scan data found. Please run a scan first.", error=True)
                 self.btn_run.setEnabled(False)
-                self.btn_preview.setEnabled(False)
-                self.folder_structure = None
             
             conn.close()
             
-        except sqlite3.Error as e:
-            logger.error(f"Database error loading scan data: {e}", exc_info=True)
-            self.lbl_status.setText(f"Database error loading scan data: {e}")
-            self.btn_run.setEnabled(False)
-            self.btn_preview.setEnabled(False)
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON parsing error in scan options: {e}", exc_info=True)
-            self.lbl_status.setText(f"Error parsing scan options: {e}")
-            self.btn_run.setEnabled(False)
-            self.btn_preview.setEnabled(False)
         except Exception as e:
-            logger.error(f"Unexpected error loading scan data: {e}", exc_info=True)
-            self.lbl_status.setText(f"Unexpected error loading scan data: {e}")
-            self.btn_run.setEnabled(False)
-            self.btn_preview.setEnabled(False)
+            logger.error(f"Error loading scan data: {e}", exc_info=True)
+            self._set_status(f"Error loading scan data: {e}", error=True)
     
     def _use_filtered_data(self):
-        """
-        Use filtered data provided from ScanResultsView.
+        """Use filtered data from ScanResultsView."""
+        if not self.filtered_files:
+            return
         
-        This method is called during initialization if filtered_files were provided,
-        bypassing the normal database load process and using the pre-filtered dataset.
+        self.scanned_files = self.filtered_files
         
-        The method:
-        1. Uses the provided filtered_files as scanned_files
-        2. Builds folder structure from filtered files
-        3. Updates UI status to show filter information
-        4. Enables analysis buttons
+        scanner = FileScanner()
+        self.folder_structure = scanner.get_folder_structure(self.scanned_files)
+        self.folder_structure['project_name'] = self.project.name
+        self.folder_structure['total_files'] = len(self.scanned_files)
         
-        This allows users to perform LLM analysis on a subset of files, reducing
-        token costs and improving analysis quality by excluding irrelevant content.
-        """
-        try:
-            if not self.filtered_files:
-                logger.warning("_use_filtered_data called but no filtered_files available")
-                return
+        # Build filter description
+        filter_desc = []
+        if self.filter_config:
+            file_types = self.filter_config.get('file_types', {})
+            enabled = [k for k, v in file_types.items() if v]
+            if enabled and len(enabled) < 4:
+                filter_desc.append(f"Types: {', '.join(enabled)}")
+            if self.filter_config.get('hide_duplicates'):
+                filter_desc.append("No duplicates")
+        
+        filter_text = f" ({', '.join(filter_desc)})" if filter_desc else ""
+        
+        self._update_source_data_display()
+        self._set_status(f"✓ Ready: {len(self.scanned_files)} filtered files{filter_text}", success=True)
+        self.btn_run.setEnabled(True)
+        self.btn_preview.setEnabled(True)
             
-            # Use filtered files as scanned files
-            self.scanned_files = self.filtered_files
+    def _update_source_data_display(self):
+        """Update the folder structure tree display."""
+        self.folder_tree.clear()
+        
+        if not self.folder_structure:
+            return
             
-            # Build folder structure from filtered files
-            scanner = FileScanner()
-            self.folder_structure = scanner.get_folder_structure(self.scanned_files)
-            self.folder_structure['project_name'] = self.project.name
-            self.folder_structure['total_files'] = len(self.scanned_files)
+        total_files = 0
+        total_size = 0
+        
+        for folder_path, data in sorted(self.folder_structure.items()):
+            if folder_path in ('project_name', 'scan_id', 'total_files'):
+                continue
             
-            # Update status with filter information
-            total_files = len(self.scanned_files)
-            filter_desc = []
-            
-            if self.filter_config:
-                file_types = self.filter_config.get('file_types', {})
-                enabled_types = [k for k, v in file_types.items() if v]
-                if enabled_types and len(enabled_types) < 4:
-                    filter_desc.append(f"Types: {', '.join(enabled_types)}")
+            if not isinstance(data, dict):
+                    continue
                 
-                size_range = self.filter_config.get('size_range_mb', {})
-                if size_range.get('min', 0) > 0 or size_range.get('max', 100000) < 100000:
-                    filter_desc.append(f"Size: {size_range.get('min', 0)}-{size_range.get('max', 100000)} MB")
-                
-                if self.filter_config.get('hide_duplicates'):
-                    filter_desc.append("No duplicates")
+            file_count = data.get('file_count', 0)
+            size_bytes = data.get('total_size', 0)
+            file_types = data.get('file_types', {})
             
-            filter_text = f" ({', '.join(filter_desc)})" if filter_desc else ""
+            total_files += file_count
+            total_size += size_bytes
             
-            self.lbl_status.setText(
-                f"✓ Ready to analyze {total_files} filtered files{filter_text}"
-            )
-            self.lbl_status.setStyleSheet("color: #1abc9c; font-weight: bold; font-style: italic;")  # Bright teal
+            # Format size
+            size_mb = size_bytes / (1024 * 1024)
+            size_str = f"{size_mb:.1f} MB" if size_mb < 1024 else f"{size_mb/1024:.1f} GB"
             
-            self.btn_run.setEnabled(True)
-            self.btn_preview.setEnabled(True)
+            # Format types
+            types_str = ", ".join([f"{ext}: {cnt}" for ext, cnt in list(file_types.items())[:3]])
             
-            logger.info(f"Using filtered data: {total_files} files with filters: {filter_desc}")
-            
-        except Exception as e:
-            logger.error(f"Failed to use filtered data: {e}", exc_info=True)
-            self.lbl_status.setText(f"Error using filtered data: {e}")
-            self.btn_run.setEnabled(False)
-            self.btn_preview.setEnabled(False)
+            item = QTreeWidgetItem([
+                str(folder_path),
+                str(file_count),
+                size_str,
+                types_str
+            ])
+            self.folder_tree.addTopLevelItem(item)
+        
+        # Update info label
+        total_gb = total_size / (1024**3)
+        self.source_info_label.setText(
+            f"Total: {total_files} files, {total_gb:.1f} GB across "
+            f"{self.folder_tree.topLevelItemCount()} folders"
+        )
+
+    # =========================================================================
+    # Analysis Execution
+    # =========================================================================
     
+    def _on_mode_changed(self):
+        """Handle analysis mode change."""
+        mode_text = self.mode_combo.currentText()
+        is_llm = "LLM" in mode_text or "Hybrid" in mode_text
+        
+        self.model_combo.setEnabled(is_llm)
+        self.btn_refresh_models.setEnabled(is_llm)
+        self.btn_preview.setEnabled(is_llm)
+
     def _refresh_models(self):
-        """
-        Refresh the list of available LLM models from the Poe API.
-        
-        Queries the Poe API service to get the current list of available models
-        for analysis. This ensures users can select from the latest available
-        models and their capabilities.
-        
-        The method:
-        1. Updates status label to indicate model fetching
-        2. Creates a PoeClient instance to query available models
-        3. Clears and repopulates the model selection dropdown
-        4. Updates status with success/failure information
-        5. Shows warning dialog if API query fails
-        
-        If the API query fails, the UI gracefully degrades by showing
-        a warning but continuing to function with default model options.
-        
-        Raises:
-            QMessageBox: Shows warning if model refresh fails, but doesn't prevent continued use
-        """
+        """Refresh available LLM models from Poe API."""
         try:
-            self.lbl_status.setText("Fetching available models...")
+            self._set_status("Fetching models...")
             client = PoeClient()
             models = client.get_available_models()
             
             if models:
                 self.model_combo.clear()
                 self.model_combo.addItems(models)
-                self.lbl_status.setText(f"Loaded {len(models)} models")
-                logger.info(f"Refreshed models: {models}")
+                self._set_status(f"Loaded {len(models)} models")
             else:
-                self.lbl_status.setText("No models available")
-                
+                self._set_status("No models available")
         except Exception as e:
-            QMessageBox.warning(
-                self,
-                "Model Refresh Failed",
-                f"Could not fetch models from Poe API:\n\n{e}\n\n"
-                "Using default model list."
-            )
-            self.lbl_status.setText("Using default models")
             logger.error(f"Model refresh error: {e}", exc_info=True)
-
-    def _toggle_llm_controls(self):
-        """Show/hide LLM model controls based on selected mode."""
-        try:
-            mode_text = self.mode_combo.currentText()
-            is_llm_mode = "LLM" in mode_text or "Hybrid" in mode_text
-            self.model_group.setVisible(is_llm_mode)
-            self.btn_preview.setEnabled(is_llm_mode or "Hybrid" in mode_text)
-        except Exception as e:
-            logger.error(f"Failed to toggle LLM controls: {e}", exc_info=True)
-
-    def _populate_plan_table(self, analysis_result: dict):
-        """Populate plan table with reorganization plan data (per plan.md Point 5)."""
-        try:
-            if not self.plan_table:
-                logger.error("Plan table widget is None - cannot populate")
-                return
-            
-            # Ensure table is properly initialized
-            if self.plan_table.columnCount() != 6:
-                self.plan_table.setColumnCount(6)
-                self.plan_table.setHorizontalHeaderLabels(["Original Path", "Proposed Path", "Action", "Subtitles", "Confidence", "Notes"])
-            
-            plan = analysis_result.get("reorganization_plan", {})
-            if not plan:
-                logger.warning("No reorganization_plan in analysis_result")
-                self.plan_table.setRowCount(0)
-                return
-            
-            folder_changes = plan.get("folder_changes", [])
-            if not folder_changes:
-                logger.info("No folder_changes in reorganization_plan - clearing table")
-                self.plan_table.setRowCount(0)
-                return
-            
-            logger.info(f"Populating plan table with {len(folder_changes)} folder changes")
-            self.plan_table.setRowCount(len(folder_changes))
-            
-            for row, change in enumerate(folder_changes):
-                if not isinstance(change, dict):
-                    logger.warning(f"Folder change at row {row} is not a dict: {type(change)}")
-                    continue
-                
-                # Convert all values to strings for display
-                current_path = str(change.get("current_path", ""))
-                proposed_path = str(change.get("proposed_path", ""))
-                action = str(change.get("action", "UNKNOWN")).upper()
-                subtitle_rename = str(change.get("subtitle_rename", "N/A"))
-                confidence = str(change.get("confidence", "MEDIUM"))
-                reason = str(change.get("reason", ""))
-                
-                self.plan_table.setItem(row, 0, QTableWidgetItem(current_path))
-                self.plan_table.setItem(row, 1, QTableWidgetItem(proposed_path))
-                self.plan_table.setItem(row, 2, QTableWidgetItem(action))
-                self.plan_table.setItem(row, 3, QTableWidgetItem(subtitle_rename))
-                self.plan_table.setItem(row, 4, QTableWidgetItem(confidence))
-                self.plan_table.setItem(row, 5, QTableWidgetItem(reason))
-            
-            # Ensure table is visible and properly sized
-            self.plan_table.setVisible(True)
-            self.plan_table.resizeColumnsToContents()
-            self.plan_table.horizontalHeader().setStretchLastSection(True)
-            
-            logger.info(f"Successfully populated plan table with {len(folder_changes)} operations")
-        except Exception as e:
-            logger.error(f"Failed to populate plan table: {e}", exc_info=True)
-            # Show user-friendly error
-            if self.plan_table:
-                self.plan_table.setRowCount(1)
-                self.plan_table.setItem(0, 0, QTableWidgetItem(f"Error: {str(e)}"))
-
-    def _populate_metadata_table(self, canonical_db: dict):
-        """Populate metadata table with canonical database results."""
-        try:
-            movies = canonical_db.get("movies", [])
-            tv_shows = canonical_db.get("tv_shows", [])
-            total = len(movies) + len(tv_shows)
-            
-            if total == 0:
-                self.metadata_table.setRowCount(0)
-                return
-            
-            self.metadata_table.setRowCount(total)
-            row = 0
-            
-            for movie in movies:
-                self.metadata_table.setItem(row, 0, QTableWidgetItem(movie.get("title", "Unknown")))
-                self.metadata_table.setItem(row, 1, QTableWidgetItem(str(movie.get("year", "?"))))
-                self.metadata_table.setItem(row, 2, QTableWidgetItem(str(movie.get("tmdb_id", "N/A"))))
-                self.metadata_table.setItem(row, 3, QTableWidgetItem("Movie"))
-                self.metadata_table.setItem(row, 4, QTableWidgetItem("✓"))
-                row += 1
-            
-            for show in tv_shows:
-                self.metadata_table.setItem(row, 0, QTableWidgetItem(show.get("title", "Unknown")))
-                self.metadata_table.setItem(row, 1, QTableWidgetItem(str(show.get("year", "?"))))
-                self.metadata_table.setItem(row, 2, QTableWidgetItem(str(show.get("tmdb_id", "N/A"))))
-                seasons = show.get("number_of_seasons", 0)
-                episodes = show.get("number_of_episodes", 0)
-                self.metadata_table.setItem(row, 3, QTableWidgetItem(f"{seasons} seasons, {episodes} eps"))
-                self.metadata_table.setItem(row, 4, QTableWidgetItem("✓"))
-                row += 1
-            
-            self.metadata_table.resizeColumnsToContents()
-            logger.info(f"Populated metadata table with {total} items")
-        except Exception as e:
-            logger.error(f"Failed to populate metadata table: {e}", exc_info=True)
+            QMessageBox.warning(self, "Model Refresh Failed", f"Could not fetch models:\n{e}")
     
     def _preview_prompt(self):
-        """
-        Preview the analysis prompt that will be sent to the LLM.
+        """Preview the LLM prompt."""
+        if not self.folder_structure:
+            QMessageBox.warning(self, "No Data", "No scan data available.")
+            return
         
-        Generates and displays the exact prompt that would be sent to the selected
-        LLM model for analysis. This allows users to review the context and
-        instructions before committing to the analysis operation.
-        
-        The method:
-        1. Validates that scan data is available for prompt generation
-        2. Creates an LLMStructureAnalyzer to build the analysis prompt
-        3. Constructs a preview dialog with the formatted prompt
-        4. Shows the prompt in a scrollable text area
-        5. Provides OK/Cancel buttons for user interaction
-        
-        The preview helps users understand what information the LLM will
-        receive and ensures the analysis context is appropriate for their needs.
-        
-        Raises:
-            QMessageBox: Shows warning if no scan data is available
-        """
         try:
-            if not self.folder_structure:
-                QMessageBox.warning(self, "No Data", "No scan data available to preview.")
-                return
-            
             analyzer = LLMStructureAnalyzer()
             prompt = analyzer._build_analysis_prompt(self.folder_structure)
             
-            # Show in dialog
             dialog = QDialog(self)
             dialog.setWindowTitle("Prompt Preview")
             dialog.resize(800, 600)
             
-            layout = QVBoxLayout()
+            layout = QVBoxLayout(dialog)
             
-            text_edit = QTextEdit()
-            text_edit.setReadOnly(True)
-            text_edit.setPlainText(prompt)
-            text_edit.setStyleSheet("font-family: 'Consolas', 'Courier New', monospace;")
-            layout.addWidget(text_edit)
+            info = QLabel(f"Prompt length: {len(prompt):,} characters")
+            layout.addWidget(info)
             
-            # Buttons
-            button_box = QDialogButtonBox()
-            btn_copy = button_box.addButton("Copy to Clipboard", QDialogButtonBox.ButtonRole.ActionRole)
-            btn_copy.clicked.connect(lambda: self._copy_to_clipboard(prompt))
-            btn_close = button_box.addButton(QDialogButtonBox.StandardButton.Close)
+            text = QTextEdit()
+            text.setReadOnly(True)
+            text.setPlainText(prompt)
+            text.setStyleSheet("font-family: 'Consolas', monospace;")
+            layout.addWidget(text)
+            
+            buttons = QDialogButtonBox()
+            btn_copy = buttons.addButton("Copy to Clipboard", QDialogButtonBox.ButtonRole.ActionRole)
+            btn_copy.clicked.connect(lambda: QApplication.clipboard().setText(prompt))
+            btn_close = buttons.addButton(QDialogButtonBox.StandardButton.Close)
             btn_close.clicked.connect(dialog.close)
-            layout.addWidget(button_box)
+            layout.addWidget(buttons)
             
-            dialog.setLayout(layout)
             dialog.exec()
             
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to generate prompt preview:\n\n{e}")
-            logger.error(f"Prompt preview error: {e}", exc_info=True)
-    
-    def _copy_to_clipboard(self, text: str):
-        """
-        Copy the provided text to the system clipboard.
-        
-        Utility method for copying text content (typically prompts or results)
-        to the clipboard for external use or sharing.
-        
-        Args:
-            text: The text content to copy to clipboard
-            
-        The method:
-        1. Accesses the QApplication clipboard instance
-        2. Sets the provided text as clipboard content
-        3. Updates status label to confirm successful copy
-        4. Shows error dialog if clipboard access fails
-        
-        This is commonly used after prompt preview to allow users to
-        copy the analysis prompt for external review or manual execution.
-        
-        Raises:
-            QMessageBox: Shows warning if clipboard operations fail
-        """
-        try:
-            from PyQt6.QtWidgets import QApplication
-            clipboard = QApplication.clipboard()
-            clipboard.setText(text)
-            self.lbl_status.setText("Prompt copied to clipboard!")
-        except Exception as e:
-            logger.error(f"Failed to copy to clipboard: {e}", exc_info=True)
-            QMessageBox.warning(self, "Clipboard Error", f"Failed to copy to clipboard: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to generate prompt:\n{e}")
     
     def _run_analysis(self):
-        """
-        Execute analysis on the loaded scan data using the selected mode.
+        """Execute analysis using selected mode."""
+        if not self.folder_structure:
+            QMessageBox.warning(self, "No Data", "No scan data available.")
+            return
         
-        Supports three analysis modes:
-        - LLM: Deep AI analysis with context understanding (API cost)
-        - Regex: Fast pattern matching (instant, free, offline)
-        - Hybrid: Regex first, LLM only for ambiguous (80-90% cost savings)
+        # Determine mode
+        mode_text = self.mode_combo.currentText()
+        if "LLM" in mode_text and "Hybrid" not in mode_text:
+            mode = "llm"
+        elif "Regex" in mode_text:
+            mode = "regex"
+        else:
+            mode = "hybrid"
         
-        Initiates the analysis workflow by:
-        1. Validating that scan data is available
-        2. Determining selected analysis mode
-        3. Getting LLM model (if needed for mode)
-        4. Confirming execution with the user
-        5. Creating and starting appropriate worker thread
-        6. Disabling UI controls during processing
-        7. Showing progress indication
+        model = self.model_combo.currentText()
+        total = self.folder_structure.get('total_files', len(self.scanned_files))
         
-        The worker runs in a separate thread to prevent UI blocking.
-        Progress and completion are handled by connected signal handlers.
+        # Confirmation
+        if mode == "llm":
+            msg = f"Run LLM analysis with {model}?\n\nFiles: {total}\nTime: 30-60s\nCost: API charges"
+        elif mode == "regex":
+            msg = f"Run Regex analysis?\n\nFiles: {total}\nTime: <1s\nCost: FREE"
+        else:
+            msg = f"Run Hybrid analysis?\n\nFiles: {total}\nPhase 1: Regex (free)\nPhase 2: LLM for ambiguous"
         
-        Raises:
-            QMessageBox: Shows user warnings if no scan data is available
-        """
+        if QMessageBox.question(self, "Run Analysis", msg) != QMessageBox.StandardButton.Yes:
+            return
+        
+        # Disable UI
+        self._set_controls_enabled(False)
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setRange(0, 0)  # Indeterminate
+            
+        # Create worker
         try:
-            if not self.folder_structure:
-                QMessageBox.warning(self, "No Data", "No scan data available. Please run a scan first.")
-                return
-            
-            # Determine analysis mode from combo box
-            mode_text = self.mode_combo.currentText()
-            if "LLM Analysis" in mode_text:
-                analysis_mode = "llm"
-            elif "Regex Analysis" in mode_text:
-                analysis_mode = "regex"
-            elif "Hybrid" in mode_text:
-                analysis_mode = "hybrid"
-            else:
-                analysis_mode = "llm"  # Default fallback
-            
-            model = self.model_combo.currentText()
-            total_files = self.folder_structure.get('total_files', 0) if self.folder_structure else 0
-            
-            # Mode-specific confirmation dialogs
-            if analysis_mode == "llm":
-                confirm_msg = (
-                    f"Run LLM analysis with {model}?\n\n"
-                    f"Files to analyze: {total_files}\n"
-                    f"Estimated time: 30-60 seconds\n"
-                    f"Cost: API call charges apply"
-                )
-            elif analysis_mode == "regex":
-                confirm_msg = (
-                    f"Run Regex analysis?\n\n"
-                    f"Files to analyze: {total_files}\n"
-                    f"Estimated time: <1 second\n"
-                    f"Cost: FREE (no API calls)"
-                )
-            else:  # hybrid
-                confirm_msg = (
-                    f"Run Hybrid analysis (Regex + {model})?\n\n"
-                    f"Files to analyze: {total_files}\n"
-                    f"Phase 1: Regex (instant, free)\n"
-                    f"Phase 2: LLM only for ambiguous cases\n"
-                    f"Expected savings: 80-90% vs pure LLM"
-                )
-            
-            reply = QMessageBox.question(
-                self,
-                "Run Analysis",
-                confirm_msg,
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            
-            if reply != QMessageBox.StandardButton.Yes:
-                return
-            
-            # Disable UI
-            self.btn_run.setEnabled(False)
-            self.btn_preview.setEnabled(False)
-            self.model_combo.setEnabled(False)
-            self.mode_combo.setEnabled(False)
-            self.progress_bar.setVisible(True)
-            
-            # Create appropriate worker based on mode
-            if analysis_mode == "llm":
+            if mode == "llm":
                 self.analysis_worker = LLMAnalysisWorker(
                     folder_structure=self.folder_structure,
                     scanned_files=self.scanned_files,
-                    model=model,
+                    model=model
                 )
-                logger.info(f"Started LLM analysis with {model}")
-                
-            elif analysis_mode == "regex":
+            elif mode == "regex":
                 self.analysis_worker = RegexAnalysisWorker(
-                    scanned_files=self.scanned_files,
+                    scanned_files=self.scanned_files
                 )
-                logger.info(f"Started Regex analysis on {total_files} files")
-                
-            else:  # hybrid
+            else:
                 self.analysis_worker = HybridAnalysisWorker(
                     scanned_files=self.scanned_files,
                     folder_structure=self.folder_structure,
-                    model=model,
+                    model=model
                 )
-                logger.info(f"Started Hybrid analysis (Regex + {model} for ambiguous)")
             
-            # Connect signals (same interface for all workers)
             self.analysis_worker.progress.connect(self._on_analysis_progress)
             self.analysis_worker.finished.connect(self._on_analysis_finished)
             self.analysis_worker.error.connect(self._on_analysis_error)
             self.analysis_worker.start()
             
+            logger.info(f"Started {mode} analysis")
+            
         except Exception as e:
             logger.error(f"Failed to start analysis: {e}", exc_info=True)
-            QMessageBox.critical(self, "Analysis Error", f"Failed to start analysis: {str(e)}")
-            # Re-enable UI on error
-            self.btn_run.setEnabled(True)
-            self.btn_preview.setEnabled(True)
-            self.model_combo.setEnabled(True)
-            self.mode_combo.setEnabled(True)
+            self._set_controls_enabled(True)
             self.progress_bar.setVisible(False)
+            QMessageBox.critical(self, "Error", f"Failed to start analysis:\n{e}")
     
     def _on_analysis_progress(self, status: str):
-        """
-        Handle progress updates during LLM analysis.
+        """Handle progress updates."""
+        self._set_status(status)
+
+    def _on_analysis_finished(self, result: dict):
+        """Handle analysis completion - run extrapolation."""
+        self._set_controls_enabled(True)
+        self.progress_bar.setVisible(False)
         
-        Updates the UI status label with current analysis progress information.
-        This method is called periodically by the LLMAnalysisWorker to provide
-        user feedback during long-running analysis operations.
+        self.analysis_results = result
+        self.detected_media = result.get('detected_media', [])
         
-        Args:
-            status: Progress status message from the analysis worker
-                   (e.g., "Analyzing folder structure...", "Querying LLM...")
-                   
-        The method simply updates the status label text. If the update fails
-        (rare), it logs the error but doesn't interrupt the analysis process.
+        # Update output section
+        self._update_output_display(result)
         
-        This provides real-time feedback to users during analysis operations
-        that may take several seconds to minutes depending on content complexity.
-        """
+        # Run extrapolation
+        self._set_status("Extrapolating folder changes to file-level actions...")
         try:
-            self.lbl_status.setText(status)
-        except Exception as e:
-            logger.error(f"Failed to update analysis progress: {e}", exc_info=True)
-    
-    def _on_analysis_finished(self, analysis_result: dict):
-        """
-        Handle completion of LLM analysis.
-        
-        Processes the analysis results and updates the UI to display findings.
-        This method is called when the LLMAnalysisWorker completes successfully.
-        
-        Args:
-            analysis_result: Dictionary containing analysis results with keys:
-                - detected_media: List of detected media items with metadata
-                - recommendations: Suggested reorganization actions
-                - confidence_scores: Analysis confidence metrics
-                - Other analysis-specific data
-                
-        The method:
-        1. Re-enables UI controls that were disabled during analysis
-        2. Stores results in instance variables for later use
-        3. Formats and displays a structured summary of findings
-        4. Shows detected media items with confidence scores
-        5. Enables metadata enrichment functionality
-        
-        The results are formatted for human readability and LLM consumption.
-        """
-        try:
-            self.btn_run.setEnabled(True)
-            self.btn_preview.setEnabled(True)
-            self.model_combo.setEnabled(True)
-            self.mode_combo.setEnabled(True)
-            self.btn_enrich.setEnabled(True)
-            self.progress_bar.setVisible(False)
-
-            self.llm_analysis = analysis_result
-            self.current_parsed_json = analysis_result
-            self.detected_media = analysis_result.get("detected_media", [])
-
-            # Display structured summary similar to legacy workflow
-            output_lines = []
-            output_lines.append("=" * 80)
-            output_lines.append("LLM ANALYSIS COMPLETE")
-            output_lines.append("=" * 80 + "\n")
-
-            output_lines.append(f"DETECTED MEDIA ({len(self.detected_media)} items):")
-            output_lines.append("-" * 80)
-            for media in self.detected_media[:10]:
-                media_type = media.get("type", "unknown").upper()
-                title = media.get("title", "Unknown")
-                year = media.get("year_estimate", "?")
-                confidence = media.get("confidence", "unknown")
-                output_lines.append(f"  [{media_type}] {title} ({year}) - Confidence: {confidence}")
-                if media.get("notes"):
-                    output_lines.append(f"           Notes: {media['notes']}")
-            if len(self.detected_media) > 10:
-                output_lines.append(f"  ... and {len(self.detected_media) - 10} more")
-            output_lines.append("")
-
-            plan = analysis_result.get("reorganization_plan", {})
-            plan_summary = plan.get("summary", "No summary provided")
-            output_lines.append("REORGANIZATION PLAN:")
-            output_lines.append("-" * 80)
-            output_lines.append(plan_summary)
-            output_lines.append("")
-
-            folder_changes = plan.get("folder_changes", [])
-            if folder_changes:
-                output_lines.append(f"PROPOSED CHANGES ({len(folder_changes)} folders):")
-                output_lines.append("-" * 80)
-                for change in folder_changes[:10]:
-                    output_lines.append(f"  {change.get('action', 'unknown').upper()}: {change.get('current_path', 'unknown')}")
-                    output_lines.append(f"    → {change.get('proposed_path', 'unknown')}")
-                    output_lines.append(f"    Reason: {change.get('reason', 'No reason provided')}")
-                    output_lines.append("")
-                if len(folder_changes) > 10:
-                    output_lines.append(f"  ... and {len(folder_changes) - 10} more changes")
-
-            multi_part = analysis_result.get("multi_part_episodes", [])
-            if multi_part:
-                output_lines.append("")
-                output_lines.append(f"MULTI-PART EPISODES ({len(multi_part)}):")
-                output_lines.append("-" * 80)
-                for episode in multi_part:
-                    show = episode.get("show_title", "Unknown")
-                    season = episode.get("season_number", "?")
-                    episodes = episode.get("episode_numbers", [])
-                    title = episode.get("combined_episode_title", "Unknown")
-                    output_lines.append(f"  {show} - S{season:02d}E{episodes} - {title}")
-                    output_lines.append(f"    Reason: {episode.get('reason', 'No reason provided')}")
-
-            output_lines.append("")
-            output_lines.append("LLM REASONING:")
-            output_lines.append("-" * 80)
-            reasoning = analysis_result.get("reasoning", "No reasoning provided")
-            output_lines.append(reasoning)
-            output_lines.append("")
-            output_lines.append("=" * 80)
-
-            # NEW: Populate plan table (per plan.md Point 5)
-            logger.info(f"Analysis result keys: {list(analysis_result.keys())}")
-            if "reorganization_plan" in analysis_result:
-                logger.info(f"Reorganization plan keys: {list(analysis_result['reorganization_plan'].keys())}")
-                folder_changes = analysis_result['reorganization_plan'].get("folder_changes", [])
-                logger.info(f"Folder changes count: {len(folder_changes)}")
-            self._populate_plan_table(analysis_result)
-            
-            self.lbl_status.setText("Analysis complete! Click 'Enrich Metadata' to query TMDB/OMDb.")
-
-            self._save_analysis_to_database(output_lines, analysis_result)
-            logger.info("LLM analysis completed successfully")
-
-            QMessageBox.information(
-                self,
-                "Analysis Complete",
-                f"Analysis completed successfully!\n\n"
-                f"Detected {len(self.detected_media)} media items.\n"
-                f"Click 'Enrich Metadata' for canonical data.",
-            )
-        except Exception as e:
-            logger.error(f"Failed to handle analysis completion: {e}", exc_info=True)
-            QMessageBox.critical(self, "Analysis Completion Error", f"Analysis completed but failed to process results: {str(e)}")
-            # Still re-enable UI
-            self.btn_run.setEnabled(True)
-            self.btn_preview.setEnabled(True)
-            self.model_combo.setEnabled(True)
-            self.btn_enrich.setEnabled(True)
-            self.progress_bar.setVisible(False)
-    
-    def _on_analysis_error(self, error_msg: str):
-        """
-        Handle errors that occur during LLM analysis.
-        
-        This method is called when the LLMAnalysisWorker encounters an error.
-        It provides user feedback and restores the UI to a usable state.
-        
-        Args:
-            error_msg: Descriptive error message from the analysis worker
-            
-        The method:
-        1. Re-enables UI controls that were disabled during analysis
-        2. Hides the progress bar
-        3. Updates status label with error information
-        4. Shows a critical error dialog to inform the user
-        5. Logs the error for debugging purposes
-        
-        The UI is restored to allow retry attempts or other operations.
-        """
-        try:
-            self.btn_run.setEnabled(True)
-            self.btn_preview.setEnabled(True)
-            self.model_combo.setEnabled(True)
-            self.mode_combo.setEnabled(True)
-            self.progress_bar.setVisible(False)
-            
-            self.lbl_status.setText(f"Analysis failed: {error_msg}")
-            
-            QMessageBox.critical(
-                self,
-                "Analysis Error",
-                f"LLM analysis failed:\n\n{error_msg}"
+            engine = ExtrapolationEngine(self.scanned_files)
+            self.extrapolated_operations = engine.extrapolate(
+                result.get('reorganization_plan', {}),
+                self.detected_media
             )
             
-            logger.error(f"LLM analysis error: {error_msg}")
+            # Populate table
+            self._populate_actions_table()
+            
+            # Save to database
+            self._save_analysis_to_database(result)
+            
+            # Enable downstream actions
+            self.btn_enrich.setEnabled(True)
+            self.btn_send_to_review.setEnabled(len(self.extrapolated_operations) > 0)
+            
+            stats = engine.get_statistics()
+            self._set_status(
+                f"Analysis complete: {stats['total_files']} files, "
+                f"{stats['move']} moves, {stats['review']} need review",
+                success=True
+            )
+            
+            # Expand output section
+            self.output_section.setChecked(True)
+            
         except Exception as e:
-            logger.error(f"Failed to handle analysis error: {e}", exc_info=True)
+            logger.error(f"Extrapolation failed: {e}", exc_info=True)
+            self._set_status(f"Extrapolation failed: {e}", error=True)
+
+    def _on_analysis_error(self, error: str):
+        """Handle analysis error."""
+        self._set_controls_enabled(True)
+        self.progress_bar.setVisible(False)
+        self._set_status(f"Analysis failed: {error}", error=True)
+        QMessageBox.critical(self, "Analysis Error", f"Analysis failed:\n{error}")
+
+    def _update_output_display(self, result: dict):
+        """Update the analysis output section."""
+        # Detected media summary
+        movies = [m for m in self.detected_media if m.get('type') == 'movie']
+        shows = [m for m in self.detected_media if m.get('type') == 'tv_show']
+        
+        self.detected_media_label.setText(
+            f"Detected: {len(movies)} movies, {len(shows)} TV shows, "
+            f"{len(self.detected_media) - len(movies) - len(shows)} other"
+        )
+        self.detected_media_label.setStyleSheet("color: #2ecc71; font-weight: bold;")
+        
+        # Raw output/reasoning
+        lines = []
+        lines.append("=" * 60)
+        lines.append("ANALYSIS RESULTS")
+        lines.append("=" * 60)
+        
+        for media in self.detected_media[:5]:
+            mtype = media.get('type', '?').upper()
+            title = media.get('title', 'Unknown')
+            year = media.get('year_estimate', '?')
+            lines.append(f"[{mtype}] {title} ({year})")
+        
+        if len(self.detected_media) > 5:
+            lines.append(f"... and {len(self.detected_media) - 5} more")
+        
+        lines.append("")
+        lines.append("REORGANIZATION PLAN:")
+        plan = result.get('reorganization_plan', {})
+        lines.append(plan.get('summary', 'No summary'))
+        
+        lines.append("")
+        lines.append("REASONING:")
+        lines.append(result.get('reasoning', 'No reasoning provided'))
+        
+        self.output_text.setPlainText("\n".join(lines))
+
+    # =========================================================================
+    # Actions Table
+    # =========================================================================
     
-    def _save_analysis_to_database(self, display_content, parsed_json: dict):
-        """
-        Save analysis results to the project database.
+    def _populate_actions_table(self):
+        """Populate the color-coded actions table."""
+        self.actions_table.setRowCount(len(self.extrapolated_operations))
         
-        Persists the LLM analysis results for future reference and audit trails.
-        This allows users to review historical analyses and track changes over time.
+        for row, op in enumerate(self.extrapolated_operations):
+            # Status checkbox
+            checkbox = QTableWidgetItem()
+            checkbox.setCheckState(
+                Qt.CheckState.Checked if op.user_approved is not False else Qt.CheckState.Unchecked
+            )
+            self.actions_table.setItem(row, 0, checkbox)
+            
+            # Original path
+            src_item = QTableWidgetItem(str(op.source_path))
+            self.actions_table.setItem(row, 1, src_item)
+            
+            # Proposed path
+            dest_str = str(op.destination_path) if op.destination_path else "-"
+            dest_item = QTableWidgetItem(dest_str)
+            self.actions_table.setItem(row, 2, dest_item)
+            
+            # Action
+            action_item = QTableWidgetItem(op.action_type.name)
+            self.actions_table.setItem(row, 3, action_item)
+            
+            # Subtitles (from notes)
+            subs = "Yes" if "Subtitle" in op.notes else "-"
+            subs_item = QTableWidgetItem(subs)
+            self.actions_table.setItem(row, 4, subs_item)
+            
+            # Confidence
+            conf_item = QTableWidgetItem(op.confidence.name)
+            self.actions_table.setItem(row, 5, conf_item)
+            
+            # Notes
+            notes_item = QTableWidgetItem(op.notes)
+            self.actions_table.setItem(row, 6, notes_item)
+            
+            # Apply row color based on confidence
+            color = CONFIDENCE_COLORS.get(op.confidence, QColor(255, 255, 255))
+            for col in range(self.actions_table.columnCount()):
+                item = self.actions_table.item(row, col)
+                if item:
+                    item.setBackground(QBrush(color))
         
-        Args:
-            display_content: Formatted text content for display/storage
-            parsed_json: Structured analysis results as dictionary containing:
-                - recommendations: List of suggested actions
-                - detected_media: Media detection results
-                - reorganization_plan: Structural recommendations
-                - Other analysis metadata
-                
-        The method:
-        1. Connects to the media library database
-        2. Extracts analysis metadata (model, scan ID, confidence)
-        3. Determines confidence level based on results quality
-        4. Inserts analysis record into project_analyses table
-        5. Emits analysis_saved signal to notify other components
-        6. Updates UI status to reflect successful save
+        # Update stats
+        stats = self._calculate_table_stats()
+        self.stats_label.setText(
+            f"Total: {stats['total']} | "
+            f"Move: {stats['move']} | Skip: {stats['skip']} | Review: {stats['review']} | "
+            f"High: {stats['high']} | Medium: {stats['medium']} | Low: {stats['low']}"
+        )
+        self.stats_label.setStyleSheet("")
+
+    def _calculate_table_stats(self) -> Dict[str, int]:
+        """Calculate statistics from operations."""
+        stats = {'total': 0, 'move': 0, 'skip': 0, 'review': 0, 'delete': 0,
+                 'high': 0, 'medium': 0, 'low': 0}
         
-        Raises:
-            sqlite3.Error: If database operations fail
-            json.JSONEncodeError: If parsed_json cannot be serialized
-        """
+        for op in self.extrapolated_operations:
+            stats['total'] += 1
+            stats[op.action_type.name.lower()] = stats.get(op.action_type.name.lower(), 0) + 1
+            stats[op.confidence.name.lower()] = stats.get(op.confidence.name.lower(), 0) + 1
+        
+        return stats
+
+    def _approve_selected(self):
+        """Approve selected rows."""
+        for row in self.actions_table.selectionModel().selectedRows():
+            item = self.actions_table.item(row.row(), 0)
+            if item:
+                item.setCheckState(Qt.CheckState.Checked)
+                if row.row() < len(self.extrapolated_operations):
+                    self.extrapolated_operations[row.row()].user_approved = True
+
+    def _reject_selected(self):
+        """Reject selected rows."""
+        for row in self.actions_table.selectionModel().selectedRows():
+            item = self.actions_table.item(row.row(), 0)
+            if item:
+                item.setCheckState(Qt.CheckState.Unchecked)
+                if row.row() < len(self.extrapolated_operations):
+                    self.extrapolated_operations[row.row()].user_approved = False
+
+    def _send_to_review(self):
+        """Send approved operations to ReviewView."""
+        approved = []
+        for row in range(self.actions_table.rowCount()):
+            item = self.actions_table.item(row, 0)
+            if item and item.checkState() == Qt.CheckState.Checked:
+                if row < len(self.extrapolated_operations):
+                    approved.append(self.extrapolated_operations[row])
+        
+        if not approved:
+            QMessageBox.warning(self, "No Selection", "No operations are approved. Check the boxes to approve.")
+            return
+        
+        reply = QMessageBox.question(
+            self, "Send to Review",
+            f"Send {len(approved)} approved operations to Review tab?\n\n"
+            "You can make final adjustments there before execution."
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            self.send_to_review.emit(approved)
+            self._set_status(f"Sent {len(approved)} operations to Review", success=True)
+
+    # =========================================================================
+    # Snapshot & Metadata
+    # =========================================================================
+    
+    def _create_snapshot(self):
+        """Create a pre-operation snapshot using SnapshotManager."""
         try:
-            if not self.folder_structure:
-                raise ValueError("No scan data available for analysis save")
-                
+            from scripts._common.snapshot_manager import SnapshotManager
+            
+            if not self.scanned_files:
+                QMessageBox.warning(self, "No Data", "No files to snapshot.")
+                return
+            
+            # Get root folder from scanned files
+            roots = set(f.parent_folder for f in self.scanned_files[:10])
+            if not roots:
+                QMessageBox.warning(self, "No Data", "Cannot determine media root.")
+                return
+            
+            # Use common parent
+            root = Path(list(roots)[0])
+            while root.parent != root:
+                if all(str(r).startswith(str(root)) for r in roots):
+                    break
+                root = root.parent
+            
+            self._set_status(f"Creating snapshot of {root}...")
+            
+            snapshot_id = SnapshotManager.create_snapshot(
+                media_root=str(root),
+                snapshot_type="pre_analysis"
+            )
+            
+            self.snapshot_label.setText(f"Latest snapshot: {snapshot_id[:20]}...")
+            self.snapshot_label.setStyleSheet("color: #2ecc71;")
+            self.btn_restore_snapshot.setEnabled(True)
+            
+            self._set_status(f"Snapshot created: {snapshot_id}", success=True)
+            
+        except Exception as e:
+            logger.error(f"Snapshot creation failed: {e}", exc_info=True)
+            QMessageBox.critical(self, "Snapshot Error", f"Failed to create snapshot:\n{e}")
+
+    def _restore_snapshot(self):
+        """Restore from the most recent snapshot."""
+        try:
+            from scripts._common.snapshot_manager import SnapshotManager
+            
+            reply = QMessageBox.question(
+                self, "Restore Snapshot",
+                "Restore files to their state before the last snapshot?\n\n"
+                "This will undo any file operations since the snapshot."
+            )
+            
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+            
+            # Get latest snapshot
+            snapshots = SnapshotManager.list_snapshots()
+            if not snapshots:
+                QMessageBox.warning(self, "No Snapshots", "No snapshots available to restore.")
+                return
+            
+            latest = snapshots[0]
+            self._set_status(f"Restoring snapshot {latest}...")
+            
+            SnapshotManager.restore_snapshot(latest)
+            
+            self._set_status("Snapshot restored successfully", success=True)
+            
+        except Exception as e:
+            logger.error(f"Snapshot restore failed: {e}", exc_info=True)
+            QMessageBox.critical(self, "Restore Error", f"Failed to restore snapshot:\n{e}")
+
+    def _enrich_metadata(self):
+        """Start metadata enrichment with TMDB/TVDB."""
+        if not self.detected_media:
+            QMessageBox.warning(self, "No Data", "Run analysis first to detect media.")
+            return
+
+        reply = QMessageBox.question(
+            self, "Enrich Metadata",
+            f"Query TMDB/TVDB for {len(self.detected_media)} detected media items?\n\n"
+            "This will resolve official titles, years, and episode info."
+        )
+
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        self.btn_enrich.setEnabled(False)
+        self.progress_bar.setVisible(True)
+
+        try:
+            tmdb_key = os.getenv("TMDB_API_KEY")
+            omdb_key = os.getenv("OMDB_API_KEY")
+
+            self.metadata_worker = MetadataLookupWorker(
+                detected_media=self.detected_media,
+                scanned_files=self.scanned_files,
+                tmdb_api_key=tmdb_key,
+                omdb_api_key=omdb_key
+            )
+            
+            self.metadata_worker.progress.connect(self._on_metadata_progress)
+            self.metadata_worker.finished.connect(self._on_metadata_finished)
+            self.metadata_worker.error.connect(self._on_metadata_error)
+            self.metadata_worker.start()
+
+        except Exception as e:
+            self.btn_enrich.setEnabled(True)
+            self.progress_bar.setVisible(False)
+            QMessageBox.critical(self, "Error", f"Failed to start metadata lookup:\n{e}")
+
+    def _on_metadata_progress(self, status: str, current: int, total: int):
+        """Handle metadata progress."""
+        self._set_status(status)
+        if total > 0:
+            self.progress_bar.setRange(0, total)
+            self.progress_bar.setValue(current)
+
+    def _on_metadata_finished(self, canonical_db: dict):
+        """Handle metadata completion."""
+        self.btn_enrich.setEnabled(True)
+        self.progress_bar.setVisible(False)
+        
+        self.canonical_database = canonical_db
+
+        movies = len(canonical_db.get('movies', []))
+        shows = len(canonical_db.get('tv_shows', []))
+        
+        self.metadata_status.setText(f"✓ {movies} movies, {shows} TV shows enriched")
+        self.metadata_status.setStyleSheet("color: #2ecc71;")
+        
+        # Save to database
+        try:
+            conn = sqlite3.connect("data/media_library.db")
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE project_analyses SET metadata_json = ? WHERE id = ?
+            ''', (json.dumps(canonical_db), self.current_analysis_id))
+            conn.commit()
+            conn.close()
+            
+            if self.current_analysis_id:
+                self.metadata_built.emit(self.current_analysis_id)
+        except Exception as e:
+            logger.error(f"Failed to save metadata: {e}", exc_info=True)
+        
+        self._set_status("Metadata enrichment complete", success=True)
+
+    def _on_metadata_error(self, error: str):
+        """Handle metadata error."""
+        self.btn_enrich.setEnabled(True)
+        self.progress_bar.setVisible(False)
+        self._set_status(f"Metadata lookup failed: {error}", error=True)
+        QMessageBox.critical(self, "Metadata Error", f"Metadata lookup failed:\n{error}")
+
+    # =========================================================================
+    # Database
+    # =========================================================================
+    
+    def _save_analysis_to_database(self, result: dict):
+        """Save analysis results to database."""
+        try:
             conn = sqlite3.connect("data/media_library.db")
             cursor = conn.cursor()
             
             model = self.model_combo.currentText()
-            scan_id = self.folder_structure.get('scan_id')
-            
-            # Determine confidence based on parsed results
-            confidence = "MEDIUM"
-            if parsed_json and len(parsed_json.get('recommendations', [])) > 0:
-                confidence = "HIGH"
-            
-            issues_found = len(parsed_json.get('recommendations', []))
+            scan_id = self.folder_structure.get('scan_id') if self.folder_structure else None
             
             cursor.execute('''
                 INSERT INTO project_analyses 
@@ -989,282 +1064,41 @@ class AnalysisView(QWidget):
                 scan_id,
                 model,
                 datetime.now().isoformat(),
-                "\n".join(display_content) if isinstance(display_content, list) else display_content,
-                json.dumps(parsed_json),
-                confidence,
-                issues_found
+                json.dumps(result.get('reasoning', '')),
+                json.dumps(result),
+                'MEDIUM',
+                len(self.extrapolated_operations)
             ))
             
             self.current_analysis_id = cursor.lastrowid
             conn.commit()
             conn.close()
             
-            logger.info(f"Saved analysis to database: ID={self.current_analysis_id}")
             if self.current_analysis_id:
                 self.analysis_saved.emit(self.current_analysis_id)
-            
-        except Exception as e:
-            logger.error(f"Failed to save analysis to database: {e}", exc_info=True)
-
-    def _enrich_metadata(self):
-        """
-        Start the metadata enrichment process for detected media.
-        
-        Initiates background metadata lookup using TMDB and OMDb APIs to gather
-        canonical information for all detected media items. This process resolves
-        official titles, release years, episode structures, and identifies content
-        that requires NFO metadata files.
-        
-        The enrichment process:
-        1. Validates that detected media data is available from prior analysis
-        2. Prompts user for confirmation due to API usage
-        3. Checks for required API keys (TMDB_API_KEY, OMDB_API_KEY)
-        4. Creates and starts a MetadataLookupWorker thread
-        5. Disables UI controls during processing
-        6. Shows progress indication
-        
-        The worker runs asynchronously to prevent UI blocking. Results are
-        processed by connected signal handlers when complete.
-        
-        Raises:
-            QMessageBox: Shows warnings if no media data or missing API keys
-        """
-        try:
-            if not self.detected_media:
-                QMessageBox.warning(
-                    self, "No Data", "No detected media available. Run analysis first."
-                )
-                return
-
-            reply = QMessageBox.question(
-                self,
-                "Build Canonical Metadata",
-                "Query TMDB/OMDb for canonical metadata?\n\n"
-                "This will resolve official titles, years, season/episode structure,\n"
-                "and identify multi-part episodes that require NFO files.",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
-
-            if reply != QMessageBox.StandardButton.Yes:
-                return
-
-            self.btn_enrich.setEnabled(False)
-            self.btn_run.setEnabled(False)
-            self.progress_bar.setVisible(True)
-            self.progress_bar.setValue(0)
-
-            tmdb_key = os.getenv("TMDB_API_KEY")
-            omdb_key = os.getenv("OMDB_API_KEY")
-
-            self.metadata_worker = MetadataLookupWorker(
-                detected_media=self.detected_media,
-                scanned_files=self.scanned_files,
-                tmdb_api_key=tmdb_key,
-                omdb_api_key=omdb_key,
-            )
-            self.metadata_worker.progress.connect(self._on_metadata_progress)
-            self.metadata_worker.finished.connect(self._on_metadata_finished)
-            self.metadata_worker.error.connect(self._on_metadata_error)
-            self.metadata_worker.start()
-
-            logger.info("Started metadata enrichment")
-        except Exception as e:
-            logger.error(f"Failed to start metadata enrichment: {e}", exc_info=True)
-            QMessageBox.critical(self, "Enrichment Error", f"Failed to start metadata enrichment: {str(e)}")
-            # Re-enable UI on error
-            self.btn_enrich.setEnabled(True)
-            self.btn_run.setEnabled(True)
-            self.progress_bar.setVisible(False)
-
-    def _on_metadata_progress(self, status: str, current: int, total: int):
-        """
-        Handle progress updates during metadata enrichment.
-        
-        Updates the UI with current progress information during metadata lookup
-        operations. This method is called periodically by the MetadataLookupWorker
-        to provide detailed progress feedback for long-running API queries.
-        
-        Args:
-            status: Current status message from the metadata worker
-                   (e.g., "Querying TMDB for 'Movie Title'...")
-            current: Number of items processed so far
-            total: Total number of items to process
-            
-        The method:
-        1. Updates the status label with the current status message
-        2. Sets progress bar maximum and current values for visual progress
-        3. Logs errors if UI updates fail (rare case)
-        
-        Progress tracking is important for metadata enrichment as it involves
-        multiple API calls that can take significant time depending on the
-        number of media items and API response times.
-        """
-        try:
-            self.lbl_status.setText(status)
-            if total > 0:
-                self.progress_bar.setMaximum(total)
-                self.progress_bar.setValue(current)
-        except Exception as e:
-            logger.error(f"Failed to update metadata progress: {e}", exc_info=True)
-
-    def _on_metadata_finished(self, canonical_db: dict):
-        """
-        Handle completion of metadata enrichment lookup.
-        
-        Processes the canonical metadata database and updates the UI to display
-        the enriched information. This method is called when the MetadataLookupWorker
-        completes successfully.
-        
-        Args:
-            canonical_db: Dictionary containing canonical metadata with structure:
-                - movies: List of movie metadata dictionaries
-                - tv_shows: List of TV show metadata dictionaries
-                - episodes: Episode metadata for TV shows
-                Each item contains TMDb/OMDb canonical information
                 
-        The method:
-        1. Re-enables UI controls that were disabled during lookup
-        2. Stores canonical database for later use
-        3. Formats and displays summary of enriched metadata
-        4. Shows movies and TV shows with key information
-        5. Emits metadata_built signal to notify other components
-        6. Updates status to indicate successful enrichment
-        
-        The canonical database provides authoritative metadata for content
-        identification and NFO file generation.
-        """
-        try:
-            self.btn_enrich.setEnabled(True)
-            self.btn_run.setEnabled(True)
-            self.progress_bar.setVisible(False)
-            self.canonical_database = canonical_db
-
-            lines = []
-            lines.append("CANONICAL METADATA DATABASE")
-            lines.append("=" * 60 + "\n")
-
-            lines.append(f"Movies: {len(canonical_db.get('movies', []))}")
-            for movie in canonical_db.get("movies", [])[:10]:
-                title = movie.get("title", "Unknown")
-                year = movie.get("year", "????")
-                tmdb_id = movie.get("tmdb_id", "N/A")
-                lines.append(f"  • {title} ({year}) [TMDb: {tmdb_id}]")
-            lines.append("")
-
-            lines.append(f"TV Shows: {len(canonical_db.get('tv_shows', []))}")
-            for show in canonical_db.get("tv_shows", [])[:10]:
-                title = show.get("title", "Unknown")
-                year = show.get("year", "????")
-                tmdb_id = show.get("tmdb_id", "N/A")
-                num_seasons = show.get("number_of_seasons", 0)
-                num_episodes = show.get("number_of_episodes", 0)
-                lines.append(
-                    f"  • {title} ({year}) - {num_seasons} seasons, {num_episodes} episodes [TMDb: {tmdb_id}]"
-                )
-            lines.append("")
-
-            multi_part = canonical_db.get("multi_part_episodes", [])
-            if multi_part:
-                lines.append(f"Multi-Part Episodes Needing NFOs: {len(multi_part)}")
-                for mp in multi_part[:5]:
-                    lines.append(
-                        f"  • {mp['show_title']} - S{mp['season_number']:02d}E{mp['episode_number']:02d} - {mp['episode_name']}"
-                    )
-                lines.append("")
-
-            if canonical_db.get("lookup_failures"):
-                lines.append(f"Lookup Failures: {len(canonical_db['lookup_failures'])}")
-                for failure in canonical_db["lookup_failures"][:5]:
-                    lines.append(f"  • {failure.get('title', 'Unknown')} ({failure.get('type', '?')})")
-                lines.append("")
-
-            # NEW: Populate metadata table
-            self._populate_metadata_table(canonical_db)
-            
-            self.lbl_status.setText("Metadata enrichment complete!")
-
-            try:
-                conn = sqlite3.connect("data/media_library.db")
-                cursor = conn.cursor()
-                cursor.execute(
-                    '''
-                    UPDATE project_analyses
-                    SET metadata_json = ?
-                    WHERE id = ?
-                    ''',
-                    (json.dumps(canonical_db), self.current_analysis_id),
-                )
-                conn.commit()
-                conn.close()
-                logger.info("Saved canonical metadata to database")
-                if self.current_analysis_id:
-                    self.metadata_built.emit(self.current_analysis_id)
-            except Exception as e:
-                logger.error(f"Failed to save canonical metadata: {e}", exc_info=True)
-
-            QMessageBox.information(
-                self,
-                "Metadata Complete",
-                f"Metadata enrichment complete!\n\n"
-                f"Movies: {len(canonical_db.get('movies', []))}\n"
-                f"TV Shows: {len(canonical_db.get('tv_shows', []))}\n"
-                f"Multi-part episodes: {len(multi_part)}",
-            )
         except Exception as e:
-            logger.error(f"Failed to handle metadata completion: {e}", exc_info=True)
-            QMessageBox.critical(self, "Metadata Completion Error", f"Metadata enrichment completed but failed to process results: {str(e)}")
-            # Still re-enable UI
-            self.btn_enrich.setEnabled(True)
-            self.btn_run.setEnabled(True)
-            self.progress_bar.setVisible(False)
+            logger.error(f"Failed to save analysis: {e}", exc_info=True)
 
-    def _on_metadata_error(self, error_msg: str):
-        """
-        Handle errors that occur during metadata enrichment.
-        
-        This method is called when the MetadataLookupWorker encounters an error
-        during API queries or data processing. It provides user feedback and
-        restores the UI to a usable state.
-        
-        Args:
-            error_msg: Descriptive error message from the metadata worker
-                      (may include API errors, network issues, or parsing failures)
-            
-        The method:
-        1. Re-enables UI controls that were disabled during lookup
-        2. Hides the progress bar
-        3. Updates status label with error information
-        4. Shows a critical error dialog to inform the user
-        5. Logs the error for debugging purposes
-        
-        Error handling is robust - if the error handler itself fails,
-        it includes fallback UI restoration to prevent the interface
-        from becoming unusable.
-        
-        Common error causes:
-        - Missing or invalid API keys
-        - Network connectivity issues
-        - API rate limiting or service unavailability
-        - Malformed response data from external services
-        """
-        try:
-            self.btn_enrich.setEnabled(True)
-            self.btn_run.setEnabled(True)
-            self.progress_bar.setVisible(False)
-            self.lbl_status.setText(f"Metadata lookup failed: {error_msg}")
-            QMessageBox.critical(
-                self,
-                "Metadata Error",
-                f"Metadata lookup failed:\n\n{error_msg}",
-            )
-            logger.error(f"Metadata enrichment error: {error_msg}")
-        except Exception as e:
-            logger.error(f"Failed to handle metadata error: {e}", exc_info=True)
-            # Ensure UI is still re-enabled even if error handling fails
-            try:
-                self.btn_enrich.setEnabled(True)
-                self.btn_run.setEnabled(True)
-                self.progress_bar.setVisible(False)
-                self.lbl_status.setText("Critical error in metadata error handling")
-            except Exception as ui_error:
-                logger.error(f"Failed to restore UI state after metadata error: {ui_error}", exc_info=True)
+    # =========================================================================
+    # Helpers
+    # =========================================================================
+    
+    def _set_status(self, text: str, error: bool = False, success: bool = False):
+        """Update status label."""
+        self.status_label.setText(text)
+        if error:
+            self.status_label.setStyleSheet("color: #e74c3c; font-style: italic;")
+        elif success:
+            self.status_label.setStyleSheet("color: #2ecc71; font-style: italic;")
+        else:
+            self.status_label.setStyleSheet("font-style: italic;")
+
+    def _set_controls_enabled(self, enabled: bool):
+        """Enable/disable controls during operations."""
+        self.btn_run.setEnabled(enabled)
+        self.btn_preview.setEnabled(enabled)
+        self.mode_combo.setEnabled(enabled)
+        self.model_combo.setEnabled(enabled and "LLM" in self.mode_combo.currentText())
+        self.btn_refresh_models.setEnabled(enabled and "LLM" in self.mode_combo.currentText())
+        self.btn_snapshot.setEnabled(enabled)

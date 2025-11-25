@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """
-JellyRancher Studio - Modern Project-Centric Media Library Manager
+JellyRancher Studio - Modern Round-Up-Based Media Library Manager
 
-The next-generation GUI for JellyRancher, implementing the "Workflow Canvas"
-design from Phase 32. Features project management, flexible workflow, and
-professional UI/UX.
+The next-generation GUI for JellyRancher, implementing the "Round-Up" persistence
+system from master-prompt.md Section VII. Features Round-Up management, flexible
+8-step workflow, and professional UI/UX.
 
 Architecture:
-    - Project-centric: Everything revolves around projects
-    - Task-based: "What do you want to do?" not "Step 3 of 9"
-    - Flexible: Non-linear workflow, save/resume anywhere
-    - Professional: Modern UI, keyboard shortcuts, smart interactions
+    - Round-Up-centric: Everything revolves around Round-Ups (saved sessions)
+    - 8-Step Workflow: Scan → Summary → Analysis → Metadata → Review → Execute → Subtitle Audit → Downloads
+    - Welcome Screen: Always shows on launch, displays recent Round-Ups
+    - Auto-Save: Saves after each step completion
+    - Resume: Pick up exactly where you left off
 
 Usage:
     python jelly_rancher_studio.py
@@ -22,20 +23,22 @@ import json
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-import sqlite3
 
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QSplitter, QTreeWidget, QTreeWidgetItem, QTabWidget, QLabel,
     QMenuBar, QMenu, QStatusBar, QPushButton, QMessageBox, QDialog,
-    QLineEdit, QTextEdit, QDialogButtonBox, QComboBox, QTableWidget,
-    QTableWidgetItem, QAbstractItemView
+    QLineEdit, QTextEdit, QDialogButtonBox, QStackedWidget
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QEvent
-from PyQt6.QtGui import QAction, QFont, QIcon, QShortcut, QKeySequence
+from PyQt6.QtGui import QAction, QFont, QShortcut, QKeySequence
 
-from scripts.core.project_manager import ProjectManager, Project, ProjectState
+from scripts.core.roundup_manager import RoundUpManager, RoundUp
 from scripts._common.logger import MasterLogger
+from scripts.ui.welcome_screen import WelcomeScreen
+from scripts.ui.styles import apply_stylesheet
+
+# Import views - will need adapters
 from scripts.ui.scan_view import ScanView
 from scripts.ui.scan_results_view import ScanResultsView
 from scripts.ui.analysis_view import AnalysisView
@@ -43,7 +46,6 @@ from scripts.ui.review_view import ReviewView
 from scripts.ui.execution_view import ExecutionView
 from scripts.ui.subtitles_view import SubtitlesView
 from scripts.core.dialogs.jellyfin_settings_dialog import JellyfinSettingsDialog
-from scripts.ui.styles import apply_stylesheet
 
 # Initialize logging
 logger = logging.getLogger(__name__)
@@ -52,172 +54,189 @@ logger = logging.getLogger(__name__)
 DARK_MODE_ENABLED = True
 
 
-class NewProjectDialog(QDialog):
-    """Dialog for creating a new project."""
-    
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Create New Project")
-        self.setModal(True)
-        self.resize(500, 300)
-        
-        layout = QVBoxLayout()
-        
-        # Project name
-        layout.addWidget(QLabel("Project Name:"))
-        self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("e.g., My Media Library")
-        layout.addWidget(self.name_input)
-        
-        # Description
-        layout.addWidget(QLabel("Description (optional):"))
-        self.description_input = QTextEdit()
-        self.description_input.setPlaceholderText("Brief description of this project...")
-        self.description_input.setMaximumHeight(100)
-        layout.addWidget(self.description_input)
-        
-        # Buttons
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
-        
-        self.setLayout(layout)
-    
-    def get_project_data(self):
-        """Get the entered project data."""
+class RoundUpProjectAdapter:
+    """
+    Adapter that makes a RoundUp look like the old Project class.
+
+    This allows existing views to work with the new Round-Up system
+    without immediate refactoring. Views expect:
+    - id, name, description, settings attributes
+    - scan_sessions, analyses, action_plans lists
+    """
+
+    def __init__(self, roundup: RoundUp, manager: RoundUpManager):
+        self.roundup = roundup
+        self.manager = manager
+
+        # Map RoundUp attributes to Project-like interface
+        self.id = hash(str(roundup.path))  # Generate stable ID from path
+        self.name = roundup.name
+        self.description = f"Step {roundup.current_step}/8"
+        self.settings = roundup.config
+        self.state = "active"
+
+        # These will be populated from database
+        self.scan_sessions: List[int] = []
+        self.analyses: List[int] = []
+        self.action_plans: List[int] = []
+
+        self._load_session_ids()
+
+    def _load_session_ids(self):
+        """Load session IDs from the Round-Up database."""
+        try:
+            with self.manager.get_connection(self.roundup) as conn:
+                cursor = conn.cursor()
+
+                # Get scan count (we'll use row IDs as session IDs)
+                cursor.execute('SELECT COUNT(*) FROM scan_files')
+                scan_count = cursor.fetchone()[0]
+                if scan_count > 0:
+                    self.scan_sessions = [1]  # Simplified - one scan per roundup
+
+                # Get analysis IDs
+                cursor.execute('SELECT id FROM analysis_results ORDER BY created_at DESC')
+                self.analyses = [row['id'] for row in cursor.fetchall()]
+
+                # Get review action count as "plan"
+                cursor.execute('SELECT COUNT(*) FROM review_actions')
+                action_count = cursor.fetchone()[0]
+                if action_count > 0:
+                    self.action_plans = [1]  # Simplified
+
+        except Exception as e:
+            logger.warning(f"Failed to load session IDs: {e}")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for compatibility."""
         return {
-            'name': self.name_input.text().strip(),
-            'description': self.description_input.toPlainText().strip()
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'settings': self.settings
         }
 
 
-class OpenProjectDialog(QDialog):
-    """Dialog for selecting and opening an existing project."""
+class RoundUpManagerAdapter:
+    """
+    Adapter that makes RoundUpManager look like the old ProjectManager.
 
-    def __init__(self, project_manager: 'ProjectManager', parent=None):
-        super().__init__(parent)
-        self.project_manager = project_manager
-        self.setWindowTitle("Open Project")
-        self.resize(700, 450)
-        self.setModal(True)
+    This allows existing views to work with the new Round-Up system.
+    Views expect methods like:
+    - save_project(), load_project(), get_scan_summary(), etc.
+    """
 
-        self.projects = self.project_manager.list_projects()
-        self.filtered_projects = list(self.projects)
-        self.selected_project: Optional[Project] = None
+    def __init__(self, manager: RoundUpManager, current_roundup: Optional[RoundUp] = None):
+        self.manager = manager
+        self.current_roundup = current_roundup
 
-        layout = QVBoxLayout()
+        # Legacy database path for views that access it directly
+        self.db_path = Path("data/media_library.db")
 
-        layout.addWidget(QLabel("Search Projects:"))
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Filter by name or description...")
-        self.search_input.textChanged.connect(self._filter_projects)
-        layout.addWidget(self.search_input)
+    def set_current_roundup(self, roundup: Optional[RoundUp]):
+        """Set the current Round-Up context."""
+        self.current_roundup = roundup
 
-        self.table = QTableWidget()
-        self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["Name", "Description", "State", "Last Opened"])
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.table.setAlternatingRowColors(True)
-        self.table.cellDoubleClicked.connect(self._handle_double_click)
-        layout.addWidget(self.table)
+    def save_project(self, project: RoundUpProjectAdapter) -> bool:
+        """Save the Round-Up (adapter method)."""
+        if self.current_roundup:
+            return self.manager.save(self.current_roundup)
+        return False
 
-        self.empty_label = QLabel("No projects found. Create a new project first.")
-        self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.empty_label)
+    def load_project(self, project_id: Optional[int] = None, name: Optional[str] = None):
+        """Load a Round-Up (adapter method)."""
+        if name:
+            roundup = self.manager.load(name)
+            if roundup:
+                return RoundUpProjectAdapter(roundup, self.manager)
+        return None
 
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
-        buttons.accepted.connect(self._handle_accept)
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
+    def get_scan_summary(self, session_id: int) -> dict:
+        """Get scan statistics (adapter method)."""
+        if not self.current_roundup:
+            return {'files': 0, 'size_gb': 0.0}
 
-        self.setLayout(layout)
-        self._populate_table(self.filtered_projects)
+        try:
+            with self.manager.get_connection(self.current_roundup) as conn:
+                cursor = conn.cursor()
+                cursor.execute('SELECT COUNT(*), SUM(size_bytes) FROM scan_files')
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        'files': row[0] or 0,
+                        'size_gb': (row[1] or 0) / (1024**3)
+                    }
+        except Exception as e:
+            logger.error(f"Failed to get scan summary: {e}")
 
-    def _populate_table(self, projects: List[Project]):
-        self.table.setRowCount(len(projects))
-        for row, project in enumerate(projects):
-            name_item = QTableWidgetItem(project.name)
-            name_item.setData(Qt.ItemDataRole.UserRole, project.id)
-            self.table.setItem(row, 0, name_item)
+        return {'files': 0, 'size_gb': 0.0}
 
-            desc_text = project.description or ""
-            desc_item = QTableWidgetItem(desc_text)
-            self.table.setItem(row, 1, desc_item)
+    def get_analysis_summary(self, analysis_id: int) -> dict:
+        """Get analysis summary (adapter method)."""
+        if not self.current_roundup:
+            return {'issues': 0, 'confidence': 'UNKNOWN'}
 
-            state_item = QTableWidgetItem(project.state.title())
-            self.table.setItem(row, 2, state_item)
+        try:
+            with self.manager.get_connection(self.current_roundup) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'SELECT response_json FROM analysis_results WHERE id = ?',
+                    (analysis_id,)
+                )
+                row = cursor.fetchone()
+                if row and row['response_json']:
+                    response = json.loads(row['response_json'])
+                    issues = len(response.get('reorganization_plan', {}).get('folder_changes', []))
+                    return {
+                        'issues': issues,
+                        'confidence': 'HIGH' if issues > 0 else 'LOW'
+                    }
+        except Exception as e:
+            logger.error(f"Failed to get analysis summary: {e}")
 
-            last_opened = project.last_opened or ""
-            self.table.setItem(row, 3, QTableWidgetItem(last_opened))
+        return {'issues': 0, 'confidence': 'UNKNOWN'}
 
-        has_projects = bool(projects)
-        self.table.setEnabled(has_projects)
-        self.empty_label.setVisible(not has_projects)
-        if has_projects:
-            self.table.resizeColumnsToContents()
-            self.table.selectRow(0)
+    def save_project_state(self, state) -> bool:
+        """Save project state (adapter - no-op, Round-Up handles this)."""
+        return True
 
-    def _filter_projects(self, text: str):
-        query = text.strip().lower()
-        if not query:
-            self.filtered_projects = list(self.projects)
-        else:
-            self.filtered_projects = [
-                project for project in self.projects
-                if query in project.name.lower()
-                or query in (project.description or "").lower()
-            ]
-        self._populate_table(self.filtered_projects)
-
-    def _handle_double_click(self, row: int, _column: int):
-        self._select_row(row)
-
-    def _handle_accept(self):
-        row = self.table.currentRow()
-        self._select_row(row)
-
-    def _select_row(self, row: int):
-        if 0 <= row < len(self.filtered_projects):
-            self.selected_project = self.filtered_projects[row]
-            self.accept()
-        elif not self.filtered_projects:
-            QMessageBox.information(self, "No Projects", "No projects are available to open.")
-
-    def get_selected_project(self) -> Optional[Project]:
-        return self.selected_project
+    def load_project_state(self, project_id: int):
+        """Load project state (adapter - returns None)."""
+        return None
 
 
 class JellyRancherStudio(QMainWindow):
     """
     Main window for JellyRancher Studio.
-    
+
     Layout:
-        - Menu bar (top)
-        - Project selector (top right)
-        - Left sidebar: Project Explorer
-        - Center: Tabbed workspace
-        - Right panel: Context panel (collapsible)
-        - Bottom: Status bar
+        - Welcome Screen (when no Round-Up open)
+        - Workspace (when Round-Up is open):
+            - Left sidebar: Round-Up Explorer (8-step workflow)
+            - Center: Tabbed workspace for views
+            - Bottom: Status bar with save indicator
     """
-    
+
     # Signals
-    project_changed = pyqtSignal(object)  # Emitted when active project changes
-    
+    roundup_changed = pyqtSignal(object)  # Emitted when active Round-Up changes
+
     def __init__(self):
         super().__init__()
-        
+
         # Initialize managers
-        self.project_manager = ProjectManager()
-        self.current_project: Optional[Project] = None
+        self.roundup_manager = RoundUpManager()
+        self.current_roundup: Optional[RoundUp] = None
+
+        # Create adapters for legacy view compatibility
+        self.manager_adapter = RoundUpManagerAdapter(self.roundup_manager)
+        self.project_adapter: Optional[RoundUpProjectAdapter] = None
+
+        # Auto-save timer
         self.auto_save_timer = QTimer()
-        
+
+        # Track last scan session ID for results view
+        self.last_scan_session_id: Optional[int] = None
+
         # Setup UI
         self.setWindowTitle("JellyRancher Studio")
         self.resize(1400, 720)
@@ -227,1054 +246,1200 @@ class JellyRancherStudio(QMainWindow):
         self._create_status_bar()
         self._setup_keyboard_shortcuts()
         self._setup_gui_capture_shortcut()
-        self._setup_auto_save()
-        
-        # Load last project or show welcome
-        self._load_last_project()
-        
+
+        # Start with Welcome Screen (always)
+        self._show_welcome_screen()
+
         logger.info("JellyRancher Studio initialized")
-    
+
     def _create_menu_bar(self):
         """Create the menu bar."""
         menubar = self.menuBar()
-        
+
         # File menu
         file_menu = menubar.addMenu("&File")
-        
-        new_action = QAction("&New Project...", self)
+
+        new_action = QAction("&New Round-Up...", self)
         new_action.setShortcut("Ctrl+N")
-        new_action.triggered.connect(self.new_project)
+        new_action.triggered.connect(self._new_roundup)
         file_menu.addAction(new_action)
-        
-        open_action = QAction("&Open Project...", self)
+
+        open_action = QAction("&Open Round-Up...", self)
         open_action.setShortcut("Ctrl+O")
-        open_action.triggered.connect(self.open_project)
+        open_action.triggered.connect(self._open_roundup_dialog)
         file_menu.addAction(open_action)
-        
-        # Recent projects submenu
-        self.recent_menu = QMenu("Open &Recent", self)
-        file_menu.addMenu(self.recent_menu)
-        self._populate_recent_menu()
-        
+
         file_menu.addSeparator()
-        
-        save_action = QAction("&Save Project", self)
+
+        save_action = QAction("&Save Round-Up", self)
         save_action.setShortcut("Ctrl+S")
-        save_action.triggered.connect(self.save_project)
+        save_action.triggered.connect(self._save_roundup)
         file_menu.addAction(save_action)
-        
-        close_action = QAction("&Close Project", self)
+
+        close_action = QAction("&Close Round-Up", self)
         close_action.setShortcut("Ctrl+W")
-        close_action.triggered.connect(self.close_project)
+        close_action.triggered.connect(self._close_roundup)
         file_menu.addAction(close_action)
-        
+
         file_menu.addSeparator()
-        
+
         settings_action = QAction("Se&ttings...", self)
         settings_action.setShortcut("Ctrl+,")
-        settings_action.triggered.connect(self.show_settings)
+        settings_action.triggered.connect(self._show_settings)
         file_menu.addAction(settings_action)
-        
+
         file_menu.addSeparator()
-        
+
         exit_action = QAction("E&xit", self)
         exit_action.setShortcut("Alt+F4")
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
-        
-        # Edit menu
-        edit_menu = menubar.addMenu("&Edit")
-        # TODO: Add edit actions
-        
+
         # View menu
         view_menu = menubar.addMenu("&View")
 
         dark_mode_action = QAction("&Dark Mode", self, checkable=True)
         dark_mode_action.setChecked(True)
-        dark_mode_action.triggered.connect(self.toggle_dark_mode)
+        dark_mode_action.triggered.connect(self._toggle_dark_mode)
         view_menu.addAction(dark_mode_action)
 
         view_menu.addSeparator()
 
-        shortcuts_action = QAction("Keyboard &Shortcuts", self)
-        shortcuts_action.triggered.connect(self.show_keyboard_shortcuts)
+        welcome_action = QAction("&Welcome Screen", self)
+        welcome_action.triggered.connect(self._show_welcome_screen)
+        view_menu.addAction(welcome_action)
+
+        shortcuts_action = QAction("&Keyboard Shortcuts", self)
+        shortcuts_action.triggered.connect(self._show_keyboard_shortcuts)
         view_menu.addAction(shortcuts_action)
-        
+
         # Tools menu
         tools_menu = menubar.addMenu("&Tools")
 
-        jellyfin_settings_action = QAction("&Jellyfin Settings", self)
-        jellyfin_settings_action.triggered.connect(self.show_jellyfin_settings)
-        tools_menu.addAction(jellyfin_settings_action)
-        
+        jellyfin_action = QAction("&Jellyfin Settings", self)
+        jellyfin_action.triggered.connect(self._show_jellyfin_settings)
+        tools_menu.addAction(jellyfin_action)
+
         # Help menu
         help_menu = menubar.addMenu("&Help")
-        
+
         about_action = QAction("&About", self)
-        about_action.triggered.connect(self.show_about)
+        about_action.triggered.connect(self._show_about)
         help_menu.addAction(about_action)
-    
+
     def _create_main_layout(self):
         """Create the main window layout."""
-        # Central widget
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        
-        main_layout = QHBoxLayout()
-        central_widget.setLayout(main_layout)
-        
+        # Central stacked widget (Welcome Screen / Workspace)
+        self.central_stack = QStackedWidget()
+        self.setCentralWidget(self.central_stack)
+
+        # Create Welcome Screen
+        self.welcome_screen = WelcomeScreen(self.roundup_manager, self)
+        self.welcome_screen.roundup_opened.connect(self._on_roundup_opened)
+        self.welcome_screen.roundup_created.connect(self._on_roundup_created)
+        self.central_stack.addWidget(self.welcome_screen)
+
+        # Create Workspace (will be shown when Round-Up is open)
+        self.workspace_widget = QWidget()
+        workspace_layout = QHBoxLayout()
+        workspace_layout.setContentsMargins(0, 0, 0, 0)
+
         # Main splitter (left sidebar | center workspace)
         main_splitter = QSplitter(Qt.Orientation.Horizontal)
-        
-        # Left sidebar: Project Explorer
-        self.project_explorer = self._create_project_explorer()
-        main_splitter.addWidget(self.project_explorer)
-        
-        # Center: Workspace
-        self.workspace = self._create_workspace()
-        main_splitter.addWidget(self.workspace)
-        
-        # Set splitter sizes (250px sidebar, rest for workspace)
-        main_splitter.setSizes([250, 1150])
-        
-        main_layout.addWidget(main_splitter)
-    
-    def _create_project_explorer(self) -> QWidget:
-        """Create the left sidebar Project Explorer."""
-        widget = QWidget()
-        layout = QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Title with project name
-        title_widget = QWidget()
-        title_layout = QVBoxLayout()
-        title_layout.setContentsMargins(8, 8, 8, 4)
-        title_layout.setSpacing(2)
-        
-        title = QLabel("Project Explorer")
-        title.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        # Title color handled by global stylesheet
-        title_layout.addWidget(title)
-        
-        self.project_name_label = QLabel("(No project loaded)")
-        self.project_name_label.setFont(QFont("Segoe UI", 9))
-        self.project_name_label.setStyleSheet("font-style: italic;")  # Color from stylesheet
-        title_layout.addWidget(self.project_name_label)
-        
-        title_widget.setLayout(title_layout)
-        # Background handled by global stylesheet
-        layout.addWidget(title_widget)
-        
-        # Tree widget with visual styling
-        self.explorer_tree = QTreeWidget()
-        self.explorer_tree.setHeaderHidden(True)
-        self.explorer_tree.setIndentation(20)  # Clear indentation for hierarchy
-        self.explorer_tree.setAnimated(True)   # Smooth expand/collapse
-        self.explorer_tree.setAlternatingRowColors(True)
-        # Tree styling handled by global dark_mode.qss stylesheet
-        self.explorer_tree.itemClicked.connect(self._on_explorer_item_clicked)
-        layout.addWidget(self.explorer_tree)
-        
-        widget.setLayout(layout)
-        return widget
-    
-    def _create_workspace(self) -> QWidget:
-        """Create the center workspace with tabs."""
+
+        # Left sidebar: Round-Up Explorer
+        self.roundup_explorer = self._create_roundup_explorer()
+        main_splitter.addWidget(self.roundup_explorer)
+
+        # Center: Tabbed workspace
         self.tab_widget = QTabWidget()
         self.tab_widget.setTabsClosable(True)
         self.tab_widget.tabCloseRequested.connect(self._close_tab)
-        
-        # Enable middle-click to close tabs
         self.tab_widget.tabBar().installEventFilter(self)
-        
-        # Welcome tab (shown when no project is open)
-        self.welcome_tab = self._create_welcome_tab()
-        self.tab_widget.addTab(self.welcome_tab, "Welcome")
-        
-        return self.tab_widget
-    
-    def _create_welcome_tab(self) -> QWidget:
-        """Create the welcome tab."""
+        main_splitter.addWidget(self.tab_widget)
+
+        # Set splitter sizes
+        main_splitter.setSizes([250, 1150])
+
+        workspace_layout.addWidget(main_splitter)
+        self.workspace_widget.setLayout(workspace_layout)
+        self.central_stack.addWidget(self.workspace_widget)
+
+    def _create_roundup_explorer(self) -> QWidget:
+        """Create the left sidebar Round-Up Explorer."""
         widget = QWidget()
         layout = QVBoxLayout()
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        # Title
-        title = QLabel("Welcome to JellyRancher Studio")
-        title.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
-        title.setStyleSheet("padding: 20px;")  # Color from stylesheet
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title)
-        
-        # Subtitle
-        subtitle = QLabel("Your professional media library management workspace")
-        subtitle.setFont(QFont("Segoe UI", 12))
-        subtitle.setStyleSheet("padding-bottom: 40px;")  # Color from stylesheet
-        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(subtitle)
-        
-        # Action buttons
-        btn_new = QPushButton("Create New Project")
-        btn_new.setFont(QFont("Segoe UI", 12))
-        btn_new.setMinimumHeight(50)
-        btn_new.setMaximumWidth(300)
-        btn_new.clicked.connect(self.new_project)
-        layout.addWidget(btn_new, alignment=Qt.AlignmentFlag.AlignCenter)
-        
-        btn_open = QPushButton("Open Existing Project")
-        btn_open.setFont(QFont("Segoe UI", 12))
-        btn_open.setMinimumHeight(50)
-        btn_open.setMaximumWidth(300)
-        btn_open.clicked.connect(self.open_project)
-        layout.addWidget(btn_open, alignment=Qt.AlignmentFlag.AlignCenter)
-        
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        # Header
+        header_widget = QWidget()
+        header_layout = QVBoxLayout()
+        header_layout.setContentsMargins(8, 8, 8, 4)
+        header_layout.setSpacing(2)
+
+        title = QLabel("Round-Up Explorer")
+        title.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        header_layout.addWidget(title)
+
+        self.roundup_name_label = QLabel("(No Round-Up open)")
+        self.roundup_name_label.setFont(QFont("Segoe UI", 9))
+        self.roundup_name_label.setStyleSheet("font-style: italic;")
+        header_layout.addWidget(self.roundup_name_label)
+
+        self.step_label = QLabel("")
+        self.step_label.setFont(QFont("Segoe UI", 9))
+        header_layout.addWidget(self.step_label)
+
+        header_widget.setLayout(header_layout)
+        layout.addWidget(header_widget)
+
+        # Tree widget for 8-step workflow
+        self.explorer_tree = QTreeWidget()
+        self.explorer_tree.setHeaderHidden(True)
+        self.explorer_tree.setIndentation(20)
+        self.explorer_tree.setAnimated(True)
+        self.explorer_tree.setAlternatingRowColors(True)
+        self.explorer_tree.itemClicked.connect(self._on_explorer_item_clicked)
+        layout.addWidget(self.explorer_tree)
+
         widget.setLayout(layout)
         return widget
-    
+
     def _create_status_bar(self):
         """Create the status bar."""
         self.statusBar = QStatusBar()
         self.setStatusBar(self.statusBar)
-        
+
         self.status_label = QLabel("Ready")
         self.statusBar.addWidget(self.status_label)
-        
-        # Add permanent widgets (right side)
-        self.project_label = QLabel("No project open")
-        self.statusBar.addPermanentWidget(self.project_label)
-    
-    def _setup_auto_save(self):
-        """Setup auto-save timer (every 30 seconds)."""
-        self.auto_save_timer.timeout.connect(self._auto_save)
-        self.auto_save_timer.start(30000)  # 30 seconds
-    
-    def _auto_save(self):
-        """Auto-save current project state."""
-        if self.current_project:
-            try:
-                self.project_manager.save_project(self.current_project)
-                logger.debug(f"Auto-saved project: {self.current_project.name}")
-            except Exception as e:
-                logger.error(f"Auto-save failed: {e}")
-    
-    def _populate_recent_menu(self):
-        """Populate the recent projects menu."""
-        self.recent_menu.clear()
-        
-        recent_projects = self.project_manager.get_recent_projects(limit=5)
-        
-        if not recent_projects:
-            no_recent = QAction("(No recent projects)", self)
-            no_recent.setEnabled(False)
-            self.recent_menu.addAction(no_recent)
-        else:
-            for project in recent_projects:
-                action = QAction(project.name, self)
-                action.triggered.connect(lambda checked, p=project: self.load_project(p.id))
-                self.recent_menu.addAction(action)
-    
-    def _load_last_project(self):
-        """Load the most recently opened project."""
-        recent = self.project_manager.get_recent_projects(limit=1)
-        if recent:
-            self.load_project(recent[0].id)
-    
-    def _update_project_explorer(self):
-        """Update the Project Explorer tree with current project data."""
-        self.explorer_tree.clear()
-        
-        if not self.current_project:
-            return
-        
-        # Scans section
-        scans_item = QTreeWidgetItem(["📁 Scans"])
-        scans_item.setToolTip(0, "Click to scan folders for media files")
-        scans_item.setExpanded(True)
-        self.explorer_tree.addTopLevelItem(scans_item)
-        
-        if self.current_project.scan_sessions:
-            for scan_id in self.current_project.scan_sessions:
-                stats = self.project_manager.get_scan_summary(scan_id)
-                scan_item = QTreeWidgetItem([f"Scan #{scan_id}"])
-                stats_item = QTreeWidgetItem([f"{stats['files']} files ({stats['size_gb']:.1f} GB)"])
-                scan_item.addChild(stats_item)
-                scans_item.addChild(scan_item)
-        else:
-            no_scans = QTreeWidgetItem(["(No scans yet)"])
-            no_scans.setDisabled(True)
-            scans_item.addChild(no_scans)
-        
-        # Analyses section
-        analyses_item = QTreeWidgetItem(["🤖 Analyses"])
-        analyses_item.setToolTip(0, "Click to analyze structure (LLM/Regex/Hybrid)")
-        analyses_item.setExpanded(True)
-        self.explorer_tree.addTopLevelItem(analyses_item)
-        
-        if self.current_project.analyses:
-            for analysis_id in self.current_project.analyses:
-                stats = self.project_manager.get_analysis_summary(analysis_id)
-                analysis_item = QTreeWidgetItem([f"Analysis #{analysis_id}"])
-                stats_item = QTreeWidgetItem([f"{stats['issues']} issues ({stats['confidence']})"])
-                analysis_item.addChild(stats_item)
-                analyses_item.addChild(analysis_item)
-        else:
-            no_analyses = QTreeWidgetItem(["(No analyses yet)"])
-            no_analyses.setDisabled(True)
-            analyses_item.addChild(no_analyses)
-        
-        # Action Plans section
-        plans_item = QTreeWidgetItem(["📋 Action Plans"])
-        plans_item.setToolTip(0, "Click to review and approve reorganization plan")
-        plans_item.setExpanded(True)
-        self.explorer_tree.addTopLevelItem(plans_item)
-        
-        if self.current_project.action_plans:
-            for plan_id in self.current_project.action_plans:
-                plan_item = QTreeWidgetItem([f"Plan #{plan_id}"])
-                plans_item.addChild(plan_item)
-        else:
-            no_plans = QTreeWidgetItem(["(No plans yet)"])
-            no_plans.setDisabled(True)
-            plans_item.addChild(no_plans)
-        
-        # Execution section
-        execution_item = QTreeWidgetItem(["⚙️ Execution"])
-        execution_item.setToolTip(0, "Click to execute approved operations")
-        self.explorer_tree.addTopLevelItem(execution_item)
-        
-        # Reports section
-        reports_item = QTreeWidgetItem(["📊 Reports"])
-        reports_item.setToolTip(0, "Click to view reports (coming soon)")
-        self.explorer_tree.addTopLevelItem(reports_item)
-    
-    def _close_tab(self, index: int):
-        """Close a tab."""
-        if index > 0:  # Don't close welcome tab
-            self.tab_widget.removeTab(index)
-    
-    def eventFilter(self, obj, event):
-        """Handle events for child widgets.
-        
-        Implements middle-click to close tabs on the tab bar.
-        """
-        if obj == self.tab_widget.tabBar() and event.type() == QEvent.Type.MouseButtonPress:
-            if event.button() == Qt.MouseButton.MiddleButton:
-                # Get tab index at click position
-                tab_index = self.tab_widget.tabBar().tabAt(event.pos())
-                if tab_index > 0:  # Don't close welcome tab (index 0)
-                    self.tab_widget.removeTab(tab_index)
-                    return True  # Event handled
-        return super().eventFilter(obj, event)
-    
-    def _on_explorer_item_clicked(self, item: QTreeWidgetItem, column: int):
-        """Handle single-click on explorer item.
 
-        Works for both section headers (📁 Scans, etc.) and child items underneath them.
-        Clicking a section header opens the corresponding view.
-        Clicking a child item opens the view with that specific data loaded.
-        """
-        item_text = item.text(0)
-        parent = item.parent()
+        # Save indicator (right side)
+        self.save_indicator = QLabel("No Round-Up open")
+        self.statusBar.addPermanentWidget(self.save_indicator)
 
-        # Determine which section we're in
-        if parent:
-            # Child item - use parent's section
-            section = parent.text(0)
-        else:
-            # Top-level section header - use item's own text
-            section = item_text
+    def _setup_keyboard_shortcuts(self):
+        """Setup keyboard shortcuts."""
+        # Already handled in menu actions
+        pass
 
-        # Route to appropriate view based on section
-        if section.startswith("📁 Scans"):
-            self.action_scan()
-        elif section.startswith("🤖 Analyses"):
-            self.action_analyze()
-        elif section.startswith("📋 Action Plans"):
-            self.action_review()
-        elif section.startswith("⚙️ Execution"):
-            self.action_execute()
-        elif section.startswith("📊 Reports"):
-            QMessageBox.information(self, "Reports", "Reports view is coming soon.")
-        else:
-            logger.info(f"Explorer item double-clicked: {item.text(0)}")
+    def _setup_gui_capture_shortcut(self):
+        """Setup F12 for GUI state capture."""
+        shortcut = QShortcut(QKeySequence("F12"), self)
+        shortcut.activated.connect(self._capture_gui_state)
+        logger.info("F12 GUI capture shortcut registered")
 
-    def _refresh_current_project(self, current_view: Optional[str] = None):
-        """Reload project metadata and refresh explorer tree."""
-        if not self.current_project:
-            return
-        refreshed = self.project_manager.load_project(project_id=self.current_project.id)
-        if refreshed:
-            self.current_project = refreshed
-            self._update_project_explorer()
-            if current_view and self.current_project.id:
-                try:
-                    state = ProjectState(project_id=self.current_project.id, current_view=current_view)
-                    self.project_manager.save_project_state(state)
-                except Exception as exc:
-                    logger.warning("Failed to persist project state: %s", exc)
-
-    def _on_scan_completed(self, scan_id: int):
-        """Handle scan completion signal from ScanView."""
-        self.status_label.setText(f"Scan session saved (ID #{scan_id})")
-        
-        # CRITICAL: Reload project to refresh scan_sessions list
-        if self.current_project and self.current_project.id:
-            reloaded = self.project_manager.load_project(project_id=self.current_project.id)
-            if reloaded:
-                self.current_project = reloaded
-                self._update_project_explorer()  # Refresh tree with new scan
-        
-        self._refresh_current_project("scan")
-        
-        # Save scan session ID to project state
-        if self.current_project and self.current_project.id:
-            try:
-                state = ProjectState(
-                    project_id=self.current_project.id,
-                    current_view="scan",
-                    last_scan_session_id=scan_id
-                )
-                self.project_manager.save_project_state(state)
-                logger.info(f"Saved scan session {scan_id} to project state")
-            except Exception as exc:
-                logger.warning(f"Failed to save scan session to project state: {exc}", exc_info=True)
-
-    def _on_analysis_saved(self, analysis_id: int):
-        """Handle analysis/metadata completion."""
-        self.status_label.setText(f"Analysis saved (ID #{analysis_id})")
-        
-        # CRITICAL: Reload project to refresh analyses list
-        if self.current_project and self.current_project.id:
-            reloaded = self.project_manager.load_project(project_id=self.current_project.id)
-            if reloaded:
-                self.current_project = reloaded
-                self._update_project_explorer()  # Refresh tree with new analysis
-        
-        self._refresh_current_project("analysis")
-
-    def _on_action_plan_ready(self, action_plan_id: int):
-        """Handle action plan readiness from ReviewView."""
-        self.status_label.setText(f"Action plan ready (ID #{action_plan_id})")
-        self._refresh_current_project("review")
-    
-    def _on_results_ready(self, scan_session_id: int):
-        """Handle scan results ready signal - open ScanResultsView."""
-        if not self.current_project:
-            return
-        
-        # Create and open scan results view
-        results_view = ScanResultsView(self.current_project, self.project_manager, scan_session_id, self)
-        results_view.send_to_analysis.connect(self._on_send_to_analysis)
-        self.tab_widget.addTab(results_view, f"📊 Scan Results - Session #{scan_session_id}")
-        self.tab_widget.setCurrentWidget(results_view)
-        
-        logger.info(f"Opened scan results view for session {scan_session_id}")
-    
-    def _on_send_to_analysis(self, filtered_files: list, filter_config: dict):
-        """Handle send to analysis signal from ScanResultsView - open AnalysisView with filtered data."""
-        if not self.current_project:
-            return
-        
-        # Create and open analysis view with filtered data
-        analysis_view = AnalysisView(
-            self.current_project, 
-            self.project_manager, 
-            self, 
-            filtered_files=filtered_files,
-            filter_config=filter_config
-        )
-        analysis_view.analysis_saved.connect(self._on_analysis_saved)
-        analysis_view.metadata_built.connect(self._on_analysis_saved)
-        self.tab_widget.addTab(analysis_view, f"🤖 Analysis (Filtered) - {self.current_project.name}")
-        self.tab_widget.setCurrentWidget(analysis_view)
-        
-        logger.info(f"Opened analysis view with {len(filtered_files)} filtered files")
-    
     # ========================================================================
-    # Project Management Actions
+    # Welcome Screen / Workspace Navigation
     # ========================================================================
-    
-    def new_project(self):
-        """Create a new project."""
-        dialog = NewProjectDialog(self)
+
+    def _show_welcome_screen(self):
+        """Show the Welcome Screen."""
+        self.welcome_screen.refresh()
+        self.central_stack.setCurrentWidget(self.welcome_screen)
+        self.setWindowTitle("JellyRancher Studio")
+        self.save_indicator.setText("No Round-Up open")
+        self.status_label.setText("Select or create a Round-Up")
+
+    def _show_workspace(self):
+        """Show the Workspace (when Round-Up is open)."""
+        self.central_stack.setCurrentWidget(self.workspace_widget)
+
+    # ========================================================================
+    # Round-Up Management
+    # ========================================================================
+
+    def _new_roundup(self):
+        """Create a new Round-Up via dialog."""
+        from scripts.ui.welcome_screen import NewRoundUpDialog
+
+        dialog = NewRoundUpDialog(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            data = dialog.get_project_data()
-            
-            if not data['name']:
-                QMessageBox.warning(self, "Invalid Input", "Project name cannot be empty.")
-                return
-            
+            data = dialog.get_data()
             try:
-                project = self.project_manager.create_project(
-                    data['name'],
-                    data['description']
+                roundup = self.roundup_manager.create(
+                    name=data['name'],
+                    source_folders=data['source_folders']
                 )
-                self.load_project(project.id)
-                self.status_label.setText(f"Created project: {project.name}")
-                logger.info(f"Created new project: {project.name}")
+                self._load_roundup(roundup)
             except ValueError as e:
                 QMessageBox.critical(self, "Error", str(e))
-    
-    def open_project(self):
-        """Open an existing project using the selection dialog."""
-        dialog = OpenProjectDialog(self.project_manager, self)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            project = dialog.get_selected_project()
-            if project and project.id:
-                self.load_project(project.id)
-            else:
-                QMessageBox.warning(self, "No Selection", "Select a project to open.")
-    
-    def load_project(self, project_id: int):
-        """Load a project by ID."""
-        try:
-            project = self.project_manager.load_project(project_id=project_id)
-            if project:
-                self.current_project = project
-                self.setWindowTitle(f"JellyRancher Studio - {project.name}")
-                self.project_label.setText(f"📁 {project.name}")
-                self.project_name_label.setText(f"📁 {project.name}")
-                self.project_name_label.setStyleSheet("color: #2ecc71; font-weight: bold;")  # Bright green for dark mode
-                self.status_label.setText(f"Loaded project: {project.name}")
-                self._update_project_explorer()
-                self._populate_recent_menu()
-                self.project_changed.emit(project)
 
-                # NEW: Auto-resume last view from state
-                state = self.project_manager.load_project_state(project.id)
-                if state and state.current_view:
-                    if state.current_view == 'scan_results' and state.last_scan_session_id:
-                        results_view = ScanResultsView(project, self.project_manager, state.last_scan_session_id, self)
-                        results_view.send_to_analysis.connect(self._on_send_to_analysis)
-                        tab_title = f"📊 Scan Results - Session #{state.last_scan_session_id}"
-                        self.tab_widget.addTab(results_view, tab_title)
-                        self.tab_widget.setCurrentWidget(results_view)
-                        logger.info(f"Auto-opened ScanResultsView from state: {state.last_scan_session_id}")
-                    elif state.current_view == 'analysis_view' and state.last_analysis_id:
-                        # Open AnalysisView with project (load_scan_data handles recent)
-                        analysis_view = AnalysisView(project, self.project_manager, self)
-                        analysis_view.analysis_saved.connect(self._on_analysis_saved)
-                        tab_title = f"🤖 Analysis - {project.name}"
-                        self.tab_widget.addTab(analysis_view, tab_title)
-                        self.tab_widget.setCurrentWidget(analysis_view)
-                        logger.info(f"Auto-opened AnalysisView from state: {state.last_analysis_id}")
+    def _open_roundup_dialog(self):
+        """Open Round-Up selection dialog."""
+        from PyQt6.QtWidgets import QFileDialog
 
-                logger.info(f"Loaded project: {project.name}")
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            "Select Round-Up",
+            str(self.roundup_manager.roundups_dir),
+            QFileDialog.Option.ShowDirsOnly
+        )
+
+        if folder and folder.endswith(".roundup"):
+            roundup = self.roundup_manager.load(folder)
+            if roundup:
+                self._load_roundup(roundup)
             else:
-                QMessageBox.critical(self, "Error", f"Project ID {project_id} not found.")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to load project: {e}")
-            logger.error(f"Failed to load project {project_id}: {e}")
-    
-    def save_project(self):
-        """Save the current project."""
-        if not self.current_project:
-            QMessageBox.information(self, "No Project", "No project is currently open.")
+                QMessageBox.critical(self, "Error", f"Failed to load Round-Up: {folder}")
+        elif folder:
+            QMessageBox.warning(
+                self, "Invalid Selection",
+                "Please select a .roundup folder."
+            )
+
+    def _on_roundup_opened(self, roundup: RoundUp):
+        """Handle Round-Up opened from Welcome Screen."""
+        self._load_roundup(roundup)
+
+    def _on_roundup_created(self, roundup: RoundUp):
+        """Handle Round-Up created from Welcome Screen."""
+        self._load_roundup(roundup)
+
+    def _load_roundup(self, roundup: RoundUp):
+        """Load a Round-Up into the workspace."""
+        self.current_roundup = roundup
+
+        # Create adapters for legacy views
+        self.project_adapter = RoundUpProjectAdapter(roundup, self.roundup_manager)
+        self.manager_adapter.set_current_roundup(roundup)
+
+        # Update UI
+        self._update_window_title()
+        self._update_roundup_explorer()
+        self._update_save_indicator()
+
+        # Clear existing tabs
+        while self.tab_widget.count() > 0:
+            self.tab_widget.removeTab(0)
+
+        # Show workspace
+        self._show_workspace()
+
+        # Start auto-save timer
+        self.auto_save_timer.timeout.connect(self._auto_save)
+        self.auto_save_timer.start(30000)  # 30 seconds
+
+        self.status_label.setText(f"Loaded Round-Up: {roundup.name}")
+        logger.info(f"Loaded Round-Up: {roundup.name} (Step {roundup.current_step}/8)")
+
+        self.roundup_changed.emit(roundup)
+
+    def _save_roundup(self):
+        """Save the current Round-Up."""
+        if not self.current_roundup:
+            QMessageBox.information(self, "No Round-Up", "No Round-Up is currently open.")
             return
-        
+
+        if self.roundup_manager.save(self.current_roundup):
+            self._update_save_indicator()
+            self.status_label.setText(f"Saved: {self.current_roundup.name}")
+            logger.info(f"Saved Round-Up: {self.current_roundup.name}")
+        else:
+            QMessageBox.critical(self, "Error", "Failed to save Round-Up.")
+
+    def _close_roundup(self):
+        """Close the current Round-Up."""
+        if not self.current_roundup:
+            return
+
+        # Check for unsaved changes
+        if self.current_roundup.has_unsaved_changes:
+            result = QMessageBox.question(
+                self,
+                "Unsaved Changes",
+                f"Round-Up '{self.current_roundup.name}' has unsaved changes.\n\n"
+                f"Save before closing?",
+                QMessageBox.StandardButton.Save |
+                QMessageBox.StandardButton.Discard |
+                QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Save
+            )
+
+            if result == QMessageBox.StandardButton.Cancel:
+                return
+            elif result == QMessageBox.StandardButton.Save:
+                self._save_roundup()
+
+        # Stop auto-save
+        self.auto_save_timer.stop()
+
+        # Clear state
+        self.current_roundup = None
+        self.project_adapter = None
+        self.manager_adapter.set_current_roundup(None)
+
+        # Clear tabs
+        while self.tab_widget.count() > 0:
+            self.tab_widget.removeTab(0)
+
+        # Show welcome screen
+        self._show_welcome_screen()
+
+        logger.info("Closed Round-Up")
+
+    def _auto_save(self):
+        """Auto-save current Round-Up."""
+        if self.current_roundup and self.current_roundup.has_unsaved_changes:
+            if self.roundup_manager.save(self.current_roundup):
+                self._update_save_indicator()
+                logger.debug(f"Auto-saved Round-Up: {self.current_roundup.name}")
+
+    # ========================================================================
+    # UI Updates
+    # ========================================================================
+
+    def _update_window_title(self):
+        """Update the window title to show Round-Up info."""
+        if self.current_roundup:
+            step = self.current_roundup.current_step
+            name = self.current_roundup.name
+            self.setWindowTitle(f"JellyRancher Studio - {name} (Step {step} of 8)")
+        else:
+            self.setWindowTitle("JellyRancher Studio")
+
+    def _update_save_indicator(self):
+        """Update the save indicator in status bar."""
+        if not self.current_roundup:
+            self.save_indicator.setText("No Round-Up open")
+            return
+
+        if self.current_roundup.has_unsaved_changes:
+            self.save_indicator.setText("⚠ Unsaved changes")
+            self.save_indicator.setStyleSheet("color: #f39c12;")
+        else:
+            last_saved = self.current_roundup.last_modified
+            if last_saved:
+                try:
+                    dt = datetime.fromisoformat(last_saved)
+                    time_str = dt.strftime("%H:%M:%S")
+                    self.save_indicator.setText(f"✓ Saved at {time_str}")
+                    self.save_indicator.setStyleSheet("color: #2ecc71;")
+                except:
+                    self.save_indicator.setText("✓ Saved")
+                    self.save_indicator.setStyleSheet("color: #2ecc71;")
+            else:
+                self.save_indicator.setText("✓ Saved")
+                self.save_indicator.setStyleSheet("color: #2ecc71;")
+
+    def _update_roundup_explorer(self):
+        """Update the Round-Up Explorer tree."""
+        self.explorer_tree.clear()
+
+        if not self.current_roundup:
+            self.roundup_name_label.setText("(No Round-Up open)")
+            self.step_label.setText("")
+            return
+
+        # Update header
+        self.roundup_name_label.setText(f"📁 {self.current_roundup.name}")
+        self.roundup_name_label.setStyleSheet("color: #2ecc71; font-weight: bold;")
+        self.step_label.setText(f"Step {self.current_roundup.current_step} of 8")
+
+        # Create 8-step workflow tree
+        steps = [
+            ("1️⃣", "Scan Folders", 1),
+            ("2️⃣", "Structure Summary", 2),
+            ("3️⃣", "Analysis", 3),
+            ("4️⃣", "Canonical Database", 4),
+            ("5️⃣", "Review Table", 5),
+            ("6️⃣", "Execute Operations", 6),
+            ("7️⃣", "Subtitle Audit", 7),
+            ("8️⃣", "Subtitle Downloads", 8),
+        ]
+
+        for emoji, name, step_num in steps:
+            status = self.current_roundup.step_status.get(step_num, "not_started")
+
+            # Format status
+            if status == "completed":
+                status_text = "✓"
+                item_text = f"{emoji} {name} {status_text}"
+            elif status == "in_progress":
+                status_text = "⟳"
+                item_text = f"{emoji} {name} {status_text}"
+            else:
+                item_text = f"{emoji} {name}"
+
+            item = QTreeWidgetItem([item_text])
+            item.setData(0, Qt.ItemDataRole.UserRole, step_num)
+
+            # Highlight current step
+            if step_num == self.current_roundup.current_step:
+                item.setFont(0, QFont("Segoe UI", 10, QFont.Weight.Bold))
+
+            # Disable future steps (optional - for guided workflow)
+            # if step_num > self.current_roundup.current_step + 1:
+            #     item.setDisabled(True)
+
+            self.explorer_tree.addTopLevelItem(item)
+
+    def _on_explorer_item_clicked(self, item: QTreeWidgetItem, column: int):
+        """Handle click on explorer item."""
+        step_num = item.data(0, Qt.ItemDataRole.UserRole)
+        if step_num is None:
+            return
+
+        # Open the appropriate view for the step
+        if step_num == 1:
+            self._open_scan_view()
+        elif step_num == 2:
+            self._open_scan_results_view()
+        elif step_num == 3:
+            self._open_analysis_view()
+        elif step_num == 4:
+            # Metadata is part of analysis view
+            self._open_analysis_view()
+        elif step_num == 5:
+            self._open_review_view()
+        elif step_num == 6:
+            self._open_execution_view()
+        elif step_num in (7, 8):
+            self._open_subtitles_view()
+
+    # ========================================================================
+    # View Opening Methods
+    # ========================================================================
+
+    def _check_step_prerequisites(self, step: int) -> tuple[bool, str]:
+        """
+        Check if prerequisites for a workflow step are met.
+
+        Args:
+            step: The step number to check (1-8)
+
+        Returns:
+            Tuple of (prerequisites_met, error_message)
+        """
+        if not self.current_roundup:
+            return False, "No Round-Up is open."
+
+        # Step dependencies:
+        # 1 (Scan): No dependencies
+        # 2 (Structure Summary): Requires Step 1 or scan data in database
+        # 3 (Analysis): Requires scan data (Step 1)
+        # 4 (Canonical Database): Part of Step 3, no separate check
+        # 5 (Review): Requires analysis data (Step 3)
+        # 6 (Execute): Requires review/plan data (Step 5)
+        # 7 (Subtitle Audit): Requires scan data (Step 1)
+        # 8 (Subtitle Downloads): Requires subtitle audit (Step 7)
+
+        step_status = self.current_roundup.step_status
+        config = self.current_roundup.config
+
+        if step == 1:
+            return True, ""
+
+        elif step == 2:
+            # Structure Summary requires scan data
+            has_scan = (
+                step_status.get(1) == "completed" or
+                config.get('scan_session_id') is not None or
+                self._has_roundup_scan_data()
+            )
+            if not has_scan:
+                return False, "Please complete Step 1 (Scan Folders) first.\n\nNo scan data found."
+            return True, ""
+
+        elif step == 3:
+            # Analysis requires scan data
+            has_scan = (
+                step_status.get(1) == "completed" or
+                config.get('scan_session_id') is not None or
+                self._has_roundup_scan_data()
+            )
+            if not has_scan:
+                return False, "Please complete Step 1 (Scan Folders) first.\n\nAnalysis requires scan data."
+            return True, ""
+
+        elif step == 4:
+            # Canonical Database is part of analysis flow
+            return True, ""
+
+        elif step == 5:
+            # Review requires analysis
+            has_analysis = (
+                step_status.get(3) == "completed" or
+                config.get('analysis_id') is not None
+            )
+            if not has_analysis:
+                return False, "Please complete Step 3 (Analysis) first.\n\nReview requires analysis results."
+            return True, ""
+
+        elif step == 6:
+            # Execute requires review/plan
+            has_plan = (
+                step_status.get(5) == "completed" or
+                config.get('plan_id') is not None
+            )
+            if not has_plan:
+                return False, "Please complete Step 5 (Review Table) first.\n\nExecution requires an approved plan."
+            return True, ""
+
+        elif step == 7:
+            # Subtitle Audit requires scan data
+            has_scan = (
+                step_status.get(1) == "completed" or
+                config.get('scan_session_id') is not None or
+                self._has_roundup_scan_data()
+            )
+            if not has_scan:
+                return False, "Please complete Step 1 (Scan Folders) first.\n\nSubtitle audit requires scan data."
+            return True, ""
+
+        elif step == 8:
+            # Subtitle Downloads requires audit
+            has_audit = step_status.get(7) == "completed"
+            if not has_audit:
+                return False, "Please complete Step 7 (Subtitle Audit) first."
+            return True, ""
+
+        return True, ""
+
+    def _has_roundup_scan_data(self) -> bool:
+        """Check if the Round-Up has scan data in its database."""
+        if not self.current_roundup:
+            return False
         try:
-            self.project_manager.save_project(self.current_project)
-            self.status_label.setText(f"Saved project: {self.current_project.name}")
-            logger.info(f"Saved project: {self.current_project.name}")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to save project: {e}")
-    
-    def close_project(self):
-        """Close the current project."""
-        if not self.current_project:
+            db_path = self.current_roundup.path / "data.db"
+            if not db_path.exists():
+                return False
+            import sqlite3
+            conn = sqlite3.connect(str(db_path))
+            cursor = conn.cursor()
+            cursor.execute('SELECT COUNT(*) FROM scan_files')
+            count = cursor.fetchone()[0]
+            conn.close()
+            return count > 0
+        except Exception:
+            return False
+
+    def _open_scan_view(self):
+        """Open the Scan view."""
+        if not self.current_roundup or not self.project_adapter:
+            QMessageBox.information(self, "No Round-Up", "Please open a Round-Up first.")
             return
-        
-        # Reset project indicators
-        self.setWindowTitle("JellyRancher Studio")
-        self.project_name_label.setText("(No project loaded)")
-        self.project_name_label.setStyleSheet("font-style: italic;")  # Color from stylesheet
-        self.project_label.setText("(No project)")
-        self.status_label.setText("No project loaded")
-        
-        # Auto-save before closing
-        self._auto_save()
-        
-        self.current_project = None
-        self.setWindowTitle("JellyRancher Studio")
-        self.project_label.setText("No project open")
-        self.status_label.setText("Project closed")
-        self._update_project_explorer()
-        
-        # Close all tabs except welcome
-        while self.tab_widget.count() > 1:
-            self.tab_widget.removeTab(1)
-        
-        logger.info("Closed project")
-    
-    # ========================================================================
-    # Workflow Actions (Placeholders for Phase 32B)
-    # ========================================================================
-    
-    def action_scan(self):
-        """Start scan workflow."""
-        if not self.current_project:
-            QMessageBox.information(self, "No Project", "Please create or open a project first.")
-            return
-        
-        # Create and open scan view
-        scan_view = ScanView(self.current_project, self.project_manager, self)
+
+        # Check if tab already open
+        for i in range(self.tab_widget.count()):
+            if "Scan" in self.tab_widget.tabText(i) and "Results" not in self.tab_widget.tabText(i):
+                self.tab_widget.setCurrentIndex(i)
+                return
+
+        # Create scan view using adapter
+        scan_view = ScanView(self.project_adapter, self.manager_adapter, self)
         scan_view.scan_completed.connect(self._on_scan_completed)
         scan_view.results_ready.connect(self._on_results_ready)
-        self.tab_widget.addTab(scan_view, f"📁 Scan - {self.current_project.name}")
+
+        self.tab_widget.addTab(scan_view, f"1️⃣ Scan - {self.current_roundup.name}")
         self.tab_widget.setCurrentWidget(scan_view)
-        
-        logger.info(f"Opened scan view for project: {self.current_project.name}")
-    
-    def action_analyze(self):
-        """Start analysis workflow."""
-        if not self.current_project:
-            QMessageBox.information(self, "No Project", "Please create or open a project first.")
-            return
-        
-        # Create and open analysis view
-        analysis_view = AnalysisView(self.current_project, self.project_manager, self)
-        analysis_view.analysis_saved.connect(self._on_analysis_saved)
-        analysis_view.metadata_built.connect(self._on_analysis_saved)
-        self.tab_widget.addTab(analysis_view, f"🤖 Analysis - {self.current_project.name}")
-        self.tab_widget.setCurrentWidget(analysis_view)
-        
-        logger.info(f"Opened analysis view for project: {self.current_project.name}")
-    
-    def action_review(self):
-        """Start review workflow."""
-        if not self.current_project:
-            QMessageBox.information(self, "No Project", "Please create or open a project first.")
-            return
-        
-        # Create and open review view
-        review_view = ReviewView(self.current_project, self.project_manager, self)
-        review_view.operations_ready.connect(self._on_action_plan_ready)
-        self.tab_widget.addTab(review_view, f"📋 Review - {self.current_project.name}")
-        self.tab_widget.setCurrentWidget(review_view)
-        
-        logger.info(f"Opened review view for project: {self.current_project.name}")
-    
-    def action_execute(self):
-        """Start execution workflow."""
-        if not self.current_project:
-            QMessageBox.information(self, "No Project", "Please create or open a project first.")
-            return
-        
-        # Get most recent action plan
-        action_plan_id = self._get_latest_action_plan_id()
-        
-        # Create and open execution view
-        execution_view = ExecutionView(self.current_project, self.project_manager, action_plan_id, self)
-        self.tab_widget.addTab(execution_view, f"⚙️ Execute - {self.current_project.name}")
-        self.tab_widget.setCurrentWidget(execution_view)
-        
-        logger.info(f"Opened execution view for project: {self.current_project.name}")
-    
-    def action_subtitles(self):
-        """Open subtitles workflow view."""
-        if not self.current_project:
-            QMessageBox.information(self, "No Project", "Please create or open a project first.")
+
+        logger.info("Opened Scan view")
+
+    def _open_scan_results_view(self, scan_session_id: Optional[int] = None):
+        """Open the Scan Results view."""
+        if not self.current_roundup or not self.project_adapter:
             return
 
-        subtitles_view = SubtitlesView(self.current_project, self.project_manager, self)
-        self.tab_widget.addTab(subtitles_view, f"💬 Subtitles - {self.current_project.name}")
+        # Check step prerequisites
+        can_proceed, error_msg = self._check_step_prerequisites(2)
+        if not can_proceed:
+            QMessageBox.warning(self, "Step Not Available", error_msg)
+            return
+
+        # Check if tab already open
+        for i in range(self.tab_widget.count()):
+            if "Results" in self.tab_widget.tabText(i):
+                self.tab_widget.setCurrentIndex(i)
+                return
+
+        # Get scan session ID - use provided, stored in memory, from Round-Up config, or fetch most recent
+        if scan_session_id is None:
+            scan_session_id = self.last_scan_session_id
+
+        if scan_session_id is None and self.current_roundup:
+            # Try to get from Round-Up's persisted config
+            scan_session_id = self.current_roundup.config.get('scan_session_id')
+
+        if scan_session_id is None:
+            # Last resort: fetch the most recent scan session from database
+            scan_session_id = self._get_most_recent_scan_session_id()
+
+        if scan_session_id is None:
+            QMessageBox.information(
+                self, "No Scan Data",
+                "No scan data found. Please run a scan first."
+            )
+            return
+
+        results_view = ScanResultsView(
+            self.project_adapter, self.manager_adapter, scan_session_id, self
+        )
+        results_view.send_to_analysis.connect(self._on_send_to_analysis)
+
+        self.tab_widget.addTab(results_view, f"2️⃣ Results - {self.current_roundup.name}")
+        self.tab_widget.setCurrentWidget(results_view)
+
+        logger.info(f"Opened Scan Results view (session #{scan_session_id})")
+
+    def _open_analysis_view(self, analysis_id: Optional[int] = None):
+        """Open the Analysis view."""
+        if not self.current_roundup or not self.project_adapter:
+            return
+
+        # Check step prerequisites
+        can_proceed, error_msg = self._check_step_prerequisites(3)
+        if not can_proceed:
+            QMessageBox.warning(self, "Step Not Available", error_msg)
+            return
+
+        # Check if tab already open
+        for i in range(self.tab_widget.count()):
+            if "Analysis" in self.tab_widget.tabText(i):
+                self.tab_widget.setCurrentIndex(i)
+                return
+
+        # Get analysis_id from Round-Up config if not provided
+        if analysis_id is None and self.current_roundup:
+            analysis_id = self.current_roundup.config.get('analysis_id')
+
+        analysis_view = AnalysisView(self.project_adapter, self.manager_adapter, self)
+        analysis_view.analysis_saved.connect(self._on_analysis_saved)
+        analysis_view.metadata_built.connect(self._on_metadata_built)
+        analysis_view.send_to_review.connect(self._on_send_to_review_from_analysis)
+
+        # Set the analysis_id if we have one from a previous session
+        if analysis_id is not None:
+            analysis_view.current_analysis_id = analysis_id
+
+        self.tab_widget.addTab(analysis_view, f"3️⃣ Analysis - {self.current_roundup.name}")
+        self.tab_widget.setCurrentWidget(analysis_view)
+
+        logger.info(f"Opened Analysis view (analysis_id={analysis_id})")
+
+    def _open_review_view(self):
+        """Open the Review view."""
+        if not self.current_roundup or not self.project_adapter:
+            return
+
+        # Check step prerequisites
+        can_proceed, error_msg = self._check_step_prerequisites(5)
+        if not can_proceed:
+            QMessageBox.warning(self, "Step Not Available", error_msg)
+            return
+
+        # Check if tab already open
+        for i in range(self.tab_widget.count()):
+            if "Review" in self.tab_widget.tabText(i):
+                self.tab_widget.setCurrentIndex(i)
+                return
+
+        review_view = ReviewView(self.project_adapter, self.manager_adapter, self)
+        review_view.operations_ready.connect(self._on_operations_ready)
+
+        self.tab_widget.addTab(review_view, f"5️⃣ Review - {self.current_roundup.name}")
+        self.tab_widget.setCurrentWidget(review_view)
+
+        logger.info("Opened Review view")
+
+    def _open_execution_view(self):
+        """Open the Execution view."""
+        if not self.current_roundup or not self.project_adapter:
+            return
+
+        # Check step prerequisites
+        can_proceed, error_msg = self._check_step_prerequisites(6)
+        if not can_proceed:
+            QMessageBox.warning(self, "Step Not Available", error_msg)
+            return
+
+        # Check if tab already open
+        for i in range(self.tab_widget.count()):
+            if "Execute" in self.tab_widget.tabText(i):
+                self.tab_widget.setCurrentIndex(i)
+                return
+
+        # Create backup before execution
+        self.roundup_manager.create_backup(self.current_roundup, "pre_execution")
+
+        execution_view = ExecutionView(
+            self.project_adapter, self.manager_adapter, None, self
+        )
+        execution_view.execution_completed.connect(self._on_execution_completed)
+
+        self.tab_widget.addTab(execution_view, f"6️⃣ Execute - {self.current_roundup.name}")
+        self.tab_widget.setCurrentWidget(execution_view)
+
+        logger.info("Opened Execution view")
+
+    def _open_subtitles_view(self):
+        """Open the Subtitles view."""
+        if not self.current_roundup or not self.project_adapter:
+            return
+
+        # Check step prerequisites (Step 7 - Subtitle Audit)
+        can_proceed, error_msg = self._check_step_prerequisites(7)
+        if not can_proceed:
+            QMessageBox.warning(self, "Step Not Available", error_msg)
+            return
+
+        # Check if tab already open
+        for i in range(self.tab_widget.count()):
+            if "Subtitles" in self.tab_widget.tabText(i):
+                self.tab_widget.setCurrentIndex(i)
+                return
+
+        subtitles_view = SubtitlesView(self.project_adapter, self.manager_adapter, self)
+
+        self.tab_widget.addTab(subtitles_view, f"7️⃣ Subtitles - {self.current_roundup.name}")
         self.tab_widget.setCurrentWidget(subtitles_view)
-        logger.info(f"Opened subtitles view for project: {self.current_project.name}")
-    
-    def _get_latest_action_plan_id(self) -> Optional[int]:
-        """Get the most recent action plan ID for the current project."""
+
+        logger.info("Opened Subtitles view")
+
+    # ========================================================================
+    # Signal Handlers
+    # ========================================================================
+
+    def _get_most_recent_scan_session_id(self) -> Optional[int]:
+        """Get the most recent scan session ID from the database."""
         try:
             import sqlite3
             conn = sqlite3.connect("data/media_library.db")
             cursor = conn.cursor()
-            
             cursor.execute('''
-                SELECT id FROM project_action_plans
-                WHERE project_id = ?
-                ORDER BY created_at DESC
+                SELECT id FROM project_scan_sessions
+                ORDER BY scan_start DESC
                 LIMIT 1
-            ''', (self.current_project.id,))
-            
+            ''')
             row = cursor.fetchone()
             conn.close()
-            
             return row[0] if row else None
-            
         except Exception as e:
-            logger.error(f"Failed to get latest action plan: {e}")
+            logger.error(f"Failed to get most recent scan session: {e}")
             return None
-    
+
+    def _on_scan_completed(self, scan_id: int):
+        """Handle scan completion."""
+        self.last_scan_session_id = scan_id
+        if self.current_roundup:
+            # Store scan_session_id in Round-Up config for persistence across restarts
+            self.current_roundup.config['scan_session_id'] = scan_id
+            self.current_roundup.complete_step(1)
+            self.roundup_manager.save(self.current_roundup)
+            self._update_roundup_explorer()
+            self._update_save_indicator()
+
+        self.status_label.setText("Scan completed")
+        logger.info(f"Scan completed (session {scan_id})")
+
+    def _on_results_ready(self, scan_session_id: int):
+        """Handle scan results ready."""
+        self.last_scan_session_id = scan_session_id
+        # Also persist to Round-Up config
+        if self.current_roundup:
+            self.current_roundup.config['scan_session_id'] = scan_session_id
+            self.roundup_manager.save(self.current_roundup)
+        self._open_scan_results_view(scan_session_id)
+
+    def _on_send_to_analysis(self, filtered_files: list, filter_config: dict):
+        """Handle send to analysis from results view."""
+        if not self.current_roundup or not self.project_adapter:
+            return
+
+        # Update step status
+        if self.current_roundup:
+            self.current_roundup.complete_step(2)
+
+        # Open analysis view with filtered data
+        analysis_view = AnalysisView(
+            self.project_adapter, self.manager_adapter, self,
+            filtered_files=filtered_files,
+            filter_config=filter_config
+        )
+        analysis_view.analysis_saved.connect(self._on_analysis_saved)
+        analysis_view.metadata_built.connect(self._on_metadata_built)
+        analysis_view.send_to_review.connect(self._on_send_to_review_from_analysis)
+
+        self.tab_widget.addTab(
+            analysis_view,
+            f"3️⃣ Analysis (Filtered) - {self.current_roundup.name}"
+        )
+        self.tab_widget.setCurrentWidget(analysis_view)
+
+        logger.info(f"Opened Analysis with {len(filtered_files)} filtered files")
+
+    def _on_analysis_saved(self, analysis_id: int):
+        """Handle analysis saved."""
+        if self.current_roundup:
+            # Persist analysis_id in Round-Up config for retrieval after restart
+            self.current_roundup.config['analysis_id'] = analysis_id
+            self.current_roundup.complete_step(3)
+            self.roundup_manager.save(self.current_roundup)
+            self._update_roundup_explorer()
+            self._update_save_indicator()
+
+        self.status_label.setText(f"Analysis saved (ID #{analysis_id})")
+
+    def _on_metadata_built(self, metadata_id: int):
+        """Handle metadata built."""
+        if self.current_roundup:
+            # Persist metadata_id in Round-Up config for retrieval after restart
+            self.current_roundup.config['metadata_id'] = metadata_id
+            self.current_roundup.complete_step(4)
+            self.roundup_manager.save(self.current_roundup)
+            self._update_roundup_explorer()
+            self._update_save_indicator()
+
+        self.status_label.setText("Canonical database built")
+
+    def _on_send_to_review_from_analysis(self, operations: list):
+        """Handle send to review signal from AnalysisView."""
+        if not self.current_roundup or not self.project_adapter:
+            return
+
+        # Close any existing review tabs
+        for i in range(self.tab_widget.count() - 1, -1, -1):
+            if "Review" in self.tab_widget.tabText(i):
+                self.tab_widget.removeTab(i)
+
+        # Create review view with preloaded operations
+        from scripts.ui.review_view import ReviewView
+        review_view = ReviewView(self.project_adapter, self.manager_adapter, self)
+        review_view.operations_ready.connect(self._on_operations_ready)
+        
+        # Set the preloaded operations
+        review_view.set_preloaded_operations(operations)
+
+        self.tab_widget.addTab(review_view, f"5️⃣ Review - {self.current_roundup.name}")
+        self.tab_widget.setCurrentWidget(review_view)
+
+        # Update step status
+        self.current_roundup.complete_step(3)  # Analysis complete
+        self.roundup_manager.save(self.current_roundup)
+        self._update_roundup_explorer()
+
+        logger.info(f"Opened Review with {len(operations)} preloaded operations from Analysis")
+
+    def _on_operations_ready(self, plan_id: int):
+        """Handle operations ready from review."""
+        if self.current_roundup:
+            # Persist plan_id in Round-Up config for retrieval after restart
+            self.current_roundup.config['plan_id'] = plan_id
+            self.current_roundup.complete_step(5)
+            self.roundup_manager.save(self.current_roundup)
+            self._update_roundup_explorer()
+
+        self.status_label.setText("Action plan ready")
+        logger.info(f"Plan ready: ID={plan_id}")
+
+    def _on_execution_completed(self, success_count: int, fail_count: int, batch_id: str):
+        """Handle execution completion."""
+        if self.current_roundup:
+            # Persist execution_id in Round-Up config
+            self.current_roundup.config['execution_id'] = batch_id
+            self.current_roundup.config['execution_success_count'] = success_count
+            self.current_roundup.config['execution_fail_count'] = fail_count
+            self.current_roundup.complete_step(6)
+            self.roundup_manager.save(self.current_roundup)
+            self._update_roundup_explorer()
+            self._update_save_indicator()
+
+        self.status_label.setText(f"Execution complete: {success_count} succeeded, {fail_count} failed")
+        logger.info(f"Execution completed: batch={batch_id}, success={success_count}, fail={fail_count}")
+
+    # ========================================================================
+    # Tab Management
+    # ========================================================================
+
+    def _close_tab(self, index: int):
+        """Close a tab."""
+        self.tab_widget.removeTab(index)
+
+    def eventFilter(self, obj, event):
+        """Handle middle-click to close tabs."""
+        if obj == self.tab_widget.tabBar() and event.type() == QEvent.Type.MouseButtonPress:
+            if event.button() == Qt.MouseButton.MiddleButton:
+                tab_index = self.tab_widget.tabBar().tabAt(event.pos())
+                if tab_index >= 0:
+                    self.tab_widget.removeTab(tab_index)
+                    return True
+        return super().eventFilter(obj, event)
+
     # ========================================================================
     # Other Actions
     # ========================================================================
-    
-    def show_settings(self):
-        """Show settings dialog."""
-        # TODO: Implement settings dialog
-        QMessageBox.information(self, "Settings", "Settings dialog coming soon!")
-    
-    def show_about(self):
-        """Show about dialog."""
-        QMessageBox.about(
-            self,
-            "About JellyRancher Studio",
-            "<h2>JellyRancher Studio</h2>"
-            "<p>Version 2.0 (Phase 32A)</p>"
-            "<p>Professional media library management workspace</p>"
-            "<p><b>Features:</b></p>"
-            "<ul>"
-            "<li>Project-centric workflow</li>"
-            "<li>Flexible, non-linear operations</li>"
-            "<li>Save and resume anywhere</li>"
-            "<li>LLM-powered analysis</li>"
-            "<li>Safe execution with rollback</li>"
-            "</ul>"
-        )
 
-    def show_jellyfin_settings(self):
+    def _show_settings(self):
+        """Show settings dialog."""
+        QMessageBox.information(self, "Settings", "Settings dialog coming soon!")
+
+    def _show_jellyfin_settings(self):
         """Show Jellyfin settings dialog."""
         dialog = JellyfinSettingsDialog(self)
-        if dialog.exec():
-            QMessageBox.information(
-                self,
-                "Jellyfin Settings Saved",
-                "Jellyfin settings have been updated successfully.\n\n"
-                "The refresh checkbox in Execution View will now be enabled."
-            )
+        dialog.exec()
 
-    def _setup_keyboard_shortcuts(self):
-        """Setup keyboard shortcuts for all major actions."""
-        from PyQt6.QtGui import QKeySequence
-
-        # File menu shortcuts - PyQt6 uses StandardKey enum
-        QAction("New Project", self, shortcut=QKeySequence(QKeySequence.StandardKey.New), triggered=self.new_project)
-        QAction("Open Project", self, shortcut=QKeySequence(QKeySequence.StandardKey.Open), triggered=self.open_project)
-        QAction("Save Project", self, shortcut=QKeySequence(QKeySequence.StandardKey.Save), triggered=self._auto_save)
-        QAction("Settings", self, shortcut=QKeySequence(QKeySequence.StandardKey.Preferences), triggered=self.show_settings)
-        QAction("Exit", self, shortcut=QKeySequence(QKeySequence.StandardKey.Quit), triggered=self.close)
-
-    def toggle_dark_mode(self, checked: bool):
-        """Toggle dark mode on/off."""
+    def _toggle_dark_mode(self, checked: bool):
+        """Toggle dark mode."""
         global DARK_MODE_ENABLED
         DARK_MODE_ENABLED = checked
         apply_stylesheet(QApplication.instance(), dark_mode=checked)
         logger.info(f"Dark mode: {'ENABLED' if checked else 'DISABLED'}")
 
-    def show_keyboard_shortcuts(self):
+    def _show_keyboard_shortcuts(self):
         """Show keyboard shortcuts dialog."""
         shortcuts_text = """
 <b>JellyRancher Studio - Keyboard Shortcuts</b>
 
 <b>File Menu:</b>
-• Ctrl+N - New Project
-• Ctrl+O - Open Project
-• Ctrl+S - Save Project
-• Ctrl+, - Settings
-• Ctrl+Q - Exit
+• Ctrl+N - New Round-Up
+• Ctrl+O - Open Round-Up
+• Ctrl+S - Save Round-Up
+• Ctrl+W - Close Round-Up
+• Alt+F4 - Exit
 
-<b>View Menu:</b>
-• View > Dark Mode - Toggle dark/light theme
-• View > Keyboard Shortcuts - Show this dialog
+<b>Other:</b>
+• F12 - Capture GUI state (for debugging)
 
-<b>Tools Menu:</b>
-• Tools > Jellyfin Settings - Configure Jellyfin integration
-
-<b>Tips:</b>
-• All actions are also available through the menu bar
-• Projects auto-save every 30 seconds
-• Changes are persisted to the database
+<b>Workflow:</b>
+• Click steps in the Explorer to navigate
+• Auto-saves every 30 seconds
 """
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Keyboard Shortcuts")
+        msg.setText(shortcuts_text)
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.exec()
 
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("Keyboard Shortcuts")
-        msg_box.setText(shortcuts_text)
-        msg_box.setIcon(QMessageBox.Icon.Information)
-        msg_box.exec()
+    def _show_about(self):
+        """Show about dialog."""
+        QMessageBox.about(
+            self,
+            "About JellyRancher Studio",
+            "<h2>JellyRancher Studio</h2>"
+            "<p>Version 3.0 (Round-Up Edition)</p>"
+            "<p>Professional media library organization</p>"
+            "<p><b>Features:</b></p>"
+            "<ul>"
+            "<li>8-step workflow</li>"
+            "<li>Round-Up persistence (save/resume)</li>"
+            "<li>LLM + Regex + Hybrid analysis</li>"
+            "<li>Pre-analysis filtering</li>"
+            "<li>Safe execution with rollback</li>"
+            "</ul>"
+        )
 
-    def _setup_gui_capture_shortcut(self):
-        """Setup F12 keyboard shortcut for quick GUI state capture."""
-        # Create F12 shortcut
-        capture_shortcut = QShortcut(QKeySequence("F12"), self)
-        capture_shortcut.activated.connect(self._capture_gui_state)
-        
-        logger.info("F12 GUI capture shortcut registered")
-    
-    def _show_capture_success_dialog(self, filename: str, view_name: str, timestamp: datetime, json_text: str):
-        """
-        Show enhanced capture success dialog with clipboard integration.
-        
-        Args:
-            filename: Name of the capture file
-            view_name: Name of the captured view
-            timestamp: Capture timestamp
-            json_text: The JSON content (for re-copying if needed)
-        """
-        dialog = QDialog(self)
-        dialog.setWindowTitle("📸 GUI State Captured")
-        dialog.resize(600, 400)
-        
-        layout = QVBoxLayout()
-        
-        # Success message
-        success_label = QLabel("✅ <b>GUI state copied to clipboard!</b>")
-        success_label.setFont(QFont("Segoe UI", 12))
-        success_label.setStyleSheet("color: #2ecc71; padding: 10px;")  # Bright green for dark mode
-        layout.addWidget(success_label)
-        
-        # Instructions
-        instructions = QLabel("Just press <b>Ctrl+V</b> in your next LLM prompt to paste the JSON.")
-        instructions.setFont(QFont("Segoe UI", 10))
-        instructions.setStyleSheet("padding: 5px;")
-        layout.addWidget(instructions)
-        
-        # File paths (selectable text)
-        paths_label = QLabel("📁 <b>Saved to:</b>")
-        paths_label.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        paths_label.setStyleSheet("padding-top: 15px;")
-        layout.addWidget(paths_label)
-        
-        paths_text = QTextEdit()
-        paths_text.setReadOnly(True)
-        paths_text.setMaximumHeight(80)
-        paths_text.setPlainText(
-            f"Main: gui_runtime_state.json\n"
-            f"Backup: gui_captures/{filename}"
-        )
-        paths_text.setStyleSheet("font-family: Consolas, monospace;")  # Background from stylesheet
-        layout.addWidget(paths_text)
-        
-        # Metadata
-        meta_label = QLabel(
-            f"<b>View:</b> {view_name} | "
-            f"<b>Timestamp:</b> {timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
-        )
-        meta_label.setStyleSheet("padding: 10px;")  # Color from stylesheet
-        layout.addWidget(meta_label)
-        
-        # Action buttons
-        btn_layout = QHBoxLayout()
-        
-        copy_btn = QPushButton("📋 Copy to Clipboard Again")
-        copy_btn.clicked.connect(lambda: self._copy_to_clipboard(json_text))
-        btn_layout.addWidget(copy_btn)
-        
-        open_folder_btn = QPushButton("📂 Open File Location")
-        open_folder_btn.clicked.connect(lambda: self._open_captures_folder())
-        btn_layout.addWidget(open_folder_btn)
-        
-        layout.addLayout(btn_layout)
-        
-        # Close button
-        close_btn = QPushButton("Close")
-        close_btn.setDefault(True)
-        close_btn.clicked.connect(dialog.accept)
-        layout.addWidget(close_btn)
-        
-        dialog.setLayout(layout)
-        dialog.exec()
-    
-    def _copy_to_clipboard(self, text: str):
-        """Copy text to clipboard and show confirmation."""
-        clipboard = QApplication.clipboard()
-        clipboard.setText(text)
-        self.status_label.setText("📋 Copied to clipboard!")
-        logger.info("JSON re-copied to clipboard")
-    
-    def _open_captures_folder(self):
-        """Open the gui_captures folder in file explorer."""
-        import subprocess
-        import os
-        
-        captures_path = Path("gui_captures").absolute()
-        
-        try:
-            if os.name == 'nt':  # Windows
-                subprocess.run(['explorer', str(captures_path)])
-            elif os.name == 'posix':  # macOS/Linux
-                subprocess.run(['open' if sys.platform == 'darwin' else 'xdg-open', str(captures_path)])
-            
-            logger.info(f"Opened captures folder: {captures_path}")
-        except Exception as e:
-            logger.error(f"Failed to open captures folder: {e}")
-            QMessageBox.warning(
-                self,
-                "Cannot Open Folder",
-                f"Could not open folder:\n{captures_path}\n\n"
-                f"Please open it manually."
-            )
-    
     def _build_widget_tree(self, widget) -> Dict[str, Any]:
-        """
-        Recursively build a JSON representation of the widget hierarchy.
-        
-        Args:
-            widget: PyQt6 widget to inspect
-            
-        Returns:
-            Dictionary containing widget information and children
-        """
+        """Recursively build a JSON representation of the widget hierarchy."""
         info = {
             "object_name": widget.objectName() or "(unnamed)",
             "class_name": widget.__class__.__name__,
         }
-        
+
         # Capture common useful properties
         property_names = [
-            "text", "title", "placeholderText", "currentText", 
-            "toolTip", "statusTip", "whatsThis",
-            "isChecked", "isEnabled", "isVisible", "isReadOnly",
+            "text", "title", "placeholderText", "currentText",
+            "toolTip", "isChecked", "isEnabled", "isVisible",
             "minimum", "maximum", "value", "currentIndex"
         ]
-        
+
         for prop_name in property_names:
             if hasattr(widget, prop_name):
                 try:
                     prop = getattr(widget, prop_name)
                     value = prop() if callable(prop) else prop
-                    
-                    # Only include non-empty/non-default values that are JSON-serializable
                     if value not in [None, "", False, 0]:
-                        # Only capture primitive JSON-serializable types
-                        # Skip Qt objects (QModelIndex, QPoint, QColor, etc.)
                         if isinstance(value, (str, int, float, bool)):
                             info[prop_name] = value
                 except Exception:
-                    # Silently skip properties that can't be accessed or serialized
                     pass
-        
+
         # Capture layout information
         if hasattr(widget, 'layout') and widget.layout() is not None:
             layout = widget.layout()
             info["layout_type"] = layout.__class__.__name__
-            info["layout_spacing"] = layout.spacing()
-            margins = layout.contentsMargins()
-            info["layout_margins"] = {
-                "left": margins.left(),
-                "top": margins.top(),
-                "right": margins.right(),
-                "bottom": margins.bottom()
-            }
-        
-        # Recursively capture all direct widget children
+
+        # Recursively capture children
         direct_children = [c for c in widget.children() if c.isWidgetType()]
-        
         if direct_children:
             info["children"] = [self._build_widget_tree(child) for child in direct_children]
-        
+
         return info
-    
+
     def _capture_gui_state(self):
-        """
-        Capture current GUI state and save to timestamped file.
-        
-        Triggered by F12 hotkey. Saves complete widget hierarchy to
-        gui_captures folder with timestamp and view context.
-        """
+        """Capture GUI state for debugging (F12)."""
         try:
-            # Create gui_captures directory if it doesn't exist
             captures_dir = Path("gui_captures")
             captures_dir.mkdir(exist_ok=True)
-            
-            # Get current tab name for context
+
+            # Get current context
             current_tab_index = self.tab_widget.currentIndex()
-            current_tab_name = self.tab_widget.tabText(current_tab_index)
-            current_tab_name = current_tab_name.replace("📁 ", "").replace("🤖 ", "").replace("📋 ", "").replace("⚙️ ", "").replace("📊 ", "").replace("💬 ", "")
-            current_tab_name = current_tab_name.split(" - ")[0].strip()  # Remove project name suffix
-            
+            current_tab_name = self.tab_widget.tabText(current_tab_index) if current_tab_index >= 0 else "Welcome"
+
             # Build complete widget tree
             widget_tree = self._build_widget_tree(self)
-            
-            # Create capture data
+
             timestamp = datetime.now()
             capture_data = {
                 "metadata": {
                     "captured_at": timestamp.isoformat(),
                     "current_view": current_tab_name,
-                    "project": self.current_project.name if self.current_project else "No Project",
-                    "main_window_class": "JellyRancherStudio",
-                    "pyqt_version": "PyQt6",
+                    "roundup": self.current_roundup.name if self.current_roundup else "None",
+                    "step": self.current_roundup.current_step if self.current_roundup else 0,
                     "capture_method": "F12 Quick Capture"
                 },
                 "tree": widget_tree
             }
-            
+
             # Generate filename
             timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
-            view_slug = current_tab_name.lower().replace(" ", "_")
+            view_slug = current_tab_name.lower().replace(" ", "_").replace("-", "_")[:20]
             filename = f"{timestamp_str}_{view_slug}.json"
             output_file = captures_dir / filename
-            
-            # Custom JSON encoder to handle any remaining Qt objects
-            class QtObjectEncoder(json.JSONEncoder):
+
+            # Custom encoder for Qt objects
+            class QtEncoder(json.JSONEncoder):
                 def default(self, obj):
-                    # Convert any Qt object to its string representation
                     if hasattr(obj, '__class__') and 'PyQt6' in str(type(obj)):
                         return f"<{obj.__class__.__name__}>"
-                    # Let the base class handle standard types
                     return super().default(obj)
-            
-            # Save to file with custom encoder
+
+            # Save to file
             with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(capture_data, f, indent=2, ensure_ascii=False, cls=QtObjectEncoder)
-            
-            # Also update the main gui_runtime_state.json file
-            main_state_file = Path("gui_runtime_state.json")
-            with open(main_state_file, 'w', encoding='utf-8') as f:
-                json.dump(capture_data, f, indent=2, ensure_ascii=False, cls=QtObjectEncoder)
-            
-            # Auto-copy JSON to clipboard
-            json_text = json.dumps(capture_data, indent=2, ensure_ascii=False, cls=QtObjectEncoder)
+                json.dump(capture_data, f, indent=2, ensure_ascii=False, cls=QtEncoder)
+
+            # Also save to main state file
+            with open(Path("gui_runtime_state.json"), 'w', encoding='utf-8') as f:
+                json.dump(capture_data, f, indent=2, ensure_ascii=False, cls=QtEncoder)
+
+            # Copy to clipboard
+            json_text = json.dumps(capture_data, indent=2, ensure_ascii=False, cls=QtEncoder)
             clipboard = QApplication.clipboard()
             clipboard.setText(json_text)
-            
-            # Show success notification in status bar
-            self.status_label.setText(f"📸 GUI state captured and copied to clipboard!")
-            logger.info(f"GUI state captured to {output_file} and gui_runtime_state.json, copied to clipboard")
-            
-            # Show enhanced capture dialog
-            self._show_capture_success_dialog(filename, current_tab_name, timestamp, json_text)
-            
-        except Exception as e:
-            logger.error(f"Failed to capture GUI state: {e}", exc_info=True)
-            QMessageBox.critical(
+
+            self.status_label.setText(f"📸 GUI captured: {filename}")
+            logger.info(f"GUI state captured to {output_file}")
+
+            QMessageBox.information(
                 self,
-                "Capture Failed",
-                f"Failed to capture GUI state:\n{str(e)}\n\n"
-                f"Check logs for details."
+                "📸 GUI State Captured",
+                f"✅ Copied to clipboard!\n\n"
+                f"View: {current_tab_name}\n"
+                f"File: gui_captures/{filename}\n\n"
+                f"Press Ctrl+V to paste in your next prompt."
             )
 
+        except Exception as e:
+            logger.error(f"Failed to capture GUI state: {e}", exc_info=True)
+            QMessageBox.critical(self, "Error", f"Failed to capture GUI state: {e}")
+
     def closeEvent(self, event):
-        """Handle window close event."""
-        # Auto-save before closing
-        if self.current_project:
-            self._auto_save()
-        
+        """Handle window close."""
+        if self.current_roundup and self.current_roundup.has_unsaved_changes:
+            result = QMessageBox.question(
+                self,
+                "Unsaved Changes",
+                "You have unsaved changes. Save before closing?",
+                QMessageBox.StandardButton.Save |
+                QMessageBox.StandardButton.Discard |
+                QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Save
+            )
+
+            if result == QMessageBox.StandardButton.Cancel:
+                event.ignore()
+                return
+            elif result == QMessageBox.StandardButton.Save:
+                self._save_roundup()
+
         event.accept()
 
 
+def global_exception_handler(exc_type, exc_value, exc_traceback):
+    """
+    Global exception handler for uncaught exceptions.
+    Logs the exception and shows a user-friendly dialog.
+    """
+    # Don't handle KeyboardInterrupt
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    
+    # Log the full traceback
+    import traceback
+    error_msg = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+    logger.critical(f"Uncaught exception:\n{error_msg}")
+    
+    # Try to show error dialog if Qt app is running
+    try:
+        from PyQt6.QtWidgets import QMessageBox, QApplication
+        app = QApplication.instance()
+        if app:
+            QMessageBox.critical(
+                None,
+                "JellyRancher Error",
+                f"An unexpected error occurred:\n\n{exc_type.__name__}: {exc_value}\n\n"
+                f"Please check the log file for details."
+            )
+    except Exception:
+        pass  # Qt not available or crashed
+
+
 def main():
-    """Main entry point."""
-    # Setup logging - MasterLogger is a singleton that auto-initializes
-    master_logger = MasterLogger()
+    """Main entry point with comprehensive error handling."""
+    # Install global exception handler FIRST
+    sys.excepthook = global_exception_handler
     
+    # Setup logging
+    try:
+        master_logger = MasterLogger()
+    except Exception as e:
+        print(f"CRITICAL: Failed to initialize logging: {e}", file=sys.stderr)
+        sys.exit(1)
+
     logger.info("=" * 70)
-    logger.info("JellyRancher Studio Starting")
+    logger.info("JellyRancher Studio Starting (Round-Up Edition)")
+    logger.info(f"Python version: {sys.version}")
+    logger.info(f"Platform: {sys.platform}")
     logger.info("=" * 70)
-    
-    # Create application
-    app = QApplication(sys.argv)
-    app.setApplicationName("JellyRancher Studio")
-    app.setOrganizationName("JellyRancher")
-    
-    # Apply modern stylesheet
-    apply_stylesheet(app, dark_mode=True)
-    
-    # Create and show main window
-    window = JellyRancherStudio()
-    window.show()
-    
-    # Run event loop
-    sys.exit(app.exec())
+
+    try:
+        # Create application
+        app = QApplication(sys.argv)
+        app.setApplicationName("JellyRancher Studio")
+        app.setOrganizationName("JellyRancher")
+        logger.debug("QApplication created successfully")
+
+        # Apply dark mode stylesheet
+        try:
+            apply_stylesheet(app, dark_mode=True)
+            logger.debug("Stylesheet applied successfully")
+        except Exception as e:
+            logger.warning(f"Failed to apply stylesheet: {e}")
+            # Continue without stylesheet
+
+        # Create and show main window
+        try:
+            window = JellyRancherStudio()
+            window.show()
+            logger.info("Main window created and displayed")
+        except Exception as e:
+            logger.critical(f"Failed to create main window: {e}", exc_info=True)
+            QMessageBox.critical(
+                None,
+                "Startup Error",
+                f"Failed to create main window:\n\n{e}\n\nCheck the log file for details."
+            )
+            sys.exit(1)
+
+        # Run event loop
+        logger.info("Entering Qt event loop")
+        exit_code = app.exec()
+        logger.info(f"Application exiting with code {exit_code}")
+        sys.exit(exit_code)
+        
+    except Exception as e:
+        logger.critical(f"Fatal error during startup: {e}", exc_info=True)
+        print(f"FATAL ERROR: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

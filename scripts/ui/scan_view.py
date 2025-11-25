@@ -74,9 +74,19 @@ class FolderContentSelectionDialog(QDialog):
                     background-color: white;
                 }
                 
-                /* Checkboxes in the scroll area */
-                /* Removed custom QCheckBox styling to ensure native OS rendering */
-                
+                /* Checkboxes in the scroll area - DARK text on white background */
+                QCheckBox {
+                    color: #2c3e50;
+                    background-color: transparent;
+                    spacing: 8px;
+                    padding: 4px;
+                }
+
+                QCheckBox::indicator {
+                    width: 16px;
+                    height: 16px;
+                }
+
                 /* Buttons */
                 QPushButton {
                     background-color: #1f6fb2;
@@ -787,12 +797,14 @@ class ScanView(QWidget):
         stats: Optional[ScanStatistics] = None,
         session_ids: Optional[List[int]] = None,
     ):
-        """Save scan session to database."""
+        """Save scan session to database (legacy + Round-Up)."""
         try:
             import sqlite3
+
+            # Save to legacy database for backward compatibility
             conn = sqlite3.connect("data/media_library.db")
             cursor = conn.cursor()
-            
+
             # Create scan session
             scan_options = {
                 'md5_enabled': self.chk_md5.isChecked(),
@@ -802,12 +814,12 @@ class ScanView(QWidget):
             }
             if session_ids:
                 scan_options['inventory_session_ids'] = session_ids
-            
+
             total_size = stats.total_size_bytes if stats else sum(r.size_bytes for r in files)
             total_files = stats.total_files if stats else len(files)
-            
+
             cursor.execute('''
-                INSERT INTO project_scan_sessions 
+                INSERT INTO project_scan_sessions
                 (project_id, scan_start, scan_end, total_files, total_size_bytes, scan_options_json)
                 VALUES (?, ?, ?, ?, ?, ?)
             ''', (
@@ -818,16 +830,57 @@ class ScanView(QWidget):
                 total_size,
                 json.dumps(scan_options)
             ))
-            
+
             self.current_scan_session_id = cursor.lastrowid
             conn.commit()
             conn.close()
-            
-            logger.info(f"Saved scan session to database: ID={self.current_scan_session_id}")
-            
+
+            logger.info(f"Saved scan session to legacy database: ID={self.current_scan_session_id}")
+
+            # Also save to Round-Up database if using Round-Up mode
+            logger.debug(f"Checking Round-Up mode: hasattr='roundup'={hasattr(self.project, 'roundup')}")
+            if hasattr(self.project, 'roundup'):
+                logger.debug(f"self.project.roundup = {self.project.roundup}")
+                logger.debug(f"self.project.manager type = {type(self.project.manager)}")
+
+            if hasattr(self.project, 'roundup') and self.project.roundup:
+                try:
+                    logger.info(f"Saving {len(files)} files to Round-Up database...")
+                    # Convert FileRecord objects to dicts for Round-Up storage
+                    file_dicts = []
+                    for record in files:
+                        # Derive relative_path from selected folders
+                        relative_path = ''
+                        if hasattr(self, 'selected_folders') and self.selected_folders:
+                            for base_folder in self.selected_folders:
+                                try:
+                                    relative_path = str(record.absolute_path.relative_to(base_folder))
+                                    break
+                                except ValueError:
+                                    continue
+                        
+                        file_dicts.append({
+                            'path': str(record.absolute_path),
+                            'relative_path': relative_path,
+                            'filename': record.absolute_path.name,
+                            'extension': record.extension,
+                            'size_bytes': record.size_bytes,
+                            'md5_hash': getattr(record, 'md5_hash', '') or '',
+                            'created_at': record.scan_timestamp.isoformat() if record.scan_timestamp else '',
+                            'modified_at': '',
+                        })
+
+                    # Save to Round-Up database
+                    saved_count = self.project.manager.save_scan_files(
+                        self.project.roundup, file_dicts
+                    )
+                    logger.info(f"Saved {saved_count} files to Round-Up database")
+                except Exception as e:
+                    logger.error(f"Failed to save to Round-Up database: {e}", exc_info=True)
+
             # Emit signal for Studio to update Project Explorer
             self.scan_completed.emit(self.current_scan_session_id)
-            
+
         except Exception as e:
             logger.error(f"Failed to save scan to database: {e}", exc_info=True)
 
