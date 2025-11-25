@@ -502,44 +502,44 @@ class AnalysisView(QWidget):
             
             # Get scan files from Round-Up
             scan_file_dicts = manager.get_scan_files(roundup)
-        
-        if not scan_file_dicts:
-            self._set_status("No scan data found. Please run a scan first.", error=True)
-            self.btn_run.setEnabled(False)
-            return
-        
-        # Convert dicts to FileRecord-like objects for folder structure
-        self.scanned_files = []
-        for file_dict in scan_file_dicts:
-            # Create a simple object that has the attributes needed by get_folder_structure
-            file_record = FileRecord(
-                absolute_path=Path(file_dict['path']),
-                relative_path=Path(file_dict['relative_path']) if file_dict.get('relative_path') else None,
-                size_bytes=file_dict.get('size_bytes', 0),
-                extension=file_dict.get('extension', ''),
-                md5_hash=file_dict.get('md5_hash'),
-                created_at=file_dict.get('created_at'),
-                modified_at=file_dict.get('modified_at')
-            )
-            self.scanned_files.append(file_record)
-        
-        # Build folder structure
-        scanner = FileScanner()
-        self.folder_structure = scanner.get_folder_structure(self.scanned_files)
-        self.folder_structure['project_name'] = self.project.name
-        self.folder_structure['total_files'] = len(self.scanned_files)
-        
-        # Count unique folders
-        metadata_keys = {'project_name', 'scan_id', 'total_files'}
-        folder_count = sum(1 for k in self.folder_structure.keys() if k not in metadata_keys)
-        
-        self._update_source_data_display()
-        self._update_token_estimate()
-        self._set_status(f"✓ Ready: {len(self.scanned_files)} files from {folder_count} folder(s)", success=True)
-        self.btn_run.setEnabled(True)
-        self.btn_preview.setEnabled(True)
-        
-        logger.info(f"Loaded {len(self.scanned_files)} files from Round-Up '{roundup.name}'")
+            
+            if not scan_file_dicts:
+                self._set_status("No scan data found. Please run a scan first.", error=True)
+                self.btn_run.setEnabled(False)
+                return
+            
+            # Convert dicts to FileRecord-like objects for folder structure
+            self.scanned_files = []
+            for file_dict in scan_file_dicts:
+                # Create a simple object that has the attributes needed by get_folder_structure
+                file_record = FileRecord(
+                    absolute_path=Path(file_dict['path']),
+                    relative_path=Path(file_dict['relative_path']) if file_dict.get('relative_path') else None,
+                    size_bytes=file_dict.get('size_bytes', 0),
+                    extension=file_dict.get('extension', ''),
+                    md5_hash=file_dict.get('md5_hash'),
+                    created_at=file_dict.get('created_at'),
+                    modified_at=file_dict.get('modified_at')
+                )
+                self.scanned_files.append(file_record)
+            
+            # Build folder structure
+            scanner = FileScanner()
+            self.folder_structure = scanner.get_folder_structure(self.scanned_files)
+            self.folder_structure['project_name'] = self.project.name
+            self.folder_structure['total_files'] = len(self.scanned_files)
+            
+            # Count unique folders
+            metadata_keys = {'project_name', 'scan_id', 'total_files'}
+            folder_count = sum(1 for k in self.folder_structure.keys() if k not in metadata_keys)
+            
+            self._update_source_data_display()
+            self._update_token_estimate()
+            self._set_status(f"✓ Ready: {len(self.scanned_files)} files from {folder_count} folder(s)", success=True)
+            self.btn_run.setEnabled(True)
+            self.btn_preview.setEnabled(True)
+            
+            logger.info(f"Loaded {len(self.scanned_files)} files from Round-Up '{roundup.name}'")
                 
         except Exception as e:
             logger.error(f"Error loading scan data: {e}", exc_info=True)
