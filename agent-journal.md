@@ -1650,3 +1650,34 @@ New functions to index (add_to_function_index.py has syntax error, manual update
 - `AnalysisView._update_token_estimate()` - Update token estimate label
 - `LLMStructureAnalyzer._chunk_folder_structure()` - Split large structures into chunks
 - `LLMStructureAnalyzer.analyze_structure_chunked()` - Chunked analysis with result merging
+## PHASE 45-B: Tool Fixes & Default Model Change
+**Date:** 2025-11-24 22:59:16
+**Goal:** Fix broken tool and change default LLM model project-wide.
+### Fix 1: Repair add_to_function_index.py
+**Problem:** File was truncated at line 47 mid-statement (`if fp not in functions` with no colon or body).
+**Solution:**
+- Completed `add_or_update()` function with proper add/update logic
+- Added `save_index()` function
+- Added `--from-file` argument to read JSON from file (avoids PowerShell parsing issues with `//`)
+- Added metadata updates (last_updated timestamp, statistics)
+**Verification:** Successfully added 4 Phase 45 functions to index (1829 total).
+### Fix 2: Change Default LLM Model
+**Rationale:** User requested removal of Claude-Sonnet-4.5 as default, replaced with Grok-4.1-Fast-Reasoning.
+**Files Updated:**
+| File | Change |
+|------|--------|
+| scripts/media/llm_structure_analyzer.py | Default model param + docstring |
+| scripts/ui/analysis_view.py | Model dropdown first option |
+| scripts/core/workers.py | LLMAnalysisWorker default |
+| scripts/ai/ravenmaven_client.py | PoeClient default + fallback list |
+| scripts/media/jellyfin_workflow.py | CLI default + argparse |
+| scripts/ai/ravenmaven_combined.py | Function default + argparse |
+| scripts/ai/ravenmaven_batch.py | Function default + argparse |
+| scripts/media/WORKFLOW_README.md | Documentation references |
+| scripts/tests/test_dynamic_chunking.py | Test cases + model limits dict |
+**Preserved:** Historical references in `scripts/tools/ravenmaven/agent-journal.md` (documents past usage, not active code).
+### Git Commits
+```
+7af0cb5 fix(tools): Repair truncated add_to_function_index.py, add --from-file option
+cbb98fd refactor: Change default LLM model from Claude-Sonnet-4.5 to Grok-4.1-Fast-Reasoning
+```
