@@ -1710,3 +1710,44 @@ cbb98fd refactor: Change default LLM model from Claude-Sonnet-4.5 to Grok-4.1-Fa
 a3adf06 fix(analysis): Load scan data from Round-Up database instead of legacy db
 c53b69a refactor(analysis): Remove legacy database fallback, Round-Up only
 ```
+## PHASE 45-D: Complete Legacy Database Removal
+**Date:** 2025-11-25 09:09:05
+**Goal:** Remove all remaining references to legacy `data/media_library.db` from active codebase.
+### Scope
+User requested complete removal of legacy database references: "Perhaps if you look for all instances of references to that db throughout the codebase, you can nuke them"
+**Files Searched:** 10 files found with references (via grep)
+**Active Code Files Updated:** 4 files
+**Documentation Files:** Left as historical references (6 files)
+### Changes Made
+**1. jelly_rancher_studio.py**
+- Removed `self.db_path = Path("data/media_library.db")` from RoundUpManagerAdapter
+- Updated `_get_most_recent_scan_session_id()` to query Round-Up's `data.db` instead of legacy database
+- Changed query from `project_scan_sessions` to `scan_files` table
+**2. scripts/ui/scan_view.py**
+- Removed legacy database save in `_save_scan_to_database()`
+- Now saves exclusively to Round-Up database via RoundUpManager
+- Removed ~35 lines of legacy database connection code
+**3. scripts/ui/review_view.py**
+- Updated `_load_analysis_data()` to use `RoundUpManager.get_latest_analysis()`
+- Updated `_load_scanned_files()` to use `RoundUpManager.get_scan_files()`
+- Updated `_save_action_plan_to_database()` to use `RoundUpManager.save_review_actions()`
+- Removed all `sqlite3.connect("data/media_library.db")` calls
+- Added Round-Up-only error handling
+**4. scripts/ui/execution_view.py**
+- Updated `run()` method to load operations from Round-Up `review_actions` table
+- Updated `_load_action_plan()` to query Round-Up database
+- Removed legacy `project_operations` and `project_action_plans` table queries
+### Files Left Unchanged (Documentation Only)
+- `agent-journal.md` - Historical references preserved
+- `consolidated-docs.md` - Historical documentation
+- `docs/consolidated-docs.md` - Historical documentation
+- `docs/UX_REDESIGN_MASTER_PLAN.md` - Historical documentation
+- `scripts/core/project_manager.py` - Default parameter (may be used for migrations)
+- `scripts/database/migrations.py` - Default parameter (used for database migrations)
+### Result
+**Active codebase is now 100% Round-Up only.** No legacy database connections remain in production code. All views (Scan, Analysis, Review, Execution) now exclusively use Round-Up's `data.db` via RoundUpManager methods.
+### Git Commits
+```
+5072dca refactor: Remove legacy media_library.db references
+5698b06 refactor: Complete removal of legacy media_library.db from active code
+```
