@@ -132,12 +132,20 @@ class TestBuildAnalysisPrompt:
     @pytest.mark.unit
     def test_builds_prompt_with_structure(self, analyzer):
         """Should build prompt containing structure data."""
-        structure = {"folders": [{"name": "Movies", "count": 10}]}
+        # Use structure format that tree renderer expects
+        structure = {
+            "/media/Movies": {
+                "files": ["movie1.mkv", "movie2.mkv"],
+                "total_size": 1024**3,
+                "file_types": {".mkv": 2}
+            }
+        }
         
         prompt = analyzer._build_analysis_prompt(structure)
         
         assert "Movies" in prompt
-        assert "JELLYFIN REQUIREMENTS" in prompt
+        # Updated to match current tree format prompt text
+        assert "JELLYFIN NAMING REQUIREMENTS" in prompt
         assert "detected_media" in prompt
     
     @pytest.mark.unit
@@ -159,12 +167,19 @@ class TestBuildAnalysisPrompt:
     @pytest.mark.unit
     def test_handles_path_objects_in_structure(self, analyzer):
         """Should serialize Path objects in structure."""
-        structure = {"root": Path("/media/movies")}
+        # Use structure format that tree renderer expects, with Path as key
+        structure = {
+            Path("/media/movies"): {
+                "files": ["test.mkv"],
+                "total_size": 1024**2,
+                "file_types": {".mkv": 1}
+            }
+        }
         
         prompt = analyzer._build_analysis_prompt(structure)
         
         # Should not raise and should contain path representation
-        # JSON escapes backslashes on Windows, so check for either format
+        # Path keys are converted to strings by tree renderer
         assert "media" in prompt and "movies" in prompt
 
 
