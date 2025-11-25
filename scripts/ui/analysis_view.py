@@ -1265,18 +1265,26 @@ class AnalysisView(QWidget):
         self.metadata_status.setText(f"✓ {movies} movies, {shows} TV shows enriched")
         self.metadata_status.setStyleSheet("color: #2ecc71;")
         
-        # Save to database
+        # Save to Round-Up database
         try:
-            conn = sqlite3.connect("data/media_library.db")
-            cursor = conn.cursor()
-            cursor.execute('''
-                UPDATE project_analyses SET metadata_json = ? WHERE id = ?
-            ''', (json.dumps(canonical_db), self.current_analysis_id))
-            conn.commit()
-            conn.close()
-            
-            if self.current_analysis_id:
-                self.metadata_built.emit(self.current_analysis_id)
+            if hasattr(self.project, 'roundup') and self.project.roundup:
+                import sqlite3
+                roundup = self.project.roundup
+                conn = sqlite3.connect(str(roundup.path / "data.db"))
+                cursor = conn.cursor()
+                
+                # Update the analysis_results record with metadata
+                cursor.execute('''
+                    UPDATE analysis_results 
+                    SET detected_media_json = ?
+                    WHERE id = ?
+                ''', (json.dumps(canonical_db), self.current_analysis_id))
+                conn.commit()
+                conn.close()
+                
+                if self.current_analysis_id:
+                    self.metadata_built.emit(self.current_analysis_id)
+                    logger.info(f"Updated analysis #{self.current_analysis_id} with metadata")
         except Exception as e:
             logger.error(f"Failed to save metadata: {e}", exc_info=True)
         
@@ -1294,36 +1302,36 @@ class AnalysisView(QWidget):
     # =========================================================================
     
     def _save_analysis_to_database(self, result: dict):
-        """Save analysis results to database."""
+        """Save analysis results to Round-Up database."""
         try:
-            conn = sqlite3.connect("data/media_library.db")
-            cursor = conn.cursor()
+            if not hasattr(self.project, 'roundup') or not self.project.roundup:
+                logger.warning("Cannot save analysis: No Round-Up found")
+                return
+                
+            roundup = self.project.roundup
+            manager = self.project.manager if hasattr(self.project, 'manager') else RoundUpManager()
             
             model = self.model_combo.currentText()
-            scan_id = self.folder_structure.get('scan_id') if self.folder_structure else None
+            mode = self.mode_combo.currentText().lower()
             
-            cursor.execute('''
-                INSERT INTO project_analyses 
-                (project_id, scan_session_id, model_name, analysis_date, 
-                 response_text, parsed_json, confidence, issues_found)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                self.project.id,
-                scan_id,
-                model,
-                datetime.now().isoformat(),
-                json.dumps(result.get('reasoning', '')),
-                json.dumps(result),
-                'MEDIUM',
-                len(self.extrapolated_operations)
-            ))
+            # Map mode string to analysis_mode
+            if 'llm' in mode:
+                analysis_mode = 'llm'
+            elif 'regex' in mode:
+                analysis_mode = 'regex'
+            else:
+                analysis_mode = 'hybrid'
             
-            self.current_analysis_id = cursor.lastrowid
-            conn.commit()
-            conn.close()
+            self.current_analysis_id = manager.save_analysis_result(
+                roundup=roundup,
+                analysis_mode=analysis_mode,
+                model_used=model,
+                response=result
+            )
             
             if self.current_analysis_id:
                 self.analysis_saved.emit(self.current_analysis_id)
+                logger.info(f"Saved analysis #{self.current_analysis_id} to Round-Up '{roundup.name}'")
                 
         except Exception as e:
             logger.error(f"Failed to save analysis: {e}", exc_info=True)
