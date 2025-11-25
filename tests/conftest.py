@@ -270,8 +270,8 @@ def roundup_manager(roundup_base_dir):
     """
     from scripts.core.roundup_manager import RoundUpManager
     
-    # Create manager with custom base path
-    manager = RoundUpManager(base_path=roundup_base_dir)
+    # Create manager with custom roundups directory
+    manager = RoundUpManager(roundups_dir=roundup_base_dir)
     return manager
 
 
@@ -434,3 +434,150 @@ def pytest_addoption(parser):
         help="Run slow tests (skipped by default)"
     )
 
+
+# =============================================================================
+# GUI TEST FIXTURES (pytest-qt)
+# =============================================================================
+
+@pytest.fixture
+def mock_project():
+    """
+    Create a mock Project object for GUI testing.
+    
+    Provides minimal Project-like interface needed by views.
+    """
+    from unittest.mock import MagicMock
+    
+    project = MagicMock()
+    project.name = "Test Project"
+    project.id = 1
+    project.roundup = None  # Will be set by mock_roundup if needed
+    project.manager = None
+    return project
+
+
+@pytest.fixture
+def mock_roundup(roundup_base_dir, sample_mixed_media_dir):
+    """
+    Create a mock RoundUp object for GUI testing.
+    
+    Includes real database with sample data for views that query it.
+    """
+    from scripts.core.roundup_manager import RoundUpManager, RoundUp
+    from datetime import datetime
+    
+    manager = RoundUpManager(roundups_dir=roundup_base_dir)
+    roundup = manager.create("GUI_Test_Project")
+    
+    # Add source folders
+    roundup.config['source_folders'] = [str(sample_mixed_media_dir)]
+    manager.save(roundup)
+    
+    # Add some scan data
+    scan_files = [
+        {
+            'path': str(sample_mixed_media_dir / "Movies" / "The Matrix (1999).mkv"),
+            'filename': "The Matrix (1999).mkv",
+            'extension': '.mkv',
+            'size_bytes': 1000,
+            'md5_hash': 'abc123',
+            'relative_path': "Movies/The Matrix (1999).mkv"
+        },
+        {
+            'path': str(sample_mixed_media_dir / "TV" / "Breaking Bad" / "Season 1" / "Breaking.Bad.S01E01.Pilot.mkv"),
+            'filename': "Breaking.Bad.S01E01.Pilot.mkv",
+            'extension': '.mkv',
+            'size_bytes': 500,
+            'md5_hash': 'def456',
+            'relative_path': "TV/Breaking Bad/Season 1/Breaking.Bad.S01E01.Pilot.mkv"
+        }
+    ]
+    manager.save_scan_files(roundup, scan_files)
+    
+    return roundup, manager
+
+
+@pytest.fixture
+def mock_project_with_roundup(mock_project, mock_roundup):
+    """
+    Create a mock Project with a real RoundUp attached.
+    
+    This is what most views expect to receive.
+    """
+    roundup, manager = mock_roundup
+    mock_project.roundup = roundup
+    mock_project.manager = manager
+    return mock_project
+
+
+@pytest.fixture
+def mock_project_manager():
+    """
+    Create a mock ProjectManager for legacy compatibility.
+    
+    Some views still reference ProjectManager alongside RoundUp.
+    """
+    from unittest.mock import MagicMock
+    
+    manager = MagicMock()
+    manager.get_project.return_value = None
+    manager.update_project.return_value = True
+    manager.get_scan_session_id.return_value = 1
+    return manager
+
+
+@pytest.fixture
+def sample_proposed_operations():
+    """
+    Create sample ProposedOperation objects for ReviewView/ExecutionView testing.
+    """
+    from scripts.core.action_plan import ProposedOperation, ActionType, Confidence
+    from pathlib import Path
+    
+    operations = [
+        ProposedOperation(
+            source_path=Path("/media/Movies/Movie A.mkv"),
+            destination_path=Path("/media/Movies/Movie A (2020)/Movie A (2020).mkv"),
+            action_type=ActionType.MOVE,
+            confidence=Confidence.HIGH,
+            notes="Reorganize for Jellyfin",
+            user_approved=True
+        ),
+        ProposedOperation(
+            source_path=Path("/media/Movies/Movie B.mkv"),
+            destination_path=Path("/media/Movies/Movie B (2019)/Movie B (2019).mkv"),
+            action_type=ActionType.MOVE,
+            confidence=Confidence.MEDIUM,
+            notes="Year uncertain",
+            user_approved=None
+        ),
+        ProposedOperation(
+            source_path=Path("/media/Movies/weird_file.avi"),
+            destination_path=None,
+            action_type=ActionType.REVIEW,
+            confidence=Confidence.LOW,
+            notes="Manual review needed",
+            user_approved=False
+        ),
+    ]
+    return operations
+
+
+@pytest.fixture
+def sample_analysis_results():
+    """
+    Create sample LLM analysis results for AnalysisView testing.
+    """
+    return {
+        'detected_media': [
+            {'title': 'The Matrix', 'type': 'movie', 'year': 1999, 'confidence': 'high'},
+            {'title': 'Breaking Bad', 'type': 'tv_show', 'year': 2008, 'confidence': 'high'},
+        ],
+        'reorganization_plan': {
+            'summary': 'Reorganize 2 movies and 1 TV show for Jellyfin compliance',
+            'folder_changes': [
+                {'current_path': '/media/Movies', 'proposed_path': '/media/Movies/The Matrix (1999)', 'action': 'move'}
+            ]
+        },
+        'reasoning': 'Test analysis results'
+    }
