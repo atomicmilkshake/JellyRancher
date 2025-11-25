@@ -1681,3 +1681,32 @@ New functions to index (add_to_function_index.py has syntax error, manual update
 7af0cb5 fix(tools): Repair truncated add_to_function_index.py, add --from-file option
 cbb98fd refactor: Change default LLM model from Claude-Sonnet-4.5 to Grok-4.1-Fast-Reasoning
 ```
+## PHASE 45-C: AnalysisView Round-Up Integration & Legacy Removal
+**Date:** 2025-11-24 23:06:33
+**Goal:** Fix AnalysisView to load scan data from Round-Up database and remove legacy project system support.
+### Bug Fix: Round-Up Database Loading
+**Problem:** AnalysisView was loading scan data from legacy `data/media_library.db` instead of Round-Up's `roundup.path/data.db`, causing "No scan data found" error even when scan data existed in Round-Up.
+**Root Cause:** `_load_scan_data()` method still used old project_scan_sessions table lookup instead of RoundUpManager.get_scan_files().
+**Solution:**
+- Rewrote `_load_scan_data()` to use RoundUpManager.get_scan_files()
+- Convert file dicts from Round-Up database to FileRecord objects for folder structure generation
+- Added RoundUpManager import
+- Update token estimate after loading scan data
+**Impact:** AnalysisView now correctly loads scan data when Round-Up is opened, showing folder structure and token estimates.
+### Legacy Code Removal
+**Rationale:** User requested complete removal of legacy project system fallback - "Out with the old, in with the new."
+**Removed:**
+- `_load_from_legacy_db()` method (65 lines deleted)
+- `sqlite3` import (no longer needed)
+- `InventoryRepository` import and instance (legacy database only)
+- All legacy database connection code
+**Result:** AnalysisView now exclusively supports Round-Up system. If no Round-Up found, shows: "No Round-Up found. Please create or open a Round-Up first."
+### Files Modified
+| File | Changes |
+|------|---------|
+| scripts/ui/analysis_view.py | +RoundUpManager import, rewrote _load_scan_data(), removed legacy fallback, removed unused imports |
+### Git Commits
+```
+a3adf06 fix(analysis): Load scan data from Round-Up database instead of legacy db
+c53b69a refactor(analysis): Remove legacy database fallback, Round-Up only
+```
