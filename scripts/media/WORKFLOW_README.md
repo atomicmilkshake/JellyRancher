@@ -7,7 +7,7 @@ Complete automated workflow for preparing media libraries for Jellyfin, with int
 This workflow implements Steps 3 and 4 of the JellyRancher media organization system:
 
 **Step 3:** LLM Structure Analysis
-- Submits folder structure to reasoning LLM (Claude-Sonnet-4.5 or gpt-4o-reasoning)
+- Submits folder structure to reasoning LLM (Grok-4.1-Fast-Reasoning or similar)
 - Proposes Jellyfin-compliant reorganization
 - Detects and classifies movies vs TV shows
 - Identifies multi-part episodes requiring special handling
@@ -24,7 +24,7 @@ This workflow implements Steps 3 and 4 of the JellyRancher media organization sy
 Analyzes folder structures using LLM reasoning via Poe.com API.
 
 **Features:**
-- Dynamic model selection (Claude-Sonnet-4.5, gpt-4o-reasoning, etc.)
+- Dynamic model selection (Grok-4.1-Fast-Reasoning, GPT-4, etc.)
 - Comprehensive prompt engineering for media analysis
 - JSON response parsing with error handling
 - Detailed reasoning capture

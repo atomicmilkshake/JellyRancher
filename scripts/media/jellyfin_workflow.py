@@ -39,7 +39,7 @@ class JellyfinWorkflow:
     
     def __init__(
         self,
-        llm_model: str = "Claude-Sonnet-4.5",
+        llm_model: str = "Grok-4.1-Fast-Reasoning",
         output_dir: str = "data/workflow_output",
         dry_run: bool = True,
         log_level: str = "INFO"
@@ -426,8 +426,8 @@ Examples:
     
     parser.add_argument(
         '--model',
-        default='Claude-Sonnet-4.5',
-        help='LLM model to use for analysis (default: Claude-Sonnet-4.5)'
+        default='Grok-4.1-Fast-Reasoning',
+        help='LLM model to use for analysis (default: Grok-4.1-Fast-Reasoning)'
     )
     
     parser.add_argument(

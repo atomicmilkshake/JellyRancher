@@ -300,7 +300,7 @@ class AnalysisView(QWidget):
         
         row1.addWidget(QLabel("Model:"))
         self.model_combo = QComboBox()
-        self.model_combo.addItems(["Claude-3.7-Sonnet", "GPT-4", "Gemini-2.5-Pro"])
+        self.model_combo.addItems(["Grok-4.1-Fast-Reasoning", "GPT-4", "Gemini-2.5-Pro"])
         row1.addWidget(self.model_combo, 1)
         
         self.btn_refresh_models = QPushButton("🔄")

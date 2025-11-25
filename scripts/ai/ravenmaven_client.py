@@ -53,7 +53,7 @@ class PoeClient:
         if provided_base.endswith('/v1'):
             provided_base = provided_base[:-3]
         self.base_url = provided_base
-        self.default_model = default_model or os.getenv('OPENAI_MODEL', 'Claude-Sonnet-4.5')
+        self.default_model = default_model or os.getenv('OPENAI_MODEL', 'Grok-4.1-Fast-Reasoning')
         self.timeout = timeout
         self.logger = logger or logging.getLogger(__name__)
         
@@ -158,7 +158,7 @@ class PoeClient:
 
         # Fallback to default models if API fetch and cache failed
         default_models = [
-            'Claude-Sonnet-4.5',
+            'Grok-4.1-Fast-Reasoning',
             'gpt-4o-mini',
             'Claude-Instant-1',
             'gpt-4o-reasoning',
@@ -534,7 +534,7 @@ Examples:
     
     parser.add_argument('files', nargs='*', help='Files to process')
     parser.add_argument('--prompt', help='Prompt template (use {filepath}, {content}, {filename}, {extension})')
-    parser.add_argument('--model', help='Model to use (default: from env or Claude-Sonnet-4.5)')
+    parser.add_argument('--model', help='Model to use (default: from env or Grok-4.1-Fast-Reasoning)')
     parser.add_argument('--interactive', '-i', action='store_true', help='Interactively select model')
     parser.add_argument('--list-models', action='store_true', help='List available models and exit')
     parser.add_argument('--max-tokens', type=int, default=2000, help='Max tokens per response')

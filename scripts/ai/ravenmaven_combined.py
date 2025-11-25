@@ -15,7 +15,7 @@ def chunk_list(file_list, chunk_size):
     for i in range(0, len(file_list), chunk_size):
         yield file_list[i:i + chunk_size]
 
-def ai_analysis(prompt, filepaths, client, model="Claude-Sonnet-4.5"):
+def ai_analysis(prompt, filepaths, client, model="Grok-4.1-Fast-Reasoning"):
     # Functional AI call using PoeClient
     response = client.send_message(prompt, model=model, max_tokens=8192)
     return response.strip()
@@ -155,7 +155,7 @@ def main():
     parser.add_argument('--prompt-file', default=r'V:\RavenMaven\predefined prompts\jellyfin-standardization.md', help='Prompt template file')
     parser.add_argument('--jellyfin-dir', default=r'E:\#MEDIA', help='Jellyfin directory')
     parser.add_argument('--dry-run', action='store_true', help='Simulate actions')
-    parser.add_argument('--model', default='Claude-Sonnet-4.5', help='AI model to use')
+    parser.add_argument('--model', default='Grok-4.1-Fast-Reasoning', help='AI model to use')
 
     args = parser.parse_args()
 

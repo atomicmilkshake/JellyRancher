@@ -8,7 +8,7 @@ to a reasoning LLM (via Poe API) to:
 2. Detect and classify movies vs TV shows
 3. Identify multi-part episodes that need special handling
 
-Uses Claude-Sonnet-4.5 or gpt-4o-reasoning for deep analysis.
+Uses Grok-4.1-Fast-Reasoning or similar reasoning models for deep analysis.
 """
 
 import json
@@ -31,7 +31,7 @@ class LLMStructureAnalyzer:
     
     def __init__(
         self, 
-        model: str = "Claude-Sonnet-4.5",
+        model: str = "Grok-4.1-Fast-Reasoning",
         api_key: Optional[str] = None,
         logger: Optional[logging.Logger] = None
     ):
@@ -39,7 +39,7 @@ class LLMStructureAnalyzer:
         Initialize the LLM analyzer.
         
         Args:
-            model: LLM model to use (default: Claude-Sonnet-4.5 for reasoning)
+            model: LLM model to use (default: Grok-4.1-Fast-Reasoning)
             api_key: Poe API key (defaults to env var OPENAI_API_KEY)
             logger: Logger instance
 

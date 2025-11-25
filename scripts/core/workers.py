@@ -246,7 +246,7 @@ class LLMAnalysisWorker(QThread):
         folder_structure: dict,
         scanned_files: List[FileRecord],
         api_key: Optional[str] = None,
-        model: str = "Claude-Sonnet-4.5",
+        model: str = "Grok-4.1-Fast-Reasoning",
     ):
         super().__init__()
         self.folder_structure = folder_structure

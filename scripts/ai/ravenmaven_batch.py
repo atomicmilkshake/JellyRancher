@@ -38,7 +38,7 @@ def save_results(results, output_path):
     except Exception as e:
         print(f"Error saving results: {e}")
 
-def process_batch(file_list, prompt, model="Claude-Sonnet-4.5"):
+def process_batch(file_list, prompt, model="Grok-4.1-Fast-Reasoning"):
     """Process a batch of files through LLM."""
     # Format the file list for the prompt
     filepaths_text = "\n".join(file_list)
@@ -89,7 +89,7 @@ def main():
     parser.add_argument('--input', required=True, help='Input file list (.txt)')
     parser.add_argument('--output', required=True, help='Output JSON file')
     parser.add_argument('--prompt-file', required=True, help='Prompt template file')
-    parser.add_argument('--model', default='Claude-Sonnet-4.5', help='LLM model to use')
+    parser.add_argument('--model', default='Grok-4.1-Fast-Reasoning', help='LLM model to use')
 
     args = parser.parse_args()
 

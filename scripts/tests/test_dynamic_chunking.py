@@ -10,11 +10,11 @@ def estimate_tokens(text):
 def get_model_context_limit(model_name):
     """Get context window size for a model."""
     model_limits = {
-        'Claude-3.5-Sonnet': 200000,
-        'Claude-Sonnet-3.5': 200000,
-        'Claude-Sonnet-4.5': 200000,
+        'Grok-4.1-Fast-Reasoning': 128000,
+        'Grok-4.1': 128000,
         'GPT-4-Turbo': 128000,
         'GPT-4': 8192,
+        'Gemini-2.5-Pro': 1000000,
     }
     
     model_name_lower = model_name.lower()
@@ -68,9 +68,9 @@ def chunk_list_by_tokens(file_list, prompt_template, model_name):
 
 
 def test_scenario_1():
-    """Test with Claude model and typical media file paths."""
+    """Test with Grok model and typical media file paths."""
     print("\n" + "="*70)
-    print("TEST 1: Claude-Sonnet-4.5 with 100 typical media file paths")
+    print("TEST 1: Grok-4.1-Fast-Reasoning with 100 typical media file paths")
     print("="*70)
     
     # Typical media file paths (similar length)
@@ -88,7 +88,7 @@ For each file, provide:
 
 {filepaths}"""
     
-    chunks = chunk_list_by_tokens(file_list, prompt, "Claude-Sonnet-4.5")
+    chunks = chunk_list_by_tokens(file_list, prompt, "Grok-4.1-Fast-Reasoning")
     assert len(chunks) > 0, "Should create at least one chunk"
     assert sum(len(c) for c in chunks) == len(file_list), "All files should be in chunks"
     print("\n✓ Test 1 PASSED")
@@ -149,7 +149,7 @@ def test_scenario_4():
     
     prompt = "Analyze and reorganize:\n\n{filepaths}"
     
-    chunks = chunk_list_by_tokens(file_list, prompt, "Claude-Sonnet-4.5")
+    chunks = chunk_list_by_tokens(file_list, prompt, "Grok-4.1-Fast-Reasoning")
     assert len(chunks) > 0, "Should create chunks"
     assert sum(len(c) for c in chunks) == len(file_list), "All files should be included"
     print("\n✓ Test 4 PASSED")
