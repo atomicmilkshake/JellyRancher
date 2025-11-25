@@ -275,40 +275,38 @@ class ReviewView(QWidget):
             json.JSONDecodeError: If stored analysis JSON is malformed
         """
         try:
-            conn = sqlite3.connect("data/media_library.db")
-            cursor = conn.cursor()
-
-            cursor.execute(
-                '''
-                SELECT id, parsed_json, metadata_json
-                FROM project_analyses
-                WHERE project_id = ?
-                ORDER BY analysis_date DESC
-                LIMIT 1
-                ''',
-                (self.project.id,),
-            )
-
-            row = cursor.fetchone()
-            if row:
-                analysis_id, parsed_json_str, metadata_str = row
-                try:
-                    self.llm_analysis = json.loads(parsed_json_str) if parsed_json_str else None
-                    self.canonical_database = json.loads(metadata_str) if metadata_str else None
-                    logger.info("Loaded analysis %s for review view", analysis_id)
+            # Load from Round-Up database
+            if hasattr(self.project, 'roundup') and self.project.roundup:
+                import sqlite3
+                from scripts.core.roundup_manager import RoundUpManager
+                
+                roundup = self.project.roundup
+                manager = self.project.manager if hasattr(self.project, 'manager') else RoundUpManager()
+                
+                # Get latest analysis
+                analysis = manager.get_latest_analysis(roundup)
+                if analysis:
+                    self.llm_analysis = analysis.get('response_json', {})
+                    if isinstance(self.llm_analysis, str):
+                        self.llm_analysis = json.loads(self.llm_analysis)
+                    self.canonical_database = analysis.get('detected_media_json', {})
+                    if isinstance(self.canonical_database, str):
+                        self.canonical_database = json.loads(self.canonical_database)
+                    logger.info("Loaded analysis from Round-Up for review view")
                     self.lbl_summary.setText(
-                        "LLM analysis loaded. Click 'Load Action Plan' to generate operations."
+                        "Analysis loaded. Click 'Load Action Plan' to generate operations."
                     )
-                except json.JSONDecodeError as e:
-                    logger.error(f"Failed to parse analysis JSON data: {e}", exc_info=True)
-                    self.lbl_summary.setText("Error: Invalid analysis data format. Please re-run analysis.")
+                else:
+                    self.lbl_summary.setText("No analysis found. Run analysis first.")
+                    logger.warning("No analysis data found for Round-Up %s", roundup.name)
                     self.llm_analysis = None
                     self.canonical_database = None
             else:
-                self.lbl_summary.setText("No analysis found. Run LLM analysis first.")
-                logger.warning("No analysis data found for project %s", self.project.id)
-
-            conn.close()
+                self.lbl_summary.setText("No Round-Up found. Please open a Round-Up first.")
+                logger.warning("No Round-Up available for review view")
+                self.llm_analysis = None
+                self.canonical_database = None
+            
             self._load_scanned_files()
 
         except sqlite3.Error as e:
@@ -348,6 +346,45 @@ class ReviewView(QWidget):
             json.JSONDecodeError: If scan options JSON is malformed
         """
         try:
+            # Load from Round-Up database
+            if hasattr(self.project, 'roundup') and self.project.roundup:
+                from scripts.core.roundup_manager import RoundUpManager
+                
+                roundup = self.project.roundup
+                manager = self.project.manager if hasattr(self.project, 'manager') else RoundUpManager()
+                
+                # Get scan files from Round-Up
+                scan_files = manager.get_scan_files(roundup)
+                if scan_files:
+                    # Convert to FileRecord objects
+                    from scripts.core.file_scanner import FileRecord
+                    from pathlib import Path
+                    from datetime import datetime
+                    
+                    self.scanned_files = []
+                    for file_dict in scan_files:
+                        abs_path = Path(file_dict['path'])
+                        scan_timestamp = datetime.fromisoformat(file_dict['created_at']) if file_dict.get('created_at') else datetime.now()
+                        
+                        file_record = FileRecord(
+                            absolute_path=abs_path,
+                            size_bytes=file_dict.get('size_bytes', 0),
+                            extension=file_dict.get('extension', ''),
+                            parent_folder=abs_path.parent,
+                            scan_timestamp=scan_timestamp,
+                            md5_hash=file_dict.get('md5_hash') or None
+                        )
+                        self.scanned_files.append(file_record)
+                    
+                    logger.info(f"Loaded {len(self.scanned_files)} files from Round-Up")
+                    return
+                else:
+                    logger.warning("No scan files found in Round-Up")
+                    self.scanned_files = []
+                    return
+            
+            # Fallback: try legacy database (should not happen)
+            logger.warning("No Round-Up found, attempting legacy database (deprecated)")
             conn = sqlite3.connect("data/media_library.db")
             cursor = conn.cursor()
             cursor.execute(

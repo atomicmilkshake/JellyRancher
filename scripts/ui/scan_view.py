@@ -797,47 +797,9 @@ class ScanView(QWidget):
         stats: Optional[ScanStatistics] = None,
         session_ids: Optional[List[int]] = None,
     ):
-        """Save scan session to database (legacy + Round-Up)."""
+        """Save scan session to Round-Up database."""
         try:
-            import sqlite3
-
-            # Save to legacy database for backward compatibility
-            conn = sqlite3.connect("data/media_library.db")
-            cursor = conn.cursor()
-
-            # Create scan session
-            scan_options = {
-                'md5_enabled': self.chk_md5.isChecked(),
-                'metadata_extraction': self.chk_metadata.isChecked(),
-                'folders': [str(f) for f in self.selected_folders],
-                'excluded_paths': [str(p) for p in self.excluded_paths]
-            }
-            if session_ids:
-                scan_options['inventory_session_ids'] = session_ids
-
-            total_size = stats.total_size_bytes if stats else sum(r.size_bytes for r in files)
-            total_files = stats.total_files if stats else len(files)
-
-            cursor.execute('''
-                INSERT INTO project_scan_sessions
-                (project_id, scan_start, scan_end, total_files, total_size_bytes, scan_options_json)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (
-                self.project.id,
-                datetime.now().isoformat(),
-                datetime.now().isoformat(),
-                total_files,
-                total_size,
-                json.dumps(scan_options)
-            ))
-
-            self.current_scan_session_id = cursor.lastrowid
-            conn.commit()
-            conn.close()
-
-            logger.info(f"Saved scan session to legacy database: ID={self.current_scan_session_id}")
-
-            # Also save to Round-Up database if using Round-Up mode
+            # Save to Round-Up database
             logger.debug(f"Checking Round-Up mode: hasattr='roundup'={hasattr(self.project, 'roundup')}")
             if hasattr(self.project, 'roundup'):
                 logger.debug(f"self.project.roundup = {self.project.roundup}")

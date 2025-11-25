@@ -130,9 +130,6 @@ class RoundUpManagerAdapter:
         self.manager = manager
         self.current_roundup = current_roundup
 
-        # Legacy database path for views that access it directly
-        self.db_path = Path("data/media_library.db")
-
     def set_current_roundup(self, roundup: Optional[RoundUp]):
         """Set the current Round-Up context."""
         self.current_roundup = roundup
@@ -1011,14 +1008,17 @@ class JellyRancherStudio(QMainWindow):
     # ========================================================================
 
     def _get_most_recent_scan_session_id(self) -> Optional[int]:
-        """Get the most recent scan session ID from the database."""
+        """Get the most recent scan session ID from Round-Up database."""
         try:
+            if not self.current_roundup:
+                return None
+            
             import sqlite3
-            conn = sqlite3.connect("data/media_library.db")
+            conn = sqlite3.connect(str(self.current_roundup.path / "data.db"))
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT id FROM project_scan_sessions
-                ORDER BY scan_start DESC
+                SELECT id FROM scan_files
+                ORDER BY created_at DESC
                 LIMIT 1
             ''')
             row = cursor.fetchone()
