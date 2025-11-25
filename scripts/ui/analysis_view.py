@@ -33,6 +33,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from scripts.core.project_manager import ProjectManager, Project
 from scripts.core.file_scanner import FileScanner, FileRecord
 from scripts.core.inventory_repository import InventoryRepository
+from scripts.core.roundup_manager import RoundUpManager
 from scripts.core.action_plan import ProposedOperation, ActionType, Confidence
 from scripts.core.extrapolation_engine import ExtrapolationEngine
 from scripts.ai.ravenmaven_client import PoeClient
@@ -492,53 +493,109 @@ class AnalysisView(QWidget):
     # =========================================================================
     
     def _load_scan_data(self):
-        """Load scan data from the database."""
+        """Load scan data from the Round-Up database."""
         try:
-            conn = sqlite3.connect("data/media_library.db")
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                SELECT id, total_files, scan_options_json 
-                FROM project_scan_sessions 
-                WHERE project_id = ? 
-                ORDER BY scan_start DESC 
-                LIMIT 1
-            ''', (self.project.id,))
-            
-            row = cursor.fetchone()
-            if row:
-                scan_id, total_files, options_json = row
-                options = json.loads(options_json) if options_json else {}
-                folders = options.get('folders', [])
-                inventory_sessions = options.get('inventory_session_ids', [])
-
-                self.scanned_files = []
-                for session_id in inventory_sessions:
-                    self.scanned_files.extend(self.inventory_repo.get_all_files(session_id))
-
-                if self.scanned_files:
-                    scanner = FileScanner()
-                    self.folder_structure = scanner.get_folder_structure(self.scanned_files)
-                    self.folder_structure['project_name'] = self.project.name
-                    self.folder_structure['scan_id'] = scan_id
-                    self.folder_structure['total_files'] = len(self.scanned_files)
-                    
-                    self._update_source_data_display()
-                    self._set_status(f"Ready: {len(self.scanned_files)} files from {len(folders)} folder(s)")
-                    self.btn_run.setEnabled(True)
-                    self.btn_preview.setEnabled(True)
-                else:
-                    self._set_status("Scan data found but inventory unavailable. Please run a new scan.", error=True)
-                    self.btn_run.setEnabled(False)
+            # Check if using Round-Up system
+            if hasattr(self.project, 'roundup') and self.project.roundup:
+                self._load_from_roundup()
             else:
-                self._set_status("No scan data found. Please run a scan first.", error=True)
-                self.btn_run.setEnabled(False)
-            
-            conn.close()
-            
+                # Legacy fallback for old project system
+                self._load_from_legacy_db()
+                
         except Exception as e:
             logger.error(f"Error loading scan data: {e}", exc_info=True)
             self._set_status(f"Error loading scan data: {e}", error=True)
+    
+    def _load_from_roundup(self):
+        """Load scan data from Round-Up database."""
+        roundup = self.project.roundup
+        manager = self.project.manager if hasattr(self.project, 'manager') else RoundUpManager()
+        
+        # Get scan files from Round-Up
+        scan_file_dicts = manager.get_scan_files(roundup)
+        
+        if not scan_file_dicts:
+            self._set_status("No scan data found. Please run a scan first.", error=True)
+            self.btn_run.setEnabled(False)
+            return
+        
+        # Convert dicts to FileRecord-like objects for folder structure
+        self.scanned_files = []
+        for file_dict in scan_file_dicts:
+            # Create a simple object that has the attributes needed by get_folder_structure
+            file_record = FileRecord(
+                absolute_path=Path(file_dict['path']),
+                relative_path=Path(file_dict['relative_path']) if file_dict.get('relative_path') else None,
+                size_bytes=file_dict.get('size_bytes', 0),
+                extension=file_dict.get('extension', ''),
+                md5_hash=file_dict.get('md5_hash'),
+                created_at=file_dict.get('created_at'),
+                modified_at=file_dict.get('modified_at')
+            )
+            self.scanned_files.append(file_record)
+        
+        # Build folder structure
+        scanner = FileScanner()
+        self.folder_structure = scanner.get_folder_structure(self.scanned_files)
+        self.folder_structure['project_name'] = self.project.name
+        self.folder_structure['total_files'] = len(self.scanned_files)
+        
+        # Count unique folders
+        metadata_keys = {'project_name', 'scan_id', 'total_files'}
+        folder_count = sum(1 for k in self.folder_structure.keys() if k not in metadata_keys)
+        
+        self._update_source_data_display()
+        self._update_token_estimate()
+        self._set_status(f"✓ Ready: {len(self.scanned_files)} files from {folder_count} folder(s)", success=True)
+        self.btn_run.setEnabled(True)
+        self.btn_preview.setEnabled(True)
+        
+        logger.info(f"Loaded {len(self.scanned_files)} files from Round-Up '{roundup.name}'")
+    
+    def _load_from_legacy_db(self):
+        """Load scan data from legacy media_library.db (fallback)."""
+        conn = sqlite3.connect("data/media_library.db")
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT id, total_files, scan_options_json 
+            FROM project_scan_sessions 
+            WHERE project_id = ? 
+            ORDER BY scan_start DESC 
+            LIMIT 1
+        ''', (self.project.id,))
+        
+        row = cursor.fetchone()
+        if row:
+            scan_id, total_files, options_json = row
+            options = json.loads(options_json) if options_json else {}
+            folders = options.get('folders', [])
+            inventory_sessions = options.get('inventory_session_ids', [])
+
+            self.scanned_files = []
+            for session_id in inventory_sessions:
+                self.scanned_files.extend(self.inventory_repo.get_all_files(session_id))
+
+            if self.scanned_files:
+                scanner = FileScanner()
+                self.folder_structure = scanner.get_folder_structure(self.scanned_files)
+                self.folder_structure['project_name'] = self.project.name
+                self.folder_structure['scan_id'] = scan_id
+                self.folder_structure['total_files'] = len(self.scanned_files)
+                
+                self._update_source_data_display()
+                self._update_token_estimate()
+                self._set_status(f"Ready: {len(self.scanned_files)} files from {len(folders)} folder(s)")
+                self.btn_run.setEnabled(True)
+                self.btn_preview.setEnabled(True)
+            else:
+                self._set_status("Scan data found but inventory unavailable. Please run a new scan.", error=True)
+                self.btn_run.setEnabled(False)
+        else:
+            self._set_status("No scan data found. Please run a scan first.", error=True)
+            self.btn_run.setEnabled(False)
+        
+        conn.close()
     
     def _use_filtered_data(self):
         """Use filtered data from ScanResultsView."""
