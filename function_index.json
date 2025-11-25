@@ -2,9 +2,9 @@
   "metadata": {
     "generated": "2025-11-20T11:27:37.697031",
     "source": "AST extraction with LLM enhancement",
-    "total_functions": 1825,
+    "total_functions": 1829,
     "statistics": {
-      "total_functions": 1825,
+      "total_functions": 1829,
       "functions_with_description": 1598,
       "functions_with_implementation": 0,
       "functions_by_file": {
@@ -181,9 +181,12 @@
         "tools\\merge_function_indexes.py": 1,
         "tools\\performance_test.py": 12,
         "tools\\query_function_index.py": 10,
-        "tools\\query_function_index_semantic.py": 7
+        "tools\\query_function_index_semantic.py": 7,
+        "scripts/ui/analysis_view.py": 2,
+        "scripts/media/llm_structure_analyzer.py": 2
       }
-    }
+    },
+    "last_updated": "2025-11-24T22:50:15.348575"
   },
   "functions": {
     "build_function_index_from_logs.py": [
@@ -6926,7 +6929,7 @@
         "name": "clean_episode_title",
         "file_path": "scripts\\_common\\media_utils.py",
         "line": 719,
-        "description": "Clean episode title by removing technical tags, quality indicators, and normalizing formatting.\n\nRemoves common technical tags found in episode titles:\n- Quality tags: 2160p, 1080p, 720p, 480p, SD, HD, UHD, 4K\n- Release tags: DSNP, Vyndros, WEB-DL, BluRay, HDTV, WEBRip, DVDRip\n- File tags: x264, x265, HEVC, AVC, AAC, DTS, AC3\n- Scene tags: PROPER, REPACK, INTERNAL, READNFO\n- Size/format tags: DD5.1, DTS-HD, TrueHD\n- Parenthetical notes: (Part 1), (1), (2), etc.\n\nAlso normalizes whitespace and punctuation.\n\nArgs:\n    title: Raw episode title\n    \nReturns:\n    Cleaned episode title\n    \nExamples:\n    \"Heart of Ice (1)\" → \"Heart of Ice\"\n    \"The Last Laugh 2160p DSNP\" → \"The Last Laugh\"\n    \"Cat Scratch Fever WEB-DL\" → \"Cat Scratch Fever\"",
+        "description": "Clean episode title by removing technical tags, quality indicators, and normalizing formatting.\n\nRemoves common technical tags found in episode titles:\n- Quality tags: 2160p, 1080p, 720p, 480p, SD, HD, UHD, 4K\n- Release tags: DSNP, Vyndros, WEB-DL, BluRay, HDTV, WEBRip, DVDRip\n- File tags: x264, x265, HEVC, AVC, AAC, DTS, AC3\n- Scene tags: PROPER, REPACK, INTERNAL, READNFO\n- Size/format tags: DD5.1, DTS-HD, TrueHD\n- Parenthetical notes: (Part 1), (1), (2), etc.\n\nAlso normalizes whitespace and punctuation.\n\nArgs:\n    title: Raw episode title\n    \nReturns:\n    Cleaned episode title\n    \nExamples:\n    \"Heart of Ice (1)\" \u2192 \"Heart of Ice\"\n    \"The Last Laugh 2160p DSNP\" \u2192 \"The Last Laugh\"\n    \"Cat Scratch Fever WEB-DL\" \u2192 \"Cat Scratch Fever\"",
         "implementation": "",
         "inputs": {
           "parameters": [
@@ -45486,7 +45489,7 @@
         "name": "_apply_filter",
         "file_path": "scripts\\ui\\review_view.py",
         "line": 849,
-        "description": "Apply advanced filtering based on selected filter criteria.\n\nProvides sophisticated filtering options beyond simple text search,\nallowing users to view operations by approval status or confidence level.\n\nArgs:\n    filter_text: Filter criteria selected from dropdown\n                Options: \"Approved Only\", \"High Confidence (≥90%)\",\n                \"Manual Review (70-89%)\", \"Low Confidence (<70%)\"\n                \nFilter types:\n- \"Approved Only\": Shows only user-approved operations\n- \"High Confidence (≥90%)\": Shows operations with HIGH confidence\n- \"Manual Review (70-89%)\": Shows operations needing manual review\n- \"Low Confidence (<70%)\": Shows operations with LOW confidence\n\nThe method:\n1. Iterates through all table rows\n2. Applies the selected filter criteria\n3. Shows/hides rows based on filter match\n4. Updates visible row count\n\nThis helps users focus on specific types of operations\nduring the review process.",
+        "description": "Apply advanced filtering based on selected filter criteria.\n\nProvides sophisticated filtering options beyond simple text search,\nallowing users to view operations by approval status or confidence level.\n\nArgs:\n    filter_text: Filter criteria selected from dropdown\n                Options: \"Approved Only\", \"High Confidence (\u226590%)\",\n                \"Manual Review (70-89%)\", \"Low Confidence (<70%)\"\n                \nFilter types:\n- \"Approved Only\": Shows only user-approved operations\n- \"High Confidence (\u226590%)\": Shows operations with HIGH confidence\n- \"Manual Review (70-89%)\": Shows operations needing manual review\n- \"Low Confidence (<70%)\": Shows operations with LOW confidence\n\nThe method:\n1. Iterates through all table rows\n2. Applies the selected filter criteria\n3. Shows/hides rows based on filter match\n4. Updates visible row count\n\nThis helps users focus on specific types of operations\nduring the review process.",
         "implementation": "",
         "inputs": {
           "parameters": [
@@ -46004,7 +46007,7 @@
         "name": "_populate_results_table",
         "file_path": "scripts\\ui\\scan_results_view.py",
         "line": 813,
-        "description": "Populate the results table with scanned files.\n\nFills the QTableWidget with file information from the provided files list,\ndisplaying filename, path, size, type, MD5 hash, and filter status.\n\nArgs:\n    files (List[FileRecord]): List of file records to display in the table\n    \nTable Columns:\n    0. Filename: Base filename from absolute path\n    1. Path: Parent directory path\n    2. Size (MB): File size in megabytes (formatted to 1 decimal)\n    3. Type: File extension (media type indicator)\n    4. MD5: First 8 characters of hash + \"...\" (or \"N/A\" if missing)\n    5. Status: \"✓ Included\" or \"✗ Filtered\" with color coding\n\nColor Coding:\n    - Green rows: Files included in filter\n    - Gray rows: Files excluded by filter\n\nError Handling:\n    - Skips invalid records with logging and error row filling\n    - Continues processing despite individual row errors\n    - Shows warning dialog if entire table population fails\n\nPerformance:\n    - Processes all files in single pass\n    - Handles large file lists efficiently\n    - Uses QTableWidgetItem for each cell",
+        "description": "Populate the results table with scanned files.\n\nFills the QTableWidget with file information from the provided files list,\ndisplaying filename, path, size, type, MD5 hash, and filter status.\n\nArgs:\n    files (List[FileRecord]): List of file records to display in the table\n    \nTable Columns:\n    0. Filename: Base filename from absolute path\n    1. Path: Parent directory path\n    2. Size (MB): File size in megabytes (formatted to 1 decimal)\n    3. Type: File extension (media type indicator)\n    4. MD5: First 8 characters of hash + \"...\" (or \"N/A\" if missing)\n    5. Status: \"\u2713 Included\" or \"\u2717 Filtered\" with color coding\n\nColor Coding:\n    - Green rows: Files included in filter\n    - Gray rows: Files excluded by filter\n\nError Handling:\n    - Skips invalid records with logging and error row filling\n    - Continues processing despite individual row errors\n    - Shows warning dialog if entire table population fails\n\nPerformance:\n    - Processes all files in single pass\n    - Handles large file lists efficiently\n    - Uses QTableWidgetItem for each cell",
         "implementation": "",
         "inputs": {
           "parameters": [
@@ -46940,7 +46943,7 @@
         "name": "_check_subtitles_placeholder",
         "file_path": "scripts\\ui\\subtitles_view.py",
         "line": 169,
-        "description": "Placeholder subtitle coverage results.\n\nDisplays sample subtitle coverage analysis results in the UI.\nThis is a placeholder implementation that shows the expected\nformat and functionality for future subtitle scanning features.\n\nThe placeholder shows:\n- Files without English subtitles (missing coverage)\n- Files with embedded English subtitles (✓ indicator)\n- Files with external .srt subtitle files (✓ indicator)\n\nFuture Implementation:\n    - Scan media files for subtitle tracks\n    - Check for external subtitle files (.srt, .ass, .ssa)\n    - Analyze subtitle language and quality\n    - Report coverage statistics and gaps\n    \nError Handling:\n    - Catches display update failures\n    - Shows warning dialogs for errors\n    - Logs detailed error information\n    \nUI Updates:\n    - Clears existing coverage list\n    - Adds sample results with status indicators\n    - Provides visual feedback for subtitle availability",
+        "description": "Placeholder subtitle coverage results.\n\nDisplays sample subtitle coverage analysis results in the UI.\nThis is a placeholder implementation that shows the expected\nformat and functionality for future subtitle scanning features.\n\nThe placeholder shows:\n- Files without English subtitles (missing coverage)\n- Files with embedded English subtitles (\u2713 indicator)\n- Files with external .srt subtitle files (\u2713 indicator)\n\nFuture Implementation:\n    - Scan media files for subtitle tracks\n    - Check for external subtitle files (.srt, .ass, .ssa)\n    - Analyze subtitle language and quality\n    - Report coverage statistics and gaps\n    \nError Handling:\n    - Catches display update failures\n    - Shows warning dialogs for errors\n    - Logs detailed error information\n    \nUI Updates:\n    - Clears existing coverage list\n    - Adds sample results with status indicators\n    - Provides visual feedback for subtitle availability",
         "implementation": "",
         "inputs": {
           "parameters": [
@@ -53590,7 +53593,7 @@
         "name": "estimate_tokens",
         "file_path": "tools\\generate_docstrings_batch.py",
         "line": 144,
-        "description": "Estimate token count (rough approximation: 1 token ≈ 4 chars).",
+        "description": "Estimate token count (rough approximation: 1 token \u2248 4 chars).",
         "implementation": "",
         "inputs": {
           "parameters": [
@@ -55858,6 +55861,119 @@
         "notes": [],
         "usage_example": "",
         "class_name": "SemanticFunctionSearch"
+      }
+    ],
+    "scripts/ui/analysis_view.py": [
+      {
+        "name": "_estimate_tokens",
+        "file_path": "scripts/ui/analysis_view.py",
+        "line": 555,
+        "description": "Estimate token count for the LLM prompt using chars divided by 4 formula. Returns tuple of (estimated_tokens, char_count, folder_count).",
+        "inputs": {
+          "parameters": []
+        },
+        "outputs": {
+          "return_value": {
+            "type": "tuple",
+            "description": "(estimated_tokens, char_count, folder_count)"
+          }
+        },
+        "notes": [
+          "Uses same formula as generate_docstrings_with_llm.py"
+        ],
+        "usage_example": "tokens, chars, folders = self._estimate_tokens()",
+        "class_name": "AnalysisView",
+        "docstring_enhanced": true
+      },
+      {
+        "name": "_update_token_estimate",
+        "file_path": "scripts/ui/analysis_view.py",
+        "line": 590,
+        "description": "Update the token estimate label with current prompt size. Shows color-coded warnings for large prompts (orange >50K, red >100K tokens).",
+        "inputs": {
+          "parameters": []
+        },
+        "outputs": {
+          "return_value": {
+            "type": "None",
+            "description": "Updates lbl_token_estimate widget"
+          }
+        },
+        "notes": [],
+        "usage_example": "self._update_token_estimate()",
+        "class_name": "AnalysisView",
+        "docstring_enhanced": true
+      }
+    ],
+    "scripts/media/llm_structure_analyzer.py": [
+      {
+        "name": "_chunk_folder_structure",
+        "file_path": "scripts/media/llm_structure_analyzer.py",
+        "line": 191,
+        "description": "Split a large folder structure into smaller chunks for LLM processing. Preserves metadata keys and adds _chunk_info to each chunk.",
+        "inputs": {
+          "parameters": [
+            {
+              "name": "structure_summary",
+              "type": "Dict",
+              "description": "Full folder structure dictionary",
+              "required": true
+            }
+          ]
+        },
+        "outputs": {
+          "return_value": {
+            "type": "List[Dict]",
+            "description": "List of chunk dictionaries"
+          }
+        },
+        "notes": [
+          "MAX_FOLDERS_PER_CHUNK = 200"
+        ],
+        "usage_example": "chunks = self._chunk_folder_structure(structure_summary)",
+        "class_name": "LLMStructureAnalyzer",
+        "docstring_enhanced": true
+      },
+      {
+        "name": "analyze_structure_chunked",
+        "file_path": "scripts/media/llm_structure_analyzer.py",
+        "line": 230,
+        "description": "Analyze folder structure with automatic chunking for large datasets. Processes chunks sequentially and merges results from multiple LLM calls.",
+        "inputs": {
+          "parameters": [
+            {
+              "name": "structure_summary",
+              "type": "Dict",
+              "description": "Structure summary from FolderStructureScanner",
+              "required": true
+            },
+            {
+              "name": "additional_context",
+              "type": "Optional[str]",
+              "description": "Optional additional context for the LLM",
+              "required": false
+            },
+            {
+              "name": "progress_callback",
+              "type": "Optional[callable]",
+              "description": "Progress callback(current_chunk, total_chunks, message)",
+              "required": false
+            }
+          ]
+        },
+        "outputs": {
+          "return_value": {
+            "type": "Dict",
+            "description": "Merged analysis results from all chunks"
+          }
+        },
+        "notes": [
+          "Uses MAX_FOLDERS_PER_CHUNK=200 threshold",
+          "Falls back to analyze_structure() if no chunking needed"
+        ],
+        "usage_example": "result = analyzer.analyze_structure_chunked(structure, progress_callback=update_progress)",
+        "class_name": "LLMStructureAnalyzer",
+        "docstring_enhanced": true
       }
     ]
   }
