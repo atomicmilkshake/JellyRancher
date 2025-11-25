@@ -1821,3 +1821,96 @@ Fixed 2 failing tests in `test_llm_structure_analyzer.py`:
 ```
 29e4e29 feat(subtitles): Wire SubtitlesView to backend, fix tests
 ```
+
+## PHASE 47: Comprehensive pytest-qt GUI Test Suite
+**Date:** 2025-11-25 10:05:26
+**Goal:** Create top-tier automated GUI testing framework using pytest-qt for all major views.
+
+### Context
+User requested "gourmet version" of GUI testing - not a starter set, but comprehensive coverage of all views, signals, interactions, and error handling. GPT-5 had recommended pytest-qt (already a dependency) for PyQt6 testing.
+
+### Implementation
+
+**New Test File: tests/test_gui_views.py (760 lines)**
+
+Created 11 test classes covering all 6 main views plus integration/error handling:
+
+| Test Class | Tests | Coverage |
+|------------|-------|----------|
+| TestScanView | 6 | folder_table, scan button, add folder, progress bar |
+| TestScanResultsView | 5 | results_table, filters, send_to_analysis signal |
+| TestAnalysisView | 8 | mode/model combos, run button, actions_table, filtered_files |
+| TestReviewView | 7 | operations_table, approve/reject, action buttons, preloaded ops |
+| TestExecutionView | 5 | progress_bar, log_text, rollback, dry-run |
+| TestSubtitlesView | 8 | btn_check, btn_download, language, dry_run_check, missing_list |
+| TestViewIntegration | 1 | AnalysisView → ReviewView signal flow |
+| TestSignalEmission | 1 | Button/signal connection verification |
+| TestErrorHandling | 2 | Empty data, missing roundup graceful handling |
+| TestUIState | 2 | State changes, button enabling logic |
+| TestWidgetProperties | 1 | All views are proper QWidgets |
+
+**Total: 46 GUI tests**
+
+### New GUI Test Fixtures (tests/conftest.py +140 lines)
+
+| Fixture | Purpose |
+|---------|---------|
+| `mock_project` | Minimal Project-like MagicMock for view initialization |
+| `mock_roundup` | Real RoundUp with SQLite database + sample data |
+| `mock_project_with_roundup` | Combines both - what most views expect |
+| `mock_project_manager` | Legacy ProjectManager compatibility mock |
+| `sample_proposed_operations` | 3 ProposedOperation objects (HIGH/MEDIUM/LOW confidence) |
+| `sample_analysis_results` | Fake LLM analysis response dict |
+
+### Attribute Name Discovery
+
+During test development, discovered actual attribute names differ from initial assumptions:
+
+| Assumed | Actual | View |
+|---------|--------|------|
+| `folder_list` | `folder_table` | ScanView |
+| `table` | `operations_table` | ReviewView |
+| `log_display` | `log_text` | ExecutionView |
+| `_update_scan_button_state()` | N/A (inline) | ScanView |
+
+Tests updated to match actual codebase.
+
+### Test Results
+```
+.venv\Scripts\python.exe -m pytest tests/ -v
+======================== 284 passed in 10.88s ========================
+```
+
+**Previous:** 238 tests
+**Added:** 46 GUI tests
+**Total:** 284 tests (all passing)
+
+### Run Commands
+```bash
+# All tests
+pytest tests/ -v
+
+# Just GUI tests
+pytest tests/test_gui_views.py -v
+
+# Single view
+pytest tests/test_gui_views.py::TestSubtitlesView -v
+```
+
+### Files Modified
+| File | Changes |
+|------|---------|
+| tests/test_gui_views.py | NEW: 760 lines, 46 tests, 11 test classes |
+| tests/conftest.py | +140 lines: GUI fixtures, fixed `roundups_dir` param |
+
+### Bugs Fixed
+- `tests/conftest.py:469` - Changed `base_path=` to `roundups_dir=` (RoundUpManager param name)
+- `tests/conftest.py:275` - Same fix for `roundup_manager` fixture
+
+### Git Commit
+```
+eabbe67 test: Add comprehensive pytest-qt GUI test suite (46 tests)
+```
+
+### Function Index
+New test utilities not added to function index (tests are discoverable via pytest, not semantic search).
