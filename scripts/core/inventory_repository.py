@@ -151,6 +151,8 @@ class InventoryRepository:
                     parent_folder TEXT NOT NULL,
                     scan_timestamp DATETIME NOT NULL,
                     md5_hash TEXT,
+                    jellyfin_id TEXT,
+                    jellyfin_provider_ids TEXT,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (scan_session_id) REFERENCES scan_sessions(id)
                 )

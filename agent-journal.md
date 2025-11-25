@@ -1550,3 +1550,40 @@ All queries logged to data/function_index_queries.log:
 ```bash
 git commit -m "test: Complete Phase 43 Backend Testing Framework (161 tests)"
 ```
+## PHASE 44: Testing Expansion & Bug Fixes
+**Date:** 2025-11-24 21:47:52
+**Goal:** Extend testing to Tier 2 modules, fix discovered bugs, run coverage analysis.
+### Tasks Completed
+1. **Fixed inventory_repository schema bug** - Added missing `jellyfin_id` and `jellyfin_provider_ids` columns to `_initialize_database()` CREATE TABLE statement.
+2. **Removed deprecated test_project_manager.py** - 14 failing legacy tests for ProjectManager (replaced by RoundUpManager in Phase 38).
+3. **Created test_nfo_generator.py** - 32 tests covering NFO XML generation for movies/episodes, multi-part detection, file saving.
+4. **Created test_llm_structure_analyzer.py** - 25 tests covering JSON serialization, prompt building, response parsing (PoeClient mocked).
+5. **Fixed ExtrapolationEngine bug** - `record.filename` → `record.absolute_path.name` (FileRecord has no `filename` attribute).
+6. **Ran coverage report** - Generated HTML coverage report showing module coverage.
+### Function Index Queries
+- search "NFO generator XML movie TV show metadata file" → Found NFOGenerator
+- search "LLM structure analyzer folder summary Poe API analyze" → Found LLMStructureAnalyzer
+### Test Suite Summary
+**Total Tests:** 218 (all passing in 2.81s)
+| Module | Tests | Coverage |
+|--------|-------|----------|
+| action_plan.py | 25 | 100% |
+| extrapolation_engine.py | 16 | 71% |
+| file_scanner.py | 34 | 68% |
+| nfo_generator.py | 32 | 66% |
+| regex_structure_analyzer.py | 20 | 67% |
+| inventory_repository.py | 23 | 60% |
+| llm_structure_analyzer.py | 25 | 54% |
+| roundup_manager.py | 35 | 44% |
+| workers.py | 8 | 37% |
+### Bugs Fixed
+1. **inventory_repository.py:144-157** - Schema missing jellyfin columns that code referenced
+2. **extrapolation_engine.py:249,294** - `record.filename` attribute doesn't exist, use `record.absolute_path.name`
+### Files Modified
+- scripts/core/inventory_repository.py (schema fix)
+- scripts/core/extrapolation_engine.py (attribute fix)
+### Files Created
+- tests/test_nfo_generator.py (32 tests)
+- tests/test_llm_structure_analyzer.py (25 tests)
+### Files Deleted
+- tests/test_project_manager.py (deprecated)

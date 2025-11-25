@@ -246,7 +246,7 @@ class ExtrapolationEngine:
                     destination_path=sub_dest,
                     action_type=action_type,
                     confidence=confidence,
-                    notes=f"Subtitle follows: {record.filename}",
+                    notes=f"Subtitle follows: {record.absolute_path.name}",
                     current_md5=sub_record.md5_hash,
                 )
                 
@@ -291,7 +291,7 @@ class ExtrapolationEngine:
                 rel_path = record.absolute_path.relative_to(change.current_path)
             except ValueError:
                 # File is not directly under the folder, use just the filename
-                rel_path = Path(record.filename)
+                rel_path = Path(record.absolute_path.name)
             
             # Apply to new folder
             dest_path = change.proposed_path / rel_path
