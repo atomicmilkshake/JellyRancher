@@ -1640,3 +1640,13 @@ MAX_FOLDERS_PER_CHUNK = 200
 - Solution: Filter metadata keys before sorting, use `key=lambda x: str(x[0])` for sort
 ### Linter Status
 - No errors in modified files
+### Git Commit
+```
+ca9d476 feat(analysis): Add token estimation, sub-tabs, enhanced preview, and prompt chunking
+```
+### Function Index
+New functions to index (add_to_function_index.py has syntax error, manual update needed):
+- `AnalysisView._estimate_tokens()` - Token estimation using chars // 4
+- `AnalysisView._update_token_estimate()` - Update token estimate label
+- `LLMStructureAnalyzer._chunk_folder_structure()` - Split large structures into chunks
+- `LLMStructureAnalyzer.analyze_structure_chunked()` - Chunked analysis with result merging
