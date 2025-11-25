@@ -342,7 +342,9 @@ class LLMStructureAnalyzer:
     def _build_analysis_prompt(
         self, 
         structure_summary: Dict,
-        additional_context: Optional[str] = None
+        additional_context: Optional[str] = None,
+        compact_json: bool = False,
+        use_tree_format: bool = True  # NEW: Use token-efficient tree format
     ) -> str:
         """
         Build the prompt for LLM analysis.
@@ -350,6 +352,8 @@ class LLMStructureAnalyzer:
         Args:
             structure_summary: Folder structure data
             additional_context: Optional additional context
+            compact_json: If True, use compact JSON (for token estimation)
+            use_tree_format: If True, use tree format (~60% fewer tokens)
             
         Returns:
             Complete prompt string
@@ -364,11 +368,16 @@ class LLMStructureAnalyzer:
             if not isinstance(structure_summary, dict):
                 raise TypeError(f"structure_summary must be a dict, got {type(structure_summary)}")
             
+            # Use tree format for token efficiency
+            if use_tree_format and not compact_json:
+                return self._build_tree_prompt(structure_summary, additional_context)
+            
             # Convert structure to readable format with error handling
             # Convert Path objects to strings for JSON serialization
             try:
                 serializable_structure = self._make_json_serializable(structure_summary)
-                structure_json = json.dumps(serializable_structure, indent=2)
+                indent = None if compact_json else 2
+                structure_json = json.dumps(serializable_structure, indent=indent)
             except (TypeError, ValueError) as e:
                 raise ValueError(f"Cannot serialize structure_summary to JSON: {e}")
             
@@ -478,6 +487,126 @@ IMPORTANT: Return ONLY the JSON object, no additional text before or after.
         except Exception as e:
             self.logger.error(f"Unexpected error building prompt: {e}", exc_info=True)
             raise RuntimeError(f"Failed to build analysis prompt: {e}")
+    
+    def _build_tree_prompt(
+        self,
+        structure_summary: Dict,
+        additional_context: Optional[str] = None
+    ) -> str:
+        """
+        Build a tree-formatted prompt for LLM analysis.
+        
+        Tree format is ~60% more token-efficient than JSON while still
+        being easily understood by LLMs (trained on `tree` command output).
+        
+        Args:
+            structure_summary: Folder structure data
+            additional_context: Optional additional context
+            
+        Returns:
+            Complete prompt string in tree format
+        """
+        # Build tree representation
+        tree_lines = []
+        issues_detected = []
+        stats = {'folders': 0, 'files': 0, 'total_size': 0}
+        
+        # Skip metadata keys
+        metadata_keys = {'project_name', 'scan_id', 'total_files'}
+        
+        for folder_path, folder_data in sorted(structure_summary.items()):
+            if folder_path in metadata_keys:
+                continue
+            
+            if not isinstance(folder_data, dict):
+                continue
+            
+            stats['folders'] += 1
+            folder_path_str = str(folder_path)
+            
+            # Get folder info
+            files = folder_data.get('files', [])
+            total_size = folder_data.get('total_size', 0)
+            file_types = folder_data.get('file_types', {})
+            
+            stats['files'] += len(files)
+            stats['total_size'] += total_size
+            
+            # Format size
+            if total_size >= 1024**3:
+                size_str = f"{total_size / 1024**3:.1f} GB"
+            elif total_size >= 1024**2:
+                size_str = f"{total_size / 1024**2:.1f} MB"
+            else:
+                size_str = f"{total_size / 1024:.1f} KB"
+            
+            # Build folder line with type hints
+            types_str = ", ".join(f"{k}: {v}" for k, v in file_types.items()) if file_types else ""
+            
+            tree_lines.append(f"📁 {folder_path_str}")
+            tree_lines.append(f"   └─ {len(files)} files | {size_str} | {types_str}")
+            
+            # List up to 5 files per folder (representative sample)
+            for i, file_info in enumerate(files[:5]):
+                if isinstance(file_info, dict):
+                    fname = file_info.get('name', str(file_info))
+                    fsize = file_info.get('size_bytes', 0)
+                    if fsize >= 1024**3:
+                        fsize_str = f"{fsize / 1024**3:.1f}GB"
+                    elif fsize >= 1024**2:
+                        fsize_str = f"{fsize / 1024**2:.0f}MB"
+                    else:
+                        fsize_str = f"{fsize / 1024:.0f}KB"
+                    tree_lines.append(f"      ├─ {fname} [{fsize_str}]")
+                else:
+                    tree_lines.append(f"      ├─ {file_info}")
+            
+            if len(files) > 5:
+                tree_lines.append(f"      └─ ... and {len(files) - 5} more files")
+            
+            # Check for potential issues
+            folder_name = Path(folder_path_str).name
+            if not any(c in folder_name for c in ['(', ')']):
+                # Missing year in folder name
+                issues_detected.append(f"⚠️ {folder_name}: Missing year in folder name")
+            
+        # Build statistics summary
+        total_size_gb = stats['total_size'] / 1024**3
+        
+        # Build the complete tree prompt
+        prompt = f"""You are an expert media librarian analyzing folder structures for Jellyfin media server organization.
+
+=== FOLDER STRUCTURE ({stats['folders']} folders, {stats['files']} files, {total_size_gb:.1f} GB) ===
+
+{chr(10).join(tree_lines)}
+
+=== POTENTIAL ISSUES DETECTED ({len(issues_detected)}) ===
+{chr(10).join(issues_detected) if issues_detected else 'None detected by pre-scan'}
+
+=== JELLYFIN NAMING REQUIREMENTS ===
+• Movies: "Movie Title (Year)/Movie Title (Year).ext"
+• TV Shows: "Show Name/Season XX/Show Name - sXXeYY - Episode Title.ext"
+• Multi-part episodes: Require NFO files to map parts properly
+
+{additional_context or ''}
+
+=== YOUR TASK ===
+Analyze this structure and provide a JSON response with:
+
+1. **detected_media**: List each movie/TV show with title, type, year, location, confidence
+2. **reorganization_plan**: Specific folder/file changes needed for Jellyfin compliance
+3. **multi_part_episodes**: Episodes that are multi-part (pilots, finales) needing NFO files
+4. **reasoning**: Your analysis process
+
+RESPONSE FORMAT (JSON only, no other text):
+{{
+  "detected_media": [{{"title": "...", "type": "movie|tv_show", "year_estimate": 2020, "current_location": "...", "confidence": "high|medium|low", "notes": "..."}}],
+  "reorganization_plan": {{"summary": "...", "folder_changes": [{{"current_path": "...", "proposed_path": "...", "action": "...", "reason": "..."}}], "jellyfin_compliance_issues": []}},
+  "multi_part_episodes": [{{"show_title": "...", "season_number": 1, "episode_numbers": [1,2], "combined_episode_title": "...", "reason": "..."}}],
+  "reasoning": "..."
+}}"""
+        
+        return prompt
     
     def _make_json_serializable(self, obj):
         """

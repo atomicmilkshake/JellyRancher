@@ -1,0 +1,2489 @@
+{
+  "metadata": {
+    "captured_at": "2025-11-24T22:38:40.856991",
+    "current_view": "3️⃣ Analysis (Filtered) - Horseshit",
+    "roundup": "Horseshit",
+    "step": 3,
+    "capture_method": "F12 Quick Capture"
+  },
+  "tree": {
+    "object_name": "(unnamed)",
+    "class_name": "JellyRancherStudio",
+    "isEnabled": true,
+    "isVisible": true,
+    "layout_type": "QLayout",
+    "children": [
+      {
+        "object_name": "(unnamed)",
+        "class_name": "QMenuBar",
+        "isEnabled": true,
+        "isVisible": true,
+        "children": [
+          {
+            "object_name": "qt_menubar_ext_button",
+            "class_name": "QToolButton",
+            "isEnabled": true
+          },
+          {
+            "object_name": "(unnamed)",
+            "class_name": "QMenu",
+            "title": "&File",
+            "isEnabled": true
+          },
+          {
+            "object_name": "(unnamed)",
+            "class_name": "QMenu",
+            "title": "&View",
+            "isEnabled": true
+          },
+          {
+            "object_name": "(unnamed)",
+            "class_name": "QMenu",
+            "title": "&Tools",
+            "isEnabled": true
+          },
+          {
+            "object_name": "(unnamed)",
+            "class_name": "QMenu",
+            "title": "&Help",
+            "isEnabled": true
+          },
+          {
+            "object_name": "(unnamed)",
+            "class_name": "QMenu",
+            "isEnabled": true
+          }
+        ]
+      },
+      {
+        "object_name": "(unnamed)",
+        "class_name": "QStackedWidget",
+        "isEnabled": true,
+        "isVisible": true,
+        "currentIndex": 1,
+        "layout_type": "QStackedLayout",
+        "children": [
+          {
+            "object_name": "(unnamed)",
+            "class_name": "WelcomeScreen",
+            "isEnabled": true,
+            "layout_type": "QVBoxLayout",
+            "children": [
+              {
+                "object_name": "(unnamed)",
+                "class_name": "QLabel",
+                "text": "JellyRancher Studio",
+                "isEnabled": true
+              },
+              {
+                "object_name": "(unnamed)",
+                "class_name": "QLabel",
+                "text": "Media Library Organization Made Easy",
+                "isEnabled": true
+              },
+              {
+                "object_name": "(unnamed)",
+                "class_name": "QWidget",
+                "isEnabled": true,
+                "layout_type": "QVBoxLayout",
+                "children": [
+                  {
+                    "object_name": "(unnamed)",
+                    "class_name": "QPushButton",
+                    "text": "📁 New Round-Up",
+                    "toolTip": "Create a new media organization project",
+                    "isEnabled": true
+                  },
+                  {
+                    "object_name": "(unnamed)",
+                    "class_name": "QPushButton",
+                    "text": "📂 Open Round-Up...",
+                    "toolTip": "Browse and open an existing Round-Up",
+                    "isEnabled": true
+                  }
+                ]
+              },
+              {
+                "object_name": "(unnamed)",
+                "class_name": "QFrame",
+                "isEnabled": true
+              },
+              {
+                "object_name": "(unnamed)",
+                "class_name": "QWidget",
+                "isEnabled": true,
+                "layout_type": "QVBoxLayout",
+                "children": [
+                  {
+                    "object_name": "(unnamed)",
+                    "class_name": "QLabel",
+                    "text": "Recent Round-Ups:",
+                    "isEnabled": true
+                  },
+                  {
+                    "object_name": "(unnamed)",
+                    "class_name": "QListWidget",
+                    "isEnabled": true,
+                    "children": [
+                      {
+                        "object_name": "qt_scrollarea_viewport",
+                        "class_name": "QWidget",
+                        "isEnabled": true
+                      },
+                      {
+                        "object_name": "qt_scrollarea_hcontainer",
+                        "class_name": "QWidget",
+                        "isEnabled": true,
+                        "layout_type": "QBoxLayout",
+                        "children": [
+                          {
+                            "object_name": "(unnamed)",
+                            "class_name": "QScrollBar",
+                            "isEnabled": true
+                          }
+                        ]
+                      },
+                      {
+                        "object_name": "qt_scrollarea_vcontainer",
+                        "class_name": "QWidget",
+                        "isEnabled": true,
+                        "layout_type": "QBoxLayout",
+                        "children": [
+                          {
+                            "object_name": "(unnamed)",
+                            "class_name": "QScrollBar",
+                            "isEnabled": true
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "object_name": "(unnamed)",
+                    "class_name": "QLabel",
+                    "text": "No recent Round-Ups.\n\nClick 'New Round-Up' to get started!",
+                    "isEnabled": true
+                  },
+                  {
+                    "object_name": "(unnamed)",
+                    "class_name": "QPushButton",
+                    "text": "Open Selected",
+                    "isEnabled": true
+                  },
+                  {
+                    "object_name": "(unnamed)",
+                    "class_name": "QPushButton",
+                    "text": "Delete",
+                    "isEnabled": true
+                  }
+                ]
+              },
+              {
+                "object_name": "(unnamed)",
+                "class_name": "QLabel",
+                "text": "Press F1 for help • Round-Ups stored in ~/JellyRancher/roundups/",
+                "isEnabled": true
+              }
+            ]
+          },
+          {
+            "object_name": "(unnamed)",
+            "class_name": "QWidget",
+            "isEnabled": true,
+            "isVisible": true,
+            "layout_type": "QHBoxLayout",
+            "children": [
+              {
+                "object_name": "(unnamed)",
+                "class_name": "QSplitter",
+                "isEnabled": true,
+                "isVisible": true,
+                "children": [
+                  {
+                    "object_name": "(unnamed)",
+                    "class_name": "QTabWidget",
+                    "isEnabled": true,
+                    "isVisible": true,
+                    "currentIndex": 1,
+                    "children": [
+                      {
+                        "object_name": "qt_tabwidget_stackedwidget",
+                        "class_name": "QStackedWidget",
+                        "isEnabled": true,
+                        "isVisible": true,
+                        "currentIndex": 1,
+                        "layout_type": "QStackedLayout",
+                        "children": [
+                          {
+                            "object_name": "(unnamed)",
+                            "class_name": "ScanResultsView",
+                            "isEnabled": true,
+                            "layout_type": "QVBoxLayout",
+                            "children": [
+                              {
+                                "object_name": "(unnamed)",
+                                "class_name": "QLabel",
+                                "text": "📊 Scan Results - Session #15",
+                                "isEnabled": true
+                              },
+                              {
+                                "object_name": "(unnamed)",
+                                "class_name": "QWidget",
+                                "isEnabled": true,
+                                "layout_type": "QVBoxLayout",
+                                "children": [
+                                  {
+                                    "object_name": "(unnamed)",
+                                    "class_name": "QLabel",
+                                    "text": "Load complete! (cached)",
+                                    "isEnabled": true
+                                  },
+                                  {
+                                    "object_name": "(unnamed)",
+                                    "class_name": "QProgressBar",
+                                    "text": "100%",
+                                    "isEnabled": true,
+                                    "maximum": 4,
+                                    "value": 4
+                                  }
+                                ]
+                              },
+                              {
+                                "object_name": "(unnamed)",
+                                "class_name": "QTabWidget",
+                                "isEnabled": true,
+                                "children": [
+                                  {
+                                    "object_name": "qt_tabwidget_stackedwidget",
+                                    "class_name": "QStackedWidget",
+                                    "isEnabled": true,
+                                    "layout_type": "QStackedLayout",
+                                    "children": [
+                                      {
+                                        "object_name": "(unnamed)",
+                                        "class_name": "QWidget",
+                                        "isEnabled": true,
+                                        "layout_type": "QVBoxLayout",
+                                        "children": [
+                                          {
+                                            "object_name": "(unnamed)",
+                                            "class_name": "QGroupBox",
+                                            "title": "Folder Overview & Duplicate Detection",
+                                            "isEnabled": true,
+                                            "layout_type": "QVBoxLayout",
+                                            "children": [
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QTreeWidget",
+                                                "isEnabled": true,
+                                                "children": [
+                                                  {
+                                                    "object_name": "qt_scrollarea_viewport",
+                                                    "class_name": "QWidget",
+                                                    "isEnabled": true
+                                                  },
+                                                  {
+                                                    "object_name": "qt_scrollarea_vcontainer",
+                                                    "class_name": "QWidget",
+                                                    "isEnabled": true,
+                                                    "layout_type": "QBoxLayout",
+                                                    "children": [
+                                                      {
+                                                        "object_name": "(unnamed)",
+                                                        "class_name": "QScrollBar",
+                                                        "isEnabled": true
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QHeaderView",
+                                                    "isEnabled": true,
+                                                    "children": [
+                                                      {
+                                                        "object_name": "qt_scrollarea_viewport",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_hcontainer",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true,
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar",
+                                                            "isEnabled": true
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_vcontainer",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true,
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar",
+                                                            "isEnabled": true
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "object_name": "qt_scrollarea_hcontainer",
+                                                    "class_name": "QWidget",
+                                                    "isEnabled": true,
+                                                    "layout_type": "QBoxLayout",
+                                                    "children": [
+                                                      {
+                                                        "object_name": "(unnamed)",
+                                                        "class_name": "QScrollBar",
+                                                        "isEnabled": true,
+                                                        "maximum": 62
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "MD5 duplicate groups: none detected.",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QTreeWidget",
+                                                "isEnabled": true,
+                                                "children": [
+                                                  {
+                                                    "object_name": "qt_scrollarea_viewport",
+                                                    "class_name": "QWidget",
+                                                    "isEnabled": true
+                                                  },
+                                                  {
+                                                    "object_name": "qt_scrollarea_hcontainer",
+                                                    "class_name": "QWidget",
+                                                    "isEnabled": true,
+                                                    "layout_type": "QBoxLayout",
+                                                    "children": [
+                                                      {
+                                                        "object_name": "(unnamed)",
+                                                        "class_name": "QScrollBar",
+                                                        "isEnabled": true
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "object_name": "qt_scrollarea_vcontainer",
+                                                    "class_name": "QWidget",
+                                                    "isEnabled": true,
+                                                    "layout_type": "QBoxLayout",
+                                                    "children": [
+                                                      {
+                                                        "object_name": "(unnamed)",
+                                                        "class_name": "QScrollBar",
+                                                        "isEnabled": true
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QHeaderView",
+                                                    "isEnabled": true,
+                                                    "children": [
+                                                      {
+                                                        "object_name": "qt_scrollarea_viewport",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_hcontainer",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true,
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar",
+                                                            "isEnabled": true
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_vcontainer",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true,
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar",
+                                                            "isEnabled": true
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "object_name": "(unnamed)",
+                                        "class_name": "QWidget",
+                                        "isEnabled": true,
+                                        "layout_type": "QVBoxLayout",
+                                        "children": [
+                                          {
+                                            "object_name": "(unnamed)",
+                                            "class_name": "QGroupBox",
+                                            "title": "Scan Results",
+                                            "isEnabled": true,
+                                            "layout_type": "QVBoxLayout",
+                                            "children": [
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "Search:",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLineEdit",
+                                                "placeholderText": "Search files...",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QPushButton",
+                                                "text": "Export Results",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QTableWidget",
+                                                "isEnabled": true,
+                                                "children": [
+                                                  {
+                                                    "object_name": "qt_scrollarea_viewport",
+                                                    "class_name": "QWidget",
+                                                    "isEnabled": true
+                                                  },
+                                                  {
+                                                    "object_name": "qt_scrollarea_vcontainer",
+                                                    "class_name": "QWidget",
+                                                    "isEnabled": true,
+                                                    "layout_type": "QBoxLayout",
+                                                    "children": [
+                                                      {
+                                                        "object_name": "(unnamed)",
+                                                        "class_name": "QScrollBar",
+                                                        "isEnabled": true
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QHeaderView",
+                                                    "isEnabled": true,
+                                                    "children": [
+                                                      {
+                                                        "object_name": "qt_scrollarea_viewport",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_hcontainer",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true,
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar",
+                                                            "isEnabled": true
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_vcontainer",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true,
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar",
+                                                            "isEnabled": true
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QHeaderView",
+                                                    "isEnabled": true,
+                                                    "children": [
+                                                      {
+                                                        "object_name": "qt_scrollarea_viewport",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_hcontainer",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true,
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar",
+                                                            "isEnabled": true
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_vcontainer",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true,
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar",
+                                                            "isEnabled": true
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QAbstractButton",
+                                                    "isEnabled": true
+                                                  },
+                                                  {
+                                                    "object_name": "qt_scrollarea_hcontainer",
+                                                    "class_name": "QWidget",
+                                                    "isEnabled": true,
+                                                    "layout_type": "QBoxLayout",
+                                                    "children": [
+                                                      {
+                                                        "object_name": "(unnamed)",
+                                                        "class_name": "QScrollBar",
+                                                        "isEnabled": true,
+                                                        "maximum": 1
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "Loaded 5991 files (1435.67 GB) from session #15",
+                                                "isEnabled": true
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "object_name": "(unnamed)",
+                                        "class_name": "QWidget",
+                                        "isEnabled": true,
+                                        "layout_type": "QVBoxLayout",
+                                        "children": [
+                                          {
+                                            "object_name": "(unnamed)",
+                                            "class_name": "QGroupBox",
+                                            "title": "🔍 Pre-Analysis Filters",
+                                            "isEnabled": true,
+                                            "layout_type": "QVBoxLayout",
+                                            "children": [
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "File Types:",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QCheckBox",
+                                                "text": "Video",
+                                                "isChecked": true,
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QCheckBox",
+                                                "text": "Subtitle",
+                                                "isChecked": true,
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QCheckBox",
+                                                "text": "Image",
+                                                "isChecked": true,
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QCheckBox",
+                                                "text": "Other",
+                                                "isChecked": true,
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "Size Range (MB):",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "Min:",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QSpinBox",
+                                                "text": "0 MB",
+                                                "isEnabled": true,
+                                                "maximum": 100000,
+                                                "children": [
+                                                  {
+                                                    "object_name": "qt_spinbox_lineedit",
+                                                    "class_name": "QLineEdit",
+                                                    "text": "0 MB",
+                                                    "isEnabled": true
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "Max:",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QSpinBox",
+                                                "text": "100000 MB",
+                                                "isEnabled": true,
+                                                "maximum": 100000,
+                                                "value": 100000,
+                                                "children": [
+                                                  {
+                                                    "object_name": "qt_spinbox_lineedit",
+                                                    "class_name": "QLineEdit",
+                                                    "text": "100000 MB",
+                                                    "isEnabled": true
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QCheckBox",
+                                                "text": "Hide Duplicate Files (same MD5)",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QPushButton",
+                                                "text": "Reset Filters",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QPushButton",
+                                                "text": "➡️ Send to Analysis",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "No filters applied - showing all files",
+                                                "isEnabled": true
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "object_name": "(unnamed)",
+                                            "class_name": "QGroupBox",
+                                            "title": "📊 Scan Statistics",
+                                            "isEnabled": true,
+                                            "layout_type": "QVBoxLayout",
+                                            "children": [
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "🔢 5,991 files | 1435.67 GB total | Session #15",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "🎯 After filters: 5,991/5,991 files (1435.67 GB) — 0.0% reduction",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "────────────────────────────────────────",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "📁 File Types:",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "Video: 2,192 (36.6%, 1467920 MB) | Subtitle: 104 (1.7%, 256 MB) | Image: 2,852 (47.6%, 1950 MB) | Other: 843 (14.1%, 4 MB)",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "📏 Size Distribution:",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "Min: 1 KB | Max: 23.6 GB | Avg: 245 MB | Median: 1 MB",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "📂 Folder Statistics:",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "1,016 unique folders | Depth: 1-7 levels | Avg files/folder: 5.9",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "🔁 Dups: None detected",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "📺 Jellyfin: 0 matches",
+                                                "toolTip": "Jellyfin configured but no scanned files matched library items",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "🏷️ Top Extensions:",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "..jpg: 2,739 | ..mkv: 2,164 | ..nfo: 843 | ..png: 113 | ..srt: 50 | ..mp4: 28 | ..idx: 27 | ..sub: 27",
+                                                "isEnabled": true
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "object_name": "qt_tabwidget_tabbar",
+                                    "class_name": "QTabBar",
+                                    "isEnabled": true,
+                                    "children": [
+                                      {
+                                        "object_name": "ScrollLeftButton",
+                                        "class_name": "QToolButton"
+                                      },
+                                      {
+                                        "object_name": "ScrollRightButton",
+                                        "class_name": "QToolButton"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "object_name": "(unnamed)",
+                            "class_name": "AnalysisView",
+                            "isEnabled": true,
+                            "layout_type": "QVBoxLayout",
+                            "children": [
+                              {
+                                "object_name": "(unnamed)",
+                                "class_name": "QLabel",
+                                "text": "Analysis",
+                                "isEnabled": true
+                              },
+                              {
+                                "object_name": "(unnamed)",
+                                "class_name": "QScrollArea",
+                                "isEnabled": true,
+                                "children": [
+                                  {
+                                    "object_name": "qt_scrollarea_viewport",
+                                    "class_name": "QWidget",
+                                    "isEnabled": true,
+                                    "children": [
+                                      {
+                                        "object_name": "(unnamed)",
+                                        "class_name": "QWidget",
+                                        "isEnabled": true,
+                                        "layout_type": "QVBoxLayout",
+                                        "children": [
+                                          {
+                                            "object_name": "(unnamed)",
+                                            "class_name": "CollapsibleSection",
+                                            "title": "📁 Source Data (What Analysis Will See)",
+                                            "isEnabled": true,
+                                            "layout_type": "QVBoxLayout",
+                                            "children": [
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QWidget",
+                                                "layout_type": "QVBoxLayout",
+                                                "children": [
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QLabel",
+                                                    "text": "Load scan data to preview folder structure"
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QTreeWidget",
+                                                    "children": [
+                                                      {
+                                                        "object_name": "qt_scrollarea_viewport",
+                                                        "class_name": "QWidget"
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_hcontainer",
+                                                        "class_name": "QWidget",
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar"
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_vcontainer",
+                                                        "class_name": "QWidget",
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar"
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "object_name": "(unnamed)",
+                                                        "class_name": "QHeaderView",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "qt_scrollarea_viewport",
+                                                            "class_name": "QWidget"
+                                                          },
+                                                          {
+                                                            "object_name": "qt_scrollarea_hcontainer",
+                                                            "class_name": "QWidget",
+                                                            "layout_type": "QBoxLayout",
+                                                            "children": [
+                                                              {
+                                                                "object_name": "(unnamed)",
+                                                                "class_name": "QScrollBar"
+                                                              }
+                                                            ]
+                                                          },
+                                                          {
+                                                            "object_name": "qt_scrollarea_vcontainer",
+                                                            "class_name": "QWidget",
+                                                            "layout_type": "QBoxLayout",
+                                                            "children": [
+                                                              {
+                                                                "object_name": "(unnamed)",
+                                                                "class_name": "QScrollBar"
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "object_name": "(unnamed)",
+                                            "class_name": "QGroupBox",
+                                            "title": "⚙️ Analysis Controls",
+                                            "isEnabled": true,
+                                            "layout_type": "QVBoxLayout",
+                                            "children": [
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "Mode:",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QComboBox",
+                                                "currentText": "🤖 LLM Analysis (Deep, Canonical, API Cost)",
+                                                "toolTip": "LLM: Uses AI to understand context and suggest canonical naming\nRegex: Fast pattern matching, free, works offline\nHybrid: Best of both - regex first, LLM for ambiguous cases",
+                                                "isEnabled": true,
+                                                "children": [
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QFrame",
+                                                    "isEnabled": true,
+                                                    "layout_type": "QBoxLayout",
+                                                    "children": [
+                                                      {
+                                                        "object_name": "(unnamed)",
+                                                        "class_name": "QListView",
+                                                        "isEnabled": true,
+                                                        "children": [
+                                                          {
+                                                            "object_name": "qt_scrollarea_viewport",
+                                                            "class_name": "QWidget",
+                                                            "isEnabled": true
+                                                          },
+                                                          {
+                                                            "object_name": "qt_scrollarea_hcontainer",
+                                                            "class_name": "QWidget",
+                                                            "isEnabled": true,
+                                                            "layout_type": "QBoxLayout",
+                                                            "children": [
+                                                              {
+                                                                "object_name": "(unnamed)",
+                                                                "class_name": "QScrollBar",
+                                                                "isEnabled": true
+                                                              }
+                                                            ]
+                                                          },
+                                                          {
+                                                            "object_name": "qt_scrollarea_vcontainer",
+                                                            "class_name": "QWidget",
+                                                            "isEnabled": true,
+                                                            "layout_type": "QBoxLayout",
+                                                            "children": [
+                                                              {
+                                                                "object_name": "(unnamed)",
+                                                                "class_name": "QScrollBar",
+                                                                "isEnabled": true
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "Model:",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QComboBox",
+                                                "currentText": "Claude-3.7-Sonnet",
+                                                "isEnabled": true,
+                                                "children": [
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QFrame",
+                                                    "isEnabled": true,
+                                                    "layout_type": "QBoxLayout",
+                                                    "children": [
+                                                      {
+                                                        "object_name": "(unnamed)",
+                                                        "class_name": "QListView",
+                                                        "isEnabled": true,
+                                                        "children": [
+                                                          {
+                                                            "object_name": "qt_scrollarea_viewport",
+                                                            "class_name": "QWidget",
+                                                            "isEnabled": true
+                                                          },
+                                                          {
+                                                            "object_name": "qt_scrollarea_hcontainer",
+                                                            "class_name": "QWidget",
+                                                            "isEnabled": true,
+                                                            "layout_type": "QBoxLayout",
+                                                            "children": [
+                                                              {
+                                                                "object_name": "(unnamed)",
+                                                                "class_name": "QScrollBar",
+                                                                "isEnabled": true
+                                                              }
+                                                            ]
+                                                          },
+                                                          {
+                                                            "object_name": "qt_scrollarea_vcontainer",
+                                                            "class_name": "QWidget",
+                                                            "isEnabled": true,
+                                                            "layout_type": "QBoxLayout",
+                                                            "children": [
+                                                              {
+                                                                "object_name": "(unnamed)",
+                                                                "class_name": "QScrollBar",
+                                                                "isEnabled": true
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QPushButton",
+                                                "text": "🔄",
+                                                "toolTip": "Refresh available models from Poe API",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QPushButton",
+                                                "text": "👁️ Preview Prompt",
+                                                "toolTip": "See the exact prompt that will be sent to the LLM",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QPushButton",
+                                                "text": "▶️ Run Analysis",
+                                                "toolTip": "Execute analysis using selected mode"
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QPushButton",
+                                                "text": "📸 Create Snapshot",
+                                                "toolTip": "Create a pre-operation snapshot for rollback capability",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QProgressBar",
+                                                "isEnabled": true,
+                                                "maximum": 100,
+                                                "value": -1
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "No scan data found. Please run a scan first.",
+                                                "isEnabled": true
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "object_name": "(unnamed)",
+                                            "class_name": "CollapsibleSection",
+                                            "title": "📊 Analysis Output",
+                                            "isEnabled": true,
+                                            "layout_type": "QVBoxLayout",
+                                            "children": [
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QWidget",
+                                                "layout_type": "QVBoxLayout",
+                                                "children": [
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QLabel",
+                                                    "text": "Run analysis to see detected media"
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QTextEdit",
+                                                    "placeholderText": "Analysis output will appear here...",
+                                                    "children": [
+                                                      {
+                                                        "object_name": "qt_scrollarea_viewport",
+                                                        "class_name": "QWidget"
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_hcontainer",
+                                                        "class_name": "QWidget",
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar"
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_vcontainer",
+                                                        "class_name": "QWidget",
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar"
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "object_name": "(unnamed)",
+                                            "class_name": "QGroupBox",
+                                            "title": "📋 Extrapolated File Actions",
+                                            "isEnabled": true,
+                                            "layout_type": "QVBoxLayout",
+                                            "children": [
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "Run analysis to generate file-level actions",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "Legend:",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "● HIGH",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "● MEDIUM",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "● LOW",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "● MANUAL",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "● NONE",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QTableWidget",
+                                                "isEnabled": true,
+                                                "children": [
+                                                  {
+                                                    "object_name": "qt_scrollarea_viewport",
+                                                    "class_name": "QWidget",
+                                                    "isEnabled": true
+                                                  },
+                                                  {
+                                                    "object_name": "qt_scrollarea_vcontainer",
+                                                    "class_name": "QWidget",
+                                                    "isEnabled": true,
+                                                    "layout_type": "QBoxLayout",
+                                                    "children": [
+                                                      {
+                                                        "object_name": "(unnamed)",
+                                                        "class_name": "QScrollBar",
+                                                        "isEnabled": true
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QHeaderView",
+                                                    "isEnabled": true,
+                                                    "children": [
+                                                      {
+                                                        "object_name": "qt_scrollarea_viewport",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_hcontainer",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true,
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar",
+                                                            "isEnabled": true
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_vcontainer",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true,
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar",
+                                                            "isEnabled": true
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QHeaderView",
+                                                    "isEnabled": true,
+                                                    "children": [
+                                                      {
+                                                        "object_name": "qt_scrollarea_viewport",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_hcontainer",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true,
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar",
+                                                            "isEnabled": true
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_vcontainer",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true,
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar",
+                                                            "isEnabled": true
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QAbstractButton",
+                                                    "isEnabled": true
+                                                  },
+                                                  {
+                                                    "object_name": "qt_scrollarea_hcontainer",
+                                                    "class_name": "QWidget",
+                                                    "isEnabled": true,
+                                                    "layout_type": "QBoxLayout",
+                                                    "children": [
+                                                      {
+                                                        "object_name": "(unnamed)",
+                                                        "class_name": "QScrollBar",
+                                                        "isEnabled": true
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QPushButton",
+                                                "text": "Select All",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QPushButton",
+                                                "text": "✓ Approve Selected",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QPushButton",
+                                                "text": "✗ Reject Selected",
+                                                "isEnabled": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QPushButton",
+                                                "text": "➡️ Send to Review",
+                                                "toolTip": "Send approved operations to Review tab for final confirmation"
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "object_name": "(unnamed)",
+                                            "class_name": "CollapsibleSection",
+                                            "title": "🔒 Snapshots & Metadata",
+                                            "isEnabled": true,
+                                            "layout_type": "QVBoxLayout",
+                                            "children": [
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QWidget",
+                                                "layout_type": "QVBoxLayout",
+                                                "children": [
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QLabel",
+                                                    "text": "No snapshots created"
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QPushButton",
+                                                    "text": "↩️ Restore Latest"
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QPushButton",
+                                                    "text": "✨ Enrich with TMDB/TVDB",
+                                                    "toolTip": "Query canonical metadata databases for official titles, years, episode info"
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QLabel"
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "object_name": "qt_scrollarea_hcontainer",
+                                    "class_name": "QWidget",
+                                    "isEnabled": true,
+                                    "layout_type": "QBoxLayout",
+                                    "children": [
+                                      {
+                                        "object_name": "(unnamed)",
+                                        "class_name": "QScrollBar",
+                                        "isEnabled": true
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "object_name": "qt_scrollarea_vcontainer",
+                                    "class_name": "QWidget",
+                                    "isEnabled": true,
+                                    "layout_type": "QBoxLayout",
+                                    "children": [
+                                      {
+                                        "object_name": "(unnamed)",
+                                        "class_name": "QScrollBar",
+                                        "isEnabled": true
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "object_name": "(unnamed)",
+                            "class_name": "ScanView",
+                            "isEnabled": true,
+                            "layout_type": "QVBoxLayout",
+                            "children": [
+                              {
+                                "object_name": "(unnamed)",
+                                "class_name": "QLabel",
+                                "text": "Scan Folders",
+                                "isEnabled": true
+                              },
+                              {
+                                "object_name": "(unnamed)",
+                                "class_name": "QGroupBox",
+                                "title": "Selected Folders",
+                                "isEnabled": true,
+                                "layout_type": "QVBoxLayout",
+                                "children": [
+                                  {
+                                    "object_name": "(unnamed)",
+                                    "class_name": "QTableWidget",
+                                    "isEnabled": true,
+                                    "children": [
+                                      {
+                                        "object_name": "qt_scrollarea_viewport",
+                                        "class_name": "QWidget",
+                                        "isEnabled": true
+                                      },
+                                      {
+                                        "object_name": "qt_scrollarea_hcontainer",
+                                        "class_name": "QWidget",
+                                        "isEnabled": true,
+                                        "layout_type": "QBoxLayout",
+                                        "children": [
+                                          {
+                                            "object_name": "(unnamed)",
+                                            "class_name": "QScrollBar",
+                                            "isEnabled": true
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "object_name": "qt_scrollarea_vcontainer",
+                                        "class_name": "QWidget",
+                                        "isEnabled": true,
+                                        "layout_type": "QBoxLayout",
+                                        "children": [
+                                          {
+                                            "object_name": "(unnamed)",
+                                            "class_name": "QScrollBar",
+                                            "isEnabled": true
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "object_name": "(unnamed)",
+                                        "class_name": "QHeaderView",
+                                        "isEnabled": true,
+                                        "children": [
+                                          {
+                                            "object_name": "qt_scrollarea_viewport",
+                                            "class_name": "QWidget",
+                                            "isEnabled": true
+                                          },
+                                          {
+                                            "object_name": "qt_scrollarea_hcontainer",
+                                            "class_name": "QWidget",
+                                            "isEnabled": true,
+                                            "layout_type": "QBoxLayout",
+                                            "children": [
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QScrollBar",
+                                                "isEnabled": true
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "object_name": "qt_scrollarea_vcontainer",
+                                            "class_name": "QWidget",
+                                            "isEnabled": true,
+                                            "layout_type": "QBoxLayout",
+                                            "children": [
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QScrollBar",
+                                                "isEnabled": true
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "object_name": "(unnamed)",
+                                        "class_name": "QHeaderView",
+                                        "isEnabled": true,
+                                        "children": [
+                                          {
+                                            "object_name": "qt_scrollarea_viewport",
+                                            "class_name": "QWidget",
+                                            "isEnabled": true
+                                          },
+                                          {
+                                            "object_name": "qt_scrollarea_hcontainer",
+                                            "class_name": "QWidget",
+                                            "isEnabled": true,
+                                            "layout_type": "QBoxLayout",
+                                            "children": [
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QScrollBar",
+                                                "isEnabled": true
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "object_name": "qt_scrollarea_vcontainer",
+                                            "class_name": "QWidget",
+                                            "isEnabled": true,
+                                            "layout_type": "QBoxLayout",
+                                            "children": [
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QScrollBar",
+                                                "isEnabled": true
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "object_name": "(unnamed)",
+                                        "class_name": "QAbstractButton",
+                                        "isEnabled": true
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "object_name": "(unnamed)",
+                                    "class_name": "QPushButton",
+                                    "text": "+ Add Folder",
+                                    "isEnabled": true
+                                  },
+                                  {
+                                    "object_name": "(unnamed)",
+                                    "class_name": "QPushButton",
+                                    "text": "- Remove Selected",
+                                    "isEnabled": true
+                                  },
+                                  {
+                                    "object_name": "(unnamed)",
+                                    "class_name": "QPushButton",
+                                    "text": "Clear All",
+                                    "isEnabled": true
+                                  }
+                                ]
+                              },
+                              {
+                                "object_name": "(unnamed)",
+                                "class_name": "QGroupBox",
+                                "title": "Scan Options",
+                                "isEnabled": true,
+                                "layout_type": "QVBoxLayout",
+                                "children": [
+                                  {
+                                    "object_name": "(unnamed)",
+                                    "class_name": "QCheckBox",
+                                    "text": "Calculate MD5 hashes (slower, enables duplicate detection)",
+                                    "isEnabled": true
+                                  },
+                                  {
+                                    "object_name": "(unnamed)",
+                                    "class_name": "QCheckBox",
+                                    "text": "Extract metadata from filenames",
+                                    "isChecked": true,
+                                    "isEnabled": true
+                                  },
+                                  {
+                                    "object_name": "(unnamed)",
+                                    "class_name": "QLabel",
+                                    "text": "Estimated time: ~30 seconds for 1,000 files",
+                                    "isEnabled": true
+                                  }
+                                ]
+                              },
+                              {
+                                "object_name": "(unnamed)",
+                                "class_name": "QGroupBox",
+                                "title": "Scan Progress",
+                                "isEnabled": true,
+                                "layout_type": "QVBoxLayout",
+                                "children": [
+                                  {
+                                    "object_name": "(unnamed)",
+                                    "class_name": "QProgressBar",
+                                    "text": "0%",
+                                    "isEnabled": true,
+                                    "maximum": 100
+                                  },
+                                  {
+                                    "object_name": "(unnamed)",
+                                    "class_name": "QLabel",
+                                    "text": "Ready to scan",
+                                    "isEnabled": true
+                                  },
+                                  {
+                                    "object_name": "(unnamed)",
+                                    "class_name": "QPushButton",
+                                    "text": "▶ Start Scan",
+                                    "isEnabled": true
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "object_name": "(unnamed)",
+                            "class_name": "AnalysisView",
+                            "isEnabled": true,
+                            "isVisible": true,
+                            "layout_type": "QVBoxLayout",
+                            "children": [
+                              {
+                                "object_name": "(unnamed)",
+                                "class_name": "QLabel",
+                                "text": "Analysis",
+                                "isEnabled": true,
+                                "isVisible": true
+                              },
+                              {
+                                "object_name": "(unnamed)",
+                                "class_name": "QScrollArea",
+                                "isEnabled": true,
+                                "isVisible": true,
+                                "children": [
+                                  {
+                                    "object_name": "qt_scrollarea_viewport",
+                                    "class_name": "QWidget",
+                                    "isEnabled": true,
+                                    "isVisible": true,
+                                    "children": [
+                                      {
+                                        "object_name": "(unnamed)",
+                                        "class_name": "QWidget",
+                                        "isEnabled": true,
+                                        "isVisible": true,
+                                        "layout_type": "QVBoxLayout",
+                                        "children": [
+                                          {
+                                            "object_name": "(unnamed)",
+                                            "class_name": "CollapsibleSection",
+                                            "title": "📁 Source Data (What Analysis Will See)",
+                                            "isEnabled": true,
+                                            "isVisible": true,
+                                            "layout_type": "QVBoxLayout",
+                                            "children": [
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QWidget",
+                                                "layout_type": "QVBoxLayout",
+                                                "children": [
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QLabel",
+                                                    "text": "Total: 5991 files, 1435.7 GB across 1016 folders"
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QTreeWidget",
+                                                    "children": [
+                                                      {
+                                                        "object_name": "qt_scrollarea_viewport",
+                                                        "class_name": "QWidget"
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_hcontainer",
+                                                        "class_name": "QWidget",
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar"
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "object_name": "(unnamed)",
+                                                        "class_name": "QHeaderView",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "qt_scrollarea_viewport",
+                                                            "class_name": "QWidget"
+                                                          },
+                                                          {
+                                                            "object_name": "qt_scrollarea_hcontainer",
+                                                            "class_name": "QWidget",
+                                                            "layout_type": "QBoxLayout",
+                                                            "children": [
+                                                              {
+                                                                "object_name": "(unnamed)",
+                                                                "class_name": "QScrollBar"
+                                                              }
+                                                            ]
+                                                          },
+                                                          {
+                                                            "object_name": "qt_scrollarea_vcontainer",
+                                                            "class_name": "QWidget",
+                                                            "layout_type": "QBoxLayout",
+                                                            "children": [
+                                                              {
+                                                                "object_name": "(unnamed)",
+                                                                "class_name": "QScrollBar"
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_vcontainer",
+                                                        "class_name": "QWidget",
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar",
+                                                            "maximum": 1011
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "object_name": "(unnamed)",
+                                            "class_name": "QGroupBox",
+                                            "title": "⚙️ Analysis Controls",
+                                            "isEnabled": true,
+                                            "isVisible": true,
+                                            "layout_type": "QVBoxLayout",
+                                            "children": [
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "Mode:",
+                                                "isEnabled": true,
+                                                "isVisible": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QComboBox",
+                                                "currentText": "🤖 LLM Analysis (Deep, Canonical, API Cost)",
+                                                "toolTip": "LLM: Uses AI to understand context and suggest canonical naming\nRegex: Fast pattern matching, free, works offline\nHybrid: Best of both - regex first, LLM for ambiguous cases",
+                                                "isEnabled": true,
+                                                "isVisible": true,
+                                                "children": [
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QFrame",
+                                                    "isEnabled": true,
+                                                    "layout_type": "QBoxLayout",
+                                                    "children": [
+                                                      {
+                                                        "object_name": "(unnamed)",
+                                                        "class_name": "QListView",
+                                                        "isEnabled": true,
+                                                        "children": [
+                                                          {
+                                                            "object_name": "qt_scrollarea_viewport",
+                                                            "class_name": "QWidget",
+                                                            "isEnabled": true
+                                                          },
+                                                          {
+                                                            "object_name": "qt_scrollarea_hcontainer",
+                                                            "class_name": "QWidget",
+                                                            "isEnabled": true,
+                                                            "layout_type": "QBoxLayout",
+                                                            "children": [
+                                                              {
+                                                                "object_name": "(unnamed)",
+                                                                "class_name": "QScrollBar",
+                                                                "isEnabled": true
+                                                              }
+                                                            ]
+                                                          },
+                                                          {
+                                                            "object_name": "qt_scrollarea_vcontainer",
+                                                            "class_name": "QWidget",
+                                                            "isEnabled": true,
+                                                            "layout_type": "QBoxLayout",
+                                                            "children": [
+                                                              {
+                                                                "object_name": "(unnamed)",
+                                                                "class_name": "QScrollBar",
+                                                                "isEnabled": true
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "Model:",
+                                                "isEnabled": true,
+                                                "isVisible": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QComboBox",
+                                                "currentText": "Claude-3.7-Sonnet",
+                                                "isEnabled": true,
+                                                "isVisible": true,
+                                                "children": [
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QFrame",
+                                                    "isEnabled": true,
+                                                    "layout_type": "QBoxLayout",
+                                                    "children": [
+                                                      {
+                                                        "object_name": "(unnamed)",
+                                                        "class_name": "QListView",
+                                                        "isEnabled": true,
+                                                        "children": [
+                                                          {
+                                                            "object_name": "qt_scrollarea_viewport",
+                                                            "class_name": "QWidget",
+                                                            "isEnabled": true
+                                                          },
+                                                          {
+                                                            "object_name": "qt_scrollarea_hcontainer",
+                                                            "class_name": "QWidget",
+                                                            "isEnabled": true,
+                                                            "layout_type": "QBoxLayout",
+                                                            "children": [
+                                                              {
+                                                                "object_name": "(unnamed)",
+                                                                "class_name": "QScrollBar",
+                                                                "isEnabled": true
+                                                              }
+                                                            ]
+                                                          },
+                                                          {
+                                                            "object_name": "qt_scrollarea_vcontainer",
+                                                            "class_name": "QWidget",
+                                                            "isEnabled": true,
+                                                            "layout_type": "QBoxLayout",
+                                                            "children": [
+                                                              {
+                                                                "object_name": "(unnamed)",
+                                                                "class_name": "QScrollBar",
+                                                                "isEnabled": true
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QPushButton",
+                                                "text": "🔄",
+                                                "toolTip": "Refresh available models from Poe API",
+                                                "isEnabled": true,
+                                                "isVisible": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QPushButton",
+                                                "text": "👁️ Preview Prompt",
+                                                "toolTip": "See the exact prompt that will be sent to the LLM",
+                                                "isEnabled": true,
+                                                "isVisible": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QPushButton",
+                                                "text": "▶️ Run Analysis",
+                                                "toolTip": "Execute analysis using selected mode",
+                                                "isEnabled": true,
+                                                "isVisible": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QPushButton",
+                                                "text": "📸 Create Snapshot",
+                                                "toolTip": "Create a pre-operation snapshot for rollback capability",
+                                                "isEnabled": true,
+                                                "isVisible": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QProgressBar",
+                                                "isEnabled": true,
+                                                "maximum": 100,
+                                                "value": -1
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "✓ Ready: 5991 filtered files",
+                                                "isEnabled": true,
+                                                "isVisible": true
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "object_name": "(unnamed)",
+                                            "class_name": "CollapsibleSection",
+                                            "title": "📊 Analysis Output",
+                                            "isEnabled": true,
+                                            "isVisible": true,
+                                            "layout_type": "QVBoxLayout",
+                                            "children": [
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QWidget",
+                                                "layout_type": "QVBoxLayout",
+                                                "children": [
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QLabel",
+                                                    "text": "Run analysis to see detected media"
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QTextEdit",
+                                                    "placeholderText": "Analysis output will appear here...",
+                                                    "children": [
+                                                      {
+                                                        "object_name": "qt_scrollarea_viewport",
+                                                        "class_name": "QWidget"
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_hcontainer",
+                                                        "class_name": "QWidget",
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar"
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_vcontainer",
+                                                        "class_name": "QWidget",
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar"
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "object_name": "(unnamed)",
+                                            "class_name": "QGroupBox",
+                                            "title": "📋 Extrapolated File Actions",
+                                            "isEnabled": true,
+                                            "isVisible": true,
+                                            "layout_type": "QVBoxLayout",
+                                            "children": [
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "Run analysis to generate file-level actions",
+                                                "isEnabled": true,
+                                                "isVisible": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "Legend:",
+                                                "isEnabled": true,
+                                                "isVisible": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "● HIGH",
+                                                "isEnabled": true,
+                                                "isVisible": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "● MEDIUM",
+                                                "isEnabled": true,
+                                                "isVisible": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "● LOW",
+                                                "isEnabled": true,
+                                                "isVisible": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "● MANUAL",
+                                                "isEnabled": true,
+                                                "isVisible": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QLabel",
+                                                "text": "● NONE",
+                                                "isEnabled": true,
+                                                "isVisible": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QTableWidget",
+                                                "isEnabled": true,
+                                                "isVisible": true,
+                                                "children": [
+                                                  {
+                                                    "object_name": "qt_scrollarea_viewport",
+                                                    "class_name": "QWidget",
+                                                    "isEnabled": true,
+                                                    "isVisible": true
+                                                  },
+                                                  {
+                                                    "object_name": "qt_scrollarea_vcontainer",
+                                                    "class_name": "QWidget",
+                                                    "isEnabled": true,
+                                                    "layout_type": "QBoxLayout",
+                                                    "children": [
+                                                      {
+                                                        "object_name": "(unnamed)",
+                                                        "class_name": "QScrollBar",
+                                                        "isEnabled": true
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QHeaderView",
+                                                    "isEnabled": true,
+                                                    "isVisible": true,
+                                                    "children": [
+                                                      {
+                                                        "object_name": "qt_scrollarea_viewport",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true,
+                                                        "isVisible": true
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_hcontainer",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true,
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar",
+                                                            "isEnabled": true
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_vcontainer",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true,
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar",
+                                                            "isEnabled": true
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QHeaderView",
+                                                    "isEnabled": true,
+                                                    "isVisible": true,
+                                                    "children": [
+                                                      {
+                                                        "object_name": "qt_scrollarea_viewport",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true,
+                                                        "isVisible": true
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_hcontainer",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true,
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar",
+                                                            "isEnabled": true
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "object_name": "qt_scrollarea_vcontainer",
+                                                        "class_name": "QWidget",
+                                                        "isEnabled": true,
+                                                        "layout_type": "QBoxLayout",
+                                                        "children": [
+                                                          {
+                                                            "object_name": "(unnamed)",
+                                                            "class_name": "QScrollBar",
+                                                            "isEnabled": true
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QAbstractButton",
+                                                    "isEnabled": true,
+                                                    "isVisible": true
+                                                  },
+                                                  {
+                                                    "object_name": "qt_scrollarea_hcontainer",
+                                                    "class_name": "QWidget",
+                                                    "isEnabled": true,
+                                                    "layout_type": "QBoxLayout",
+                                                    "children": [
+                                                      {
+                                                        "object_name": "(unnamed)",
+                                                        "class_name": "QScrollBar",
+                                                        "isEnabled": true
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QPushButton",
+                                                "text": "Select All",
+                                                "isEnabled": true,
+                                                "isVisible": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QPushButton",
+                                                "text": "✓ Approve Selected",
+                                                "isEnabled": true,
+                                                "isVisible": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QPushButton",
+                                                "text": "✗ Reject Selected",
+                                                "isEnabled": true,
+                                                "isVisible": true
+                                              },
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QPushButton",
+                                                "text": "➡️ Send to Review",
+                                                "toolTip": "Send approved operations to Review tab for final confirmation",
+                                                "isVisible": true
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "object_name": "(unnamed)",
+                                            "class_name": "CollapsibleSection",
+                                            "title": "🔒 Snapshots & Metadata",
+                                            "isEnabled": true,
+                                            "isVisible": true,
+                                            "layout_type": "QVBoxLayout",
+                                            "children": [
+                                              {
+                                                "object_name": "(unnamed)",
+                                                "class_name": "QWidget",
+                                                "layout_type": "QVBoxLayout",
+                                                "children": [
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QLabel",
+                                                    "text": "No snapshots created"
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QPushButton",
+                                                    "text": "↩️ Restore Latest"
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QPushButton",
+                                                    "text": "✨ Enrich with TMDB/TVDB",
+                                                    "toolTip": "Query canonical metadata databases for official titles, years, episode info"
+                                                  },
+                                                  {
+                                                    "object_name": "(unnamed)",
+                                                    "class_name": "QLabel"
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "object_name": "qt_scrollarea_hcontainer",
+                                    "class_name": "QWidget",
+                                    "isEnabled": true,
+                                    "layout_type": "QBoxLayout",
+                                    "children": [
+                                      {
+                                        "object_name": "(unnamed)",
+                                        "class_name": "QScrollBar",
+                                        "isEnabled": true
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "object_name": "qt_scrollarea_vcontainer",
+                                    "class_name": "QWidget",
+                                    "isEnabled": true,
+                                    "layout_type": "QBoxLayout",
+                                    "children": [
+                                      {
+                                        "object_name": "(unnamed)",
+                                        "class_name": "QScrollBar",
+                                        "isEnabled": true
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "object_name": "qt_tabwidget_tabbar",
+                        "class_name": "QTabBar",
+                        "isEnabled": true,
+                        "isVisible": true,
+                        "currentIndex": 1,
+                        "children": [
+                          {
+                            "object_name": "(unnamed)",
+                            "class_name": "QAbstractButton",
+                            "toolTip": "Close Tab",
+                            "isEnabled": true,
+                            "isVisible": true
+                          },
+                          {
+                            "object_name": "(unnamed)",
+                            "class_name": "QAbstractButton",
+                            "toolTip": "Close Tab",
+                            "isEnabled": true,
+                            "isVisible": true
+                          },
+                          {
+                            "object_name": "ScrollLeftButton",
+                            "class_name": "QToolButton"
+                          },
+                          {
+                            "object_name": "ScrollRightButton",
+                            "class_name": "QToolButton"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "object_name": "(unnamed)",
+                    "class_name": "QWidget",
+                    "isEnabled": true,
+                    "isVisible": true,
+                    "layout_type": "QVBoxLayout",
+                    "children": [
+                      {
+                        "object_name": "(unnamed)",
+                        "class_name": "QWidget",
+                        "isEnabled": true,
+                        "isVisible": true,
+                        "layout_type": "QVBoxLayout",
+                        "children": [
+                          {
+                            "object_name": "(unnamed)",
+                            "class_name": "QLabel",
+                            "text": "Round-Up Explorer",
+                            "isEnabled": true,
+                            "isVisible": true
+                          },
+                          {
+                            "object_name": "(unnamed)",
+                            "class_name": "QLabel",
+                            "text": "📁 Horseshit",
+                            "isEnabled": true,
+                            "isVisible": true
+                          },
+                          {
+                            "object_name": "(unnamed)",
+                            "class_name": "QLabel",
+                            "text": "Step 2 of 8",
+                            "isEnabled": true,
+                            "isVisible": true
+                          }
+                        ]
+                      },
+                      {
+                        "object_name": "(unnamed)",
+                        "class_name": "QTreeWidget",
+                        "isEnabled": true,
+                        "isVisible": true,
+                        "children": [
+                          {
+                            "object_name": "qt_scrollarea_viewport",
+                            "class_name": "QWidget",
+                            "isEnabled": true,
+                            "isVisible": true
+                          },
+                          {
+                            "object_name": "qt_scrollarea_hcontainer",
+                            "class_name": "QWidget",
+                            "isEnabled": true,
+                            "layout_type": "QBoxLayout",
+                            "children": [
+                              {
+                                "object_name": "(unnamed)",
+                                "class_name": "QScrollBar",
+                                "isEnabled": true
+                              }
+                            ]
+                          },
+                          {
+                            "object_name": "qt_scrollarea_vcontainer",
+                            "class_name": "QWidget",
+                            "isEnabled": true,
+                            "layout_type": "QBoxLayout",
+                            "children": [
+                              {
+                                "object_name": "(unnamed)",
+                                "class_name": "QScrollBar",
+                                "isEnabled": true
+                              }
+                            ]
+                          },
+                          {
+                            "object_name": "(unnamed)",
+                            "class_name": "QHeaderView",
+                            "isEnabled": true,
+                            "children": [
+                              {
+                                "object_name": "qt_scrollarea_viewport",
+                                "class_name": "QWidget",
+                                "isEnabled": true
+                              },
+                              {
+                                "object_name": "qt_scrollarea_hcontainer",
+                                "class_name": "QWidget",
+                                "isEnabled": true,
+                                "layout_type": "QBoxLayout",
+                                "children": [
+                                  {
+                                    "object_name": "(unnamed)",
+                                    "class_name": "QScrollBar",
+                                    "isEnabled": true
+                                  }
+                                ]
+                              },
+                              {
+                                "object_name": "qt_scrollarea_vcontainer",
+                                "class_name": "QWidget",
+                                "isEnabled": true,
+                                "layout_type": "QBoxLayout",
+                                "children": [
+                                  {
+                                    "object_name": "(unnamed)",
+                                    "class_name": "QScrollBar",
+                                    "isEnabled": true
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "object_name": "qt_splithandle_",
+                    "class_name": "QSplitterHandle",
+                    "isEnabled": true
+                  },
+                  {
+                    "object_name": "qt_splithandle_",
+                    "class_name": "QSplitterHandle",
+                    "isEnabled": true,
+                    "isVisible": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "object_name": "(unnamed)",
+        "class_name": "QStatusBar",
+        "isEnabled": true,
+        "isVisible": true,
+        "layout_type": "QHBoxLayout",
+        "children": [
+          {
+            "object_name": "(unnamed)",
+            "class_name": "QSizeGrip",
+            "isEnabled": true,
+            "isVisible": true
+          },
+          {
+            "object_name": "(unnamed)",
+            "class_name": "QLabel",
+            "text": "Loaded Round-Up: Horseshit",
+            "isEnabled": true,
+            "isVisible": true
+          },
+          {
+            "object_name": "(unnamed)",
+            "class_name": "QLabel",
+            "text": "✓ Saved at 22:35:34",
+            "isEnabled": true,
+            "isVisible": true
+          }
+        ]
+      }
+    ]
+  }
+}

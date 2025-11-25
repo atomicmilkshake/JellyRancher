@@ -465,8 +465,8 @@ class JellyRancherClean(QMainWindow):
         widget = QWidget()
         layout = QVBoxLayout(widget)
         
-        # Step 3: LLM
-        llm_group = QGroupBox("Step 3: LLM Reorganization Proposal")
+        # Step 3: Analysis
+        llm_group = QGroupBox("Step 3: Analysis (Reorganization Proposal)")
         llm_layout = QVBoxLayout()
         
         # Model selection
@@ -1456,7 +1456,7 @@ class JellyRancherClean(QMainWindow):
         """Handle LLM analysis errors."""
         self.llm_output.append(f"\nERROR: {error_message}")
         self._show_error(
-            "LLM Analysis Error",
+            "Analysis Error",
             (
                 "An error occurred during LLM analysis:\n\n"
                 f"{error_message}\n\n"
@@ -1476,7 +1476,7 @@ class JellyRancherClean(QMainWindow):
             QMessageBox.warning(
                 self,
                 "No Detected Media",
-                "Please complete Step 3 (LLM Proposal) first.\n\n"
+                "Please complete Step 3 (Analysis) first.\n\n"
                 "The LLM must detect movies and TV shows before we can query metadata."
             )
             return
@@ -1649,7 +1649,7 @@ class JellyRancherClean(QMainWindow):
             QMessageBox.warning(self, "Missing Data", "Please complete Step 1 (Scan) first.")
             return
         if not self.llm_analysis:
-            QMessageBox.warning(self, "Missing Data", "Please complete Step 3 (LLM Proposal) first.")
+            QMessageBox.warning(self, "Missing Data", "Please complete Step 3 (Analysis) first.")
             return
         if not self.canonical_database:
             QMessageBox.warning(self, "Missing Data", "Please complete Step 4 (Build Metadata DB) first.")

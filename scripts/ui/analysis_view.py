@@ -284,7 +284,7 @@ class AnalysisView(QWidget):
         row1.addWidget(QLabel("Mode:"))
         self.mode_combo = QComboBox()
         self.mode_combo.addItems([
-            "🤖 LLM Analysis (Deep, Canonical, API Cost)",
+            "🤖 Analysis (Deep, LLM-Powered, API Cost)",
             "⚡ Regex Analysis (Instant, Free, Offline)",
             "🔀 Hybrid (Regex + LLM for Ambiguous)"
         ])
@@ -667,14 +667,14 @@ class AnalysisView(QWidget):
             return (0, 0, 0)
     
     def _update_token_estimate(self):
-        """Update the token estimate label with current prompt size."""
+        """Update the token estimate label with current prompt size and cost estimate."""
         if not hasattr(self, 'lbl_token_estimate'):
             return
             
         tokens, chars, folders = self._estimate_tokens()
         
         if tokens == 0:
-            self.lbl_token_estimate.setText("Token estimate: N/A (no data)")
+            self.lbl_token_estimate.setText("📊 Token estimate: N/A (no data)")
             self.lbl_token_estimate.setStyleSheet("color: #888; font-style: italic;")
             return
         
@@ -686,12 +686,20 @@ class AnalysisView(QWidget):
         else:
             size_str = f"{chars} bytes"
         
-        text = f"📊 ~{tokens:,} tokens ({size_str}) • {folders:,} folders"
+        # Estimate cost based on typical LLM pricing
+        # Input: ~$3/1M tokens, Output (~2K response): ~$15/1M tokens
+        input_cost = (tokens / 1_000_000) * 3.0
+        output_tokens_estimate = 2000
+        output_cost = (output_tokens_estimate / 1_000_000) * 15.0
+        total_cost = input_cost + output_cost
+        cost_str = f"~${total_cost:.3f}" if total_cost < 0.01 else f"~${total_cost:.2f}"
+        
+        text = f"📊 ~{tokens:,} tokens ({size_str}) • {folders:,} folders • {cost_str}"
         
         # Warning color if exceeds 100K tokens (large context)
         if tokens > 100_000:
             self.lbl_token_estimate.setStyleSheet("color: #ff6b6b; font-weight: bold;")
-            text += " ⚠️ Large prompt - chunking recommended"
+            text += " ⚠️ Chunking recommended"
         elif tokens > 50_000:
             self.lbl_token_estimate.setStyleSheet("color: #ffa500; font-weight: bold;")
             text += " ⚠️ Large prompt"
@@ -810,21 +818,28 @@ class AnalysisView(QWidget):
             human_layout.addWidget(folder_table)
             tab_widget.addTab(human_tab, "📋 Summary (Human-Readable)")
             
-            # Tab 2: Raw JSON Prompt
-            raw_tab = QWidget()
-            raw_layout = QVBoxLayout(raw_tab)
-            raw_layout.setContentsMargins(8, 8, 8, 8)
+            # Tab 2: Editable Prompt
+            edit_tab = QWidget()
+            edit_layout = QVBoxLayout(edit_tab)
+            edit_layout.setContentsMargins(8, 8, 8, 8)
             
-            raw_info = QLabel("Full JSON prompt that will be sent to the LLM:")
-            raw_layout.addWidget(raw_info)
+            edit_info = QLabel(
+                "<b>Edit the prompt before sending to LLM.</b><br>"
+                "You can add context, remove folders, or customize instructions."
+            )
+            edit_layout.addWidget(edit_info)
             
-            text = QTextEdit()
-            text.setReadOnly(True)
-            text.setPlainText(prompt)
-            text.setStyleSheet("font-family: 'Consolas', 'Courier New', monospace; font-size: 11px;")
-            raw_layout.addWidget(text)
+            # Editable text area
+            prompt_editor = QTextEdit()
+            prompt_editor.setPlainText(prompt)
+            prompt_editor.setStyleSheet("font-family: 'Consolas', 'Courier New', monospace; font-size: 11px;")
+            edit_layout.addWidget(prompt_editor)
             
-            tab_widget.addTab(raw_tab, "🔧 Raw JSON Prompt")
+            # Store editor reference for later use
+            dialog.prompt_editor = prompt_editor
+            dialog.original_prompt = prompt
+            
+            tab_widget.addTab(edit_tab, "✏️ Edit Prompt")
             
             layout.addWidget(tab_widget, 1)
             
@@ -832,11 +847,24 @@ class AnalysisView(QWidget):
             buttons_layout = QHBoxLayout()
             buttons_layout.setContentsMargins(8, 8, 8, 8)
             
-            btn_copy = QPushButton("📋 Copy Prompt")
-            btn_copy.clicked.connect(lambda: QApplication.clipboard().setText(prompt))
+            btn_copy = QPushButton("📋 Copy")
+            btn_copy.clicked.connect(lambda: QApplication.clipboard().setText(prompt_editor.toPlainText()))
             buttons_layout.addWidget(btn_copy)
             
+            btn_reset = QPushButton("🔄 Reset")
+            btn_reset.clicked.connect(lambda: prompt_editor.setPlainText(dialog.original_prompt))
+            buttons_layout.addWidget(btn_reset)
+            
             buttons_layout.addStretch()
+            
+            # Use edited prompt button
+            btn_use = QPushButton("✓ Use This Prompt")
+            btn_use.setStyleSheet("background: #4CAF50; color: white; font-weight: bold; padding: 6px 12px;")
+            def use_edited_prompt():
+                self._edited_prompt = prompt_editor.toPlainText()
+                dialog.accept()
+            btn_use.clicked.connect(use_edited_prompt)
+            buttons_layout.addWidget(btn_use)
             
             btn_close = QPushButton("Close")
             btn_close.clicked.connect(dialog.close)

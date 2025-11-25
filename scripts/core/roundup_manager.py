@@ -109,7 +109,7 @@ class RoundUp:
         step_names = {
             1: "Scan Folders",
             2: "Structure Summary",
-            3: "LLM Analysis",
+            3: "Analysis",
             4: "Canonical Database",
             5: "Review Table",
             6: "Execute Operations",
