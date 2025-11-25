@@ -2,6 +2,8 @@
 Unified logging module for JellyRancher application.
 Provides comprehensive, unified logging to a SINGLE master log file.
 All modules log to the same master log with proper categorization.
+
+Includes stdout/stderr capture so ALL console output goes to the log.
 """
 
 import logging
@@ -11,13 +13,69 @@ import sys
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TextIO
 import subprocess
 import platform
 
 # Global master logger instance
 _master_logger = None
 _master_logger_lock = threading.Lock()
+
+
+class LoggingStream:
+    """
+    A stream wrapper that sends writes to both a logger and the original stream.
+    This ensures all print() statements are captured in the log file.
+    """
+    
+    def __init__(self, logger: logging.Logger, level: int, original_stream: TextIO, prefix: str = ""):
+        """
+        Initialize the logging stream.
+        
+        Args:
+            logger: Logger to write to
+            level: Logging level (INFO for stdout, WARNING for stderr)
+            original_stream: Original sys.stdout or sys.stderr
+            prefix: Optional prefix for log messages (e.g., "[STDOUT]")
+        """
+        self.logger = logger
+        self.level = level
+        self.original_stream = original_stream
+        self.prefix = prefix
+        self._buffer = ""
+    
+    def write(self, message: str):
+        """Write message to both logger and original stream."""
+        # Always write to original stream for console visibility
+        if self.original_stream:
+            self.original_stream.write(message)
+        
+        # Buffer and log complete lines
+        if message:
+            self._buffer += message
+            while '\n' in self._buffer:
+                line, self._buffer = self._buffer.split('\n', 1)
+                if line.strip():  # Don't log empty lines
+                    log_msg = f"{self.prefix}{line}" if self.prefix else line
+                    self.logger.log(self.level, log_msg)
+    
+    def flush(self):
+        """Flush the stream."""
+        if self.original_stream:
+            self.original_stream.flush()
+        # Flush any remaining buffer content
+        if self._buffer.strip():
+            log_msg = f"{self.prefix}{self._buffer}" if self.prefix else self._buffer
+            self.logger.log(self.level, log_msg)
+            self._buffer = ""
+    
+    def isatty(self):
+        """Check if stream is a TTY."""
+        return self.original_stream.isatty() if self.original_stream else False
+    
+    def fileno(self):
+        """Return file descriptor."""
+        return self.original_stream.fileno() if self.original_stream else -1
 
 class MasterLogger:
     """
@@ -116,6 +174,44 @@ class MasterLogger:
                 subprocess.Popen(['xdg-open', str(self.log_file)])
         except Exception as e:
             self.logger.warning(f"Could not open master log: {e}")
+    
+    def capture_stdout_stderr(self):
+        """
+        Redirect stdout and stderr to the logger.
+        All print() statements will now appear in the log file.
+        
+        This should be called once during application startup.
+        """
+        # Create a child logger for captured output
+        capture_logger = self.get_child_logger("console")
+        
+        # Store original streams
+        self._original_stdout = sys.stdout
+        self._original_stderr = sys.stderr
+        
+        # Replace with logging streams
+        sys.stdout = LoggingStream(
+            capture_logger, 
+            logging.INFO, 
+            self._original_stdout,
+            "[PRINT] "
+        )
+        sys.stderr = LoggingStream(
+            capture_logger, 
+            logging.WARNING, 
+            self._original_stderr,
+            "[STDERR] "
+        )
+        
+        self.logger.info("Console output capture enabled - all print() statements will appear in log")
+    
+    def restore_stdout_stderr(self):
+        """Restore original stdout and stderr."""
+        if hasattr(self, '_original_stdout') and self._original_stdout:
+            sys.stdout = self._original_stdout
+        if hasattr(self, '_original_stderr') and self._original_stderr:
+            sys.stderr = self._original_stderr
+        self.logger.info("Console output capture disabled")
 
 class ProjectLogger:
     """

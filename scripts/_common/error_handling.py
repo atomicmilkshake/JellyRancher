@@ -95,14 +95,10 @@ def safe_worker(halt_on_error: bool = True):
                 error_msg = f"{type(e).__name__}: {str(e)}"
                 full_tb = traceback.format_exc()
                 
-                # Log with full traceback
+                # Log with full traceback (will also appear in console via LoggingStream)
                 logger.error(
-                    f"Worker {self.__class__.__name__} failed:\n{full_tb}"
+                    f"🛑 WORKER ERROR in {self.__class__.__name__}:\n{full_tb}"
                 )
-                
-                # Print to console for immediate visibility
-                print(f"\n🛑 WORKER ERROR in {self.__class__.__name__}:", file=__import__('sys').stderr)
-                print(full_tb, file=__import__('sys').stderr)
                 
                 # Emit error signal if available
                 if hasattr(self, 'error') and callable(getattr(self.error, 'emit', None)):

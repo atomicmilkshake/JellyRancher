@@ -1437,6 +1437,8 @@ def main():
     # Setup logging
     try:
         master_logger = MasterLogger()
+        # Capture all print() statements to the log file
+        master_logger.capture_stdout_stderr()
     except Exception as e:
         print(f"CRITICAL: Failed to initialize logging: {e}", file=sys.stderr)
         sys.exit(1)

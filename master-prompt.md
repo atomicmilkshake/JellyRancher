@@ -177,6 +177,28 @@ Example: `search "find TMDB metadata for movies"`
 - Always include `else` clauses for "can't happen" cases
 - Raise error or log warning if reached
 
+**12. Use Logger, Not Print**
+- **NEVER** use `print()` for status messages, errors, or debugging
+- **ALWAYS** use `logger.info()`, `logger.warning()`, `logger.error()`, or `logger.debug()`
+- All console output is captured to the master log file via stdout/stderr redirect
+- If you see existing `print()` statements, replace them with logger calls when you modify that code
+
+```python
+# BAD - print bypasses structured logging
+print(f"Processing {filename}")
+print(f"Error: {e}", file=sys.stderr)
+
+# GOOD - logger provides timestamps, levels, and file output
+logger.info(f"Processing {filename}")
+logger.error(f"Error: {e}")
+```
+
+**Logger Setup (add to any module that needs logging):**
+```python
+import logging
+logger = logging.getLogger(__name__)
+```
+
 ---
 
 ## **IV. GUI DEVELOPMENT (Blind Coding Context)**
