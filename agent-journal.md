@@ -1751,3 +1751,73 @@ User requested complete removal of legacy database references: "Perhaps if you l
 5072dca refactor: Remove legacy media_library.db references
 5698b06 refactor: Complete removal of legacy media_library.db from active code
 ```
+## PHASE 46: Grok Evaluation Audit & SubtitlesView Implementation
+**Date:** 2025-11-25 09:47:00
+**Goal:** Conduct comprehensive audit of Grok's external evaluation claims, implement missing functionality, fix failing tests.
+### Context
+User received evaluation from Grok (external LLM) claiming ~80% alignment with original plan but with significant gaps in Steps 8-9 (subtitles). Audit required to verify claims against actual codebase.
+### Grok's Claims vs Reality - Complete Audit
+| Claim | Verdict | Evidence |
+|-------|---------|----------|
+| Steps 1-7 fully implemented | **CORRECT** | FileScanner (647 lines), TransactionManager (837 lines), all UI views complete |
+| Steps 8-9 are placeholder | **PARTIALLY WRONG** | UI placeholder but backends complete (~1,700 lines across 4 modules) |
+| Rate limiting partial | **INCORRECT** | `_rate_limit()` in media_metadata_lookup.py, `batch_delay` in subtitles |
+| OpenSubtitles API degraded | **MITIGATED** | Already handles with batch_delay, dry-run, embedded credentials |
+| Jellyfin compliance patterns | **CORRECT** | SXXEXX, .en.srt, .forced.srt patterns fully implemented |
+| Design fundamentally sound | **CORRECT** | Modular, tested (238 tests), complete workflow |
+### Steps 8-9 Backend Discovery
+Grok missed that **backends are fully implemented** - only UI was placeholder:
+| Module | Lines | Status |
+|--------|-------|--------|
+| `subtitle_coverage_analyzer.py` | 589 | ffprobe, language detection, JSON/CSV export, CLI |
+| `subtitle_downloader.py` | 577 | subliminal/OpenSubtitles, batch processing, retry logic |
+| `subtitle_backend.py` | 517 | High-level wrapper, progress callbacks, audit, rollback |
+| `scan_subtitles.py` | 329 | Alternative scanner with orphan detection |
+| `jellyfin_ui.py:SubtitlesTab` | ~200 | **Already wired to SubtitleBackend** (legacy UI) |
+### Analysis Tab End-to-End Verification
+Traced complete workflow:
+```
+ScanView → results_ready signal → ScanResultsView
+    → send_to_analysis(filtered_files, filter_config) → AnalysisView
+        → _use_filtered_data() or _load_scan_data()
+        → _run_analysis() [LLM/Regex/Hybrid]
+        → ExtrapolationEngine.extrapolate() → file-level operations
+        → _populate_actions_table() → color-coded UI
+    → send_to_review(operations) → ReviewView
+        → set_preloaded_operations() → _populate_table()
+    → operations_ready(plan_id) → ExecutionView
+        → TransactionManager.execute() → MD5 verification → Rollback capability
+```
+All signal/slot connections verified in `jelly_rancher_studio.py` lines 885-1131.
+### Implementation: Wire SubtitlesView to Backends
+Replaced 276-line placeholder with 450-line full implementation:
+**New Features:**
+- `CoverageWorker` - Background thread for SubtitleCoverageAnalyzer
+- `DownloadWorker` - Background thread for SubtitleDownloader
+- Round-Up integration (loads source folders from roundup.config)
+- Language filter dropdown (eng, spa, fra, deu, por, all)
+- Progress bar with real-time updates
+- Missing files list with tooltips
+- Batch size/delay controls for rate limiting
+- Dry-run mode checkbox (default: enabled)
+- Subliminal availability warning if not installed
+**Integration Points:**
+- `SubtitleCoverageAnalyzer.analyze_folder()` for Step 8
+- `SubtitleDownloader.download_subtitles()` for Step 9
+- `RoundUpManager` for source folder discovery
+### Test Fixes
+Fixed 2 failing tests in `test_llm_structure_analyzer.py`:
+1. `test_builds_prompt_with_structure` - Changed assertion from "JELLYFIN REQUIREMENTS" to "JELLYFIN NAMING REQUIREMENTS" (prompt format changed with tree renderer)
+2. `test_handles_path_objects_in_structure` - Updated structure format to match tree renderer expectations
+### Test Results
+**Before:** 236/238 tests passing (2 failures)
+**After:** 238/238 tests passing (100%)
+### Files Modified
+| File | Changes |
+|------|---------|
+| scripts/ui/subtitles_view.py | Complete rewrite: +450 lines, full backend integration |
+| tests/test_llm_structure_analyzer.py | Fixed 2 test assertions for tree format prompts |
+### Git Commit
+```
+29e4e29 feat(subtitles): Wire SubtitlesView to backend, fix tests
+```
