@@ -7,6 +7,9 @@ import json
 from pathlib import Path
 from typing import Dict, List, Any
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 def get_project_root() -> Path:
     """Gets the project root directory (assumed to be parent of 'scripts')."""
@@ -149,37 +152,37 @@ if __name__ == "__main__":
         import io
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
-    print("Configuration Loader Test")
-    print("=" * 60)
+    logger.info("Configuration Loader Test")
+    logger.info("=" * 60)
 
     try:
         config = load_config()
-        print("[OK] Configuration loaded successfully")
-        print(f"\nProject Root: {get_project_root()}")
-        print(f"\nTV Cache Dir: {get_tv_cache_dir()}")
-        print(f"Reports Dir: {get_reports_dir()}")
-        print(f"Audit Logs Dir: {get_audit_logs_dir()}")
+        logger.info("[OK] Configuration loaded successfully")
+        logger.info(f"\nProject Root: {get_project_root()}")
+        logger.info(f"\nTV Cache Dir: {get_tv_cache_dir()}")
+        logger.info(f"Reports Dir: {get_reports_dir()}")
+        logger.info(f"Audit Logs Dir: {get_audit_logs_dir()}")
 
-        print("\nMovie Paths:")
+        logger.info("\nMovie Paths:")
         for path in get_media_paths('movies'):
-            print(f"  - {path}")
+            logger.info(f"  - {path}")
 
-        print("\nTV Show Paths:")
+        logger.info("\nTV Show Paths:")
         for path in get_media_paths('tv_shows'):
-            print(f"  - {path}")
+            logger.info(f"  - {path}")
 
-        print("\nExecutor Paths:")
-        print(f"  - Safe Executor: {get_executor_path('safe_executor')}")
-        print(f"  - Batch Processor: {get_executor_path('batch_processor')}")
+        logger.info("\nExecutor Paths:")
+        logger.info(f"  - Safe Executor: {get_executor_path('safe_executor')}")
+        logger.info(f"  - Batch Processor: {get_executor_path('batch_processor')}")
 
-        print("\nOpenMemory Config:")
+        logger.info("\nOpenMemory Config:")
         om_config = get_openmemory_config()
-        print(f"  - Backend Dir: {om_config['backend_dir']}")
-        print(f"  - URL: {om_config['url']}")
+        logger.info(f"  - Backend Dir: {om_config['backend_dir']}")
+        logger.info(f"  - URL: {om_config['url']}")
 
-        print("\n[OK] All configuration tests passed!")
+        logger.info("\n[OK] All configuration tests passed!")
 
     except Exception as e:
-        print(f"\n[ERROR] Configuration test failed: {e}")
+        logger.info(f"\n[ERROR] Configuration test failed: {e}")
         import traceback
         traceback.print_exc()

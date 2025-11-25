@@ -101,7 +101,7 @@ class SnapshotManager:
         if console:
             console.print(f"📂 Scanning: [cyan]{root_path}[/cyan]")
         else:
-            print(f"📂 Scanning: {root_path}")
+            logger.info(f"📂 Scanning: {root_path}")
         
         # Recursively walk directory
         for file_path in root_path.rglob('*'):
@@ -138,7 +138,7 @@ class SnapshotManager:
                         if console:
                             console.print(f"   📊 Scanned [green]{len(media_files)}[/green] media files...")
                         else:
-                            print(f"   Scanned {len(media_files)} media files...")
+                            logger.info(f"   Scanned {len(media_files)} media files...")
                 
                 elif include_subtitles and SnapshotManager._is_subtitle_file(file_path):
                     file_info = {
@@ -249,18 +249,18 @@ class SnapshotManager:
         if not snapshot_file.exists():
             raise FileNotFoundError(f"Snapshot not found: {snapshot_id}")
         
-        print(f"\n🔄 Restoring snapshot: {snapshot_id}")
+        logger.info(f"\n🔄 Restoring snapshot: {snapshot_id}")
         if dry_run:
-            print("   [DRY RUN MODE - No changes will be made]")
+            logger.info("   [DRY RUN MODE - No changes will be made]")
         
         # Load snapshot
         with open(snapshot_file, 'r', encoding='utf-8') as f:
             snapshot = json.load(f)
         
-        print(f"   Timestamp: {snapshot['timestamp']}")
-        print(f"   Type: {snapshot['type']}")
-        print(f"   Media files: {snapshot['total_media']}")
-        print(f"   Subtitle files: {snapshot['total_subtitles']}")
+        logger.info(f"   Timestamp: {snapshot['timestamp']}")
+        logger.info(f"   Type: {snapshot['type']}")
+        logger.info(f"   Media files: {snapshot['total_media']}")
+        logger.info(f"   Subtitle files: {snapshot['total_subtitles']}")
         
         # Restoration logic
         # Note: Full restoration requires tracking current state vs. snapshot state
@@ -290,14 +290,14 @@ class SnapshotManager:
             except Exception as e:
                 errors.append(f"Error verifying {file_path}: {e}")
         
-        print(f"\n✅ Snapshot verification complete:")
-        print(f"   Verified files: {restored_files}/{len(all_files)}")
+        logger.info(f"\n✅ Snapshot verification complete:")
+        logger.info(f"   Verified files: {restored_files}/{len(all_files)}")
         if errors:
-            print(f"   ⚠️  Errors: {len(errors)}")
+            logger.info(f"   ⚠️  Errors: {len(errors)}")
             for error in errors[:10]:  # Show first 10 errors
-                print(f"      - {error}")
+                logger.info(f"      - {error}")
             if len(errors) > 10:
-                print(f"      ... and {len(errors) - 10} more errors")
+                logger.info(f"      ... and {len(errors) - 10} more errors")
         
         return {
             'restored_files': restored_files,
@@ -333,7 +333,7 @@ class SnapshotManager:
                         'total_subtitles': snapshot['total_subtitles']
                     })
             except Exception as e:
-                print(f"⚠️  Warning: Could not load {snapshot_file.name}: {e}")
+                logger.warning(f"⚠️  Warning: Could not load {snapshot_file.name}: {e}")
         
         return snapshots
     
@@ -347,10 +347,10 @@ class SnapshotManager:
         
         if len(snapshot_files) > SnapshotManager.MAX_SNAPSHOTS:
             to_delete = snapshot_files[SnapshotManager.MAX_SNAPSHOTS:]
-            print(f"🗑️  Cleaning up {len(to_delete)} old snapshots...")
+            logger.info(f"🗑️  Cleaning up {len(to_delete)} old snapshots...")
             for snapshot_file in to_delete:
                 snapshot_file.unlink()
-                print(f"   Deleted: {snapshot_file.name}")
+                logger.info(f"   Deleted: {snapshot_file.name}")
     
     @staticmethod
     def delete_snapshot(snapshot_id: str) -> bool:
@@ -367,7 +367,7 @@ class SnapshotManager:
         
         if snapshot_file.exists():
             snapshot_file.unlink()
-            print(f"✅ Deleted snapshot: {snapshot_id}")
+            logger.info(f"✅ Deleted snapshot: {snapshot_id}")
             return True
         
         return False
@@ -378,56 +378,56 @@ if __name__ == "__main__":
     import sys
     
     if len(sys.argv) < 2:
-        print("Usage: python snapshot_manager.py <command> [args]")
-        print("Commands:")
-        print("  create <media_root> [type]  - Create snapshot")
-        print("  restore <snapshot_id>       - Restore snapshot")
-        print("  list                        - List all snapshots")
-        print("  delete <snapshot_id>        - Delete snapshot")
-        print("\nExample:")
-        print("  python snapshot_manager.py create 'C:\\Jellyfin\\#MEDIA\\Movies' pre_organization")
+        logger.info("Usage: python snapshot_manager.py <command> [args]")
+        logger.info("Commands:")
+        logger.info("  create <media_root> [type]  - Create snapshot")
+        logger.info("  restore <snapshot_id>       - Restore snapshot")
+        logger.info("  list                        - List all snapshots")
+        logger.info("  delete <snapshot_id>        - Delete snapshot")
+        logger.info("\nExample:")
+        logger.info("  python snapshot_manager.py create 'C:\\Jellyfin\\#MEDIA\\Movies' pre_organization")
         sys.exit(1)
     
     command = sys.argv[1]
     
     if command == "create":
         if len(sys.argv) < 3:
-            print("Usage: python snapshot_manager.py create <media_root> [type]")
+            logger.info("Usage: python snapshot_manager.py create <media_root> [type]")
             sys.exit(1)
         media_root = sys.argv[2]
         snapshot_type = sys.argv[3] if len(sys.argv) > 3 else "manual"
         snapshot_id = SnapshotManager.create_snapshot(media_root, snapshot_type)
-        print(f"\n✅ Created snapshot: {snapshot_id}")
+        logger.info(f"\n✅ Created snapshot: {snapshot_id}")
     
     elif command == "restore":
         if len(sys.argv) < 3:
-            print("Usage: python snapshot_manager.py restore <snapshot_id>")
+            logger.info("Usage: python snapshot_manager.py restore <snapshot_id>")
             sys.exit(1)
         snapshot_id = sys.argv[2]
         result = SnapshotManager.restore_snapshot(snapshot_id)
-        print(f"\n✅ Restore complete:")
-        print(f"   Restored files: {result['restored_files']}")
-        print(f"   Errors: {len(result['errors'])}")
+        logger.info(f"\n✅ Restore complete:")
+        logger.info(f"   Restored files: {result['restored_files']}")
+        logger.info(f"   Errors: {len(result['errors'])}")
     
     elif command == "list":
         snapshots = SnapshotManager.list_snapshots()
-        print(f"\n📸 Available snapshots ({len(snapshots)}):")
+        logger.info(f"\n📸 Available snapshots ({len(snapshots)}):")
         for snapshot in snapshots:
-            print(f"   {snapshot['id']}")
-            print(f"      Timestamp: {snapshot['timestamp']}")
-            print(f"      Type: {snapshot['type']}")
-            print(f"      Media: {snapshot['total_media']}, Subtitles: {snapshot['total_subtitles']}")
+            logger.info(f"   {snapshot['id']}")
+            logger.info(f"      Timestamp: {snapshot['timestamp']}")
+            logger.info(f"      Type: {snapshot['type']}")
+            logger.info(f"      Media: {snapshot['total_media']}, Subtitles: {snapshot['total_subtitles']}")
     
     elif command == "delete":
         if len(sys.argv) < 3:
-            print("Usage: python snapshot_manager.py delete <snapshot_id>")
+            logger.info("Usage: python snapshot_manager.py delete <snapshot_id>")
             sys.exit(1)
         snapshot_id = sys.argv[2]
         if SnapshotManager.delete_snapshot(snapshot_id):
-            print(f"✅ Deleted: {snapshot_id}")
+            logger.info(f"✅ Deleted: {snapshot_id}")
         else:
-            print(f"❌ Not found: {snapshot_id}")
+            logger.error(f"❌ Not found: {snapshot_id}")
     
     else:
-        print(f"❌ Unknown command: {command}")
+        logger.error(f"❌ Unknown command: {command}")
         sys.exit(1)

@@ -4,7 +4,7 @@ Unit tests for TransactionManager.
 Tests cover:
 - Database initialization
 - Operation logging
-- MD5 calculation and verification
+- BLAKE3 hash calculation and verification (migrated from MD5 in Phase 48-A)
 - Transaction completion and failure
 - Batch status tracking
 - Rollback functionality
@@ -12,7 +12,6 @@ Tests cover:
 - Error handling
 """
 
-import hashlib
 import os
 import shutil
 import sqlite3
@@ -20,6 +19,15 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
+
+# BLAKE3 for hash verification in tests
+try:
+    import blake3  # type: ignore
+except ImportError:
+    import subprocess
+    import sys
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "blake3"])
+    import blake3  # type: ignore
 
 # Add parent directory to path for imports
 import sys
@@ -46,17 +54,17 @@ class TestFileHasher(unittest.TestCase):
         self.test_content = b"Hello, World! This is test content."
         self.test_file.write_bytes(self.test_content)
 
-        # Calculate expected MD5
-        self.expected_md5 = hashlib.md5(self.test_content).hexdigest()
+        # Calculate expected BLAKE3 hash (Phase 48-A: migrated from MD5)
+        self.expected_hash = blake3.blake3(self.test_content).hexdigest()
 
     def tearDown(self):
         """Clean up temporary directory."""
         shutil.rmtree(self.test_dir)
 
     def test_calculate_md5(self):
-        """Test MD5 calculation returns correct hash."""
-        md5 = FileHasher.calculate_md5(self.test_file)
-        self.assertEqual(md5, self.expected_md5)
+        """Test hash calculation returns correct BLAKE3 hash (backward compat alias)."""
+        file_hash = FileHasher.calculate_md5(self.test_file)
+        self.assertEqual(file_hash, self.expected_hash)
 
     def test_calculate_md5_nonexistent_file(self):
         """Test MD5 calculation raises FileNotFoundError for missing file."""
@@ -69,8 +77,8 @@ class TestFileHasher(unittest.TestCase):
             FileHasher.calculate_md5(self.test_dir)
 
     def test_verify_md5_success(self):
-        """Test MD5 verification succeeds with correct hash."""
-        result = FileHasher.verify_md5(self.test_file, self.expected_md5)
+        """Test hash verification succeeds with correct BLAKE3 hash (backward compat alias)."""
+        result = FileHasher.verify_md5(self.test_file, self.expected_hash)
         self.assertTrue(result)
 
     def test_verify_md5_failure(self):

@@ -193,10 +193,10 @@ class ExecutionWorker(QThread):
                         if self.jellyfin_client:
                             self.modified_paths.add(str(dest_path.parent))
 
-                        # Calculate destination MD5 and complete transaction
-                        dest_md5 = FileHasher.calculate_md5(dest_path)
-                        tm.complete_operation(tx_id, dest_md5)
-                        self.log_message.emit(f"  ✓ MD5 verified: {dest_md5[:16]}...")
+                        # Calculate destination hash (BLAKE3) and complete transaction
+                        dest_hash = FileHasher.calculate_hash(dest_path)
+                        tm.complete_operation(tx_id, dest_hash)
+                        self.log_message.emit(f"  ✓ Hash verified: {dest_hash[:16]}...")
 
                         # Update database
                         cursor.execute('''
@@ -204,7 +204,7 @@ class ExecutionWorker(QThread):
                             SET executed = 1, execution_timestamp = ?,
                                 current_md5 = ?, proposed_md5 = ?
                             WHERE id = ?
-                        ''', (datetime.now().isoformat(), dest_md5, dest_md5, op_id))
+                        ''', (datetime.now().isoformat(), dest_hash, dest_hash, op_id))
 
                         success_count += 1
                         self.log_message.emit(f"  ✓ Operation complete\n")

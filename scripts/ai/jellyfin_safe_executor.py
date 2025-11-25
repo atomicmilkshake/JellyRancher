@@ -2,7 +2,6 @@ import json
 import os
 import shutil
 import logging
-import hashlib
 import zlib
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
@@ -64,7 +63,7 @@ class JellyfinSafeExecutor:
 
     def calculate_checksum(self, file_path, quick_mode=False):
         """Calculate BLAKE3 checksum for file integrity (fast and secure).
-        
+
         Args:
             file_path: Path to the file
             quick_mode: If True, use size+mtime for large files (>100MB) for speed
@@ -73,13 +72,13 @@ class JellyfinSafeExecutor:
         try:
             file_size = file_path.stat().st_size
             file_mtime = file_path.stat().st_mtime
-            
+
             # For large files (>100MB), use quick mode if enabled
             if quick_mode and file_size > 100 * 1024 * 1024:
-                # Use size + mtime as a quick integrity check
+                # Use size + mtime as a quick integrity check (BLAKE3 for consistency)
                 quick_hash = f"{file_size}_{file_mtime}"
-                return f"quick_{hashlib.md5(quick_hash.encode()).hexdigest()}"
-            
+                return f"quick_{blake3.blake3(quick_hash.encode()).hexdigest()}"
+
             # Full BLAKE3 checksum for smaller files
             hasher = blake3.blake3()
             with open(file_path, 'rb') as f:

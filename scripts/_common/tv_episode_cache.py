@@ -157,7 +157,7 @@ class TVEpisodeCache:
         filmography_path = self.cache_dir / "looney_tunes_full_filmography.json"
 
         if not filmography_path.exists():
-            print(f"❌ Looney Tunes filmography file not found: {filmography_path}")
+            logger.error(f"❌ Looney Tunes filmography file not found: {filmography_path}")
             return None
 
         try:
@@ -208,7 +208,7 @@ class TVEpisodeCache:
             return episode_data
 
         except (json.JSONDecodeError, KeyError, FileNotFoundError) as e:
-            print(f"❌ Error loading Looney Tunes filmography: {e}")
+            logger.error(f"❌ Error loading Looney Tunes filmography: {e}")
             return None
 
     def _cached_get(self, url: str, headers: dict = None, timeout: int = 10) -> requests.Response:
@@ -216,7 +216,7 @@ class TVEpisodeCache:
         # Check cache first
         cached_content = self._get_cached_html(url)
         if cached_content is not None:
-            print(f"📋 Using cached content for: {url}")
+            logger.info(f"📋 Using cached content for: {url}")
             # Create a mock response object
             class MockResponse:
                 def __init__(self, content, is_json=False):
@@ -244,7 +244,7 @@ class TVEpisodeCache:
             return MockResponse(cached_content, is_json)
 
         # Not cached, make real request
-        print(f"🌐 Fetching: {url}")
+        logger.info(f"🌐 Fetching: {url}")
         response = requests.get(url, headers=headers, timeout=timeout)
         response.raise_for_status()
 
@@ -261,7 +261,7 @@ class TVEpisodeCache:
     def fetch_wikipedia_episodes(self, show_title: str) -> Optional[Dict[str, Any]]:
         """Fetch episode data from Wikipedia with intelligent search variations."""
         # Add delay to avoid hammering Wikipedia (11 seconds between requests)
-        print("⏳ Respecting Wikipedia - waiting 11 seconds before fetch...")
+        logger.info("⏳ Respecting Wikipedia - waiting 11 seconds before fetch...")
         time.sleep(11)
 
         try:
@@ -272,22 +272,22 @@ class TVEpisodeCache:
 
             # Generate multiple search variations
             search_variations = self._generate_search_variations(show_title)
-            print(f"🔍 Generated {len(search_variations)} search variations for '{show_title}':")
+            logger.info(f"🔍 Generated {len(search_variations)} search variations for '{show_title}':")
             for i, var in enumerate(search_variations[:5], 1):  # Show first 5
-                print(f"   {i}. '{var}'")
+                logger.info(f"   {i}. '{var}'")
             if len(search_variations) > 5:
-                print(f"   ... and {len(search_variations) - 5} more")
+                logger.info(f"   ... and {len(search_variations) - 5} more")
 
             # Try each variation
             for variation in search_variations:
-                print(f"\n🔍 Trying variation: '{variation}'")
+                logger.info(f"\n🔍 Trying variation: '{variation}'")
 
                 # Try different search suffixes
                 suffixes = [' episodes', ' (TV series)', '']
                 for suffix in suffixes:
                     search_term = variation + suffix
                     search_url = f"https://en.wikipedia.org/w/api.php?action=opensearch&search={quote(search_term)}&limit=5&format=json"
-                    print(f"   📡 Searching: {search_url}")
+                    logger.info(f"   📡 Searching: {search_url}")
 
                     try:
                         response = self._cached_get(search_url, headers=headers, timeout=10)
@@ -298,36 +298,36 @@ class TVEpisodeCache:
                             # Check each result
                             for i, result_url in enumerate(search_results[3]):
                                 result_title = search_results[1][i] if i < len(search_results[1]) else "Unknown"
-                                print(f"   📋 Result {i+1}: '{result_title}' -> {result_url}")
+                                logger.info(f"   📋 Result {i+1}: '{result_title}' -> {result_url}")
 
                                 # Check if this looks like an episode page
                                 if self._is_episode_page_url(result_url, variation):
-                                    print(f"   ✅ Found potential episode page: {result_url}")
+                                    logger.info(f"   ✅ Found potential episode page: {result_url}")
                                     page_url = result_url
                                     break
                                 # Also accept main pages that closely match the show name
                                 elif self._is_main_page_url(result_url, variation):
-                                    print(f"   ✅ Found main page for show: {result_url}")
+                                    logger.info(f"   ✅ Found main page for show: {result_url}")
                                     page_url = result_url
                                     break
                             else:
                                 continue
                             break  # Found a good result
                         else:
-                            print(f"   📋 No results for '{search_term}'")
+                            logger.info(f"   📋 No results for '{search_term}'")
 
                     except Exception as e:
-                        print(f"   ❌ Search failed for '{search_term}': {e}")
+                        logger.info(f"   ❌ Search failed for '{search_term}': {e}")
                         continue
 
                 if 'page_url' in locals():
                     break  # We found a page URL
 
             if 'page_url' not in locals():
-                print(f"❌ No suitable Wikipedia page found for '{show_title}' after trying all variations")
+                logger.error(f"❌ No suitable Wikipedia page found for '{show_title}' after trying all variations")
                 return None
 
-            print(f"📖 Found Wikipedia page: {page_url}")
+            logger.info(f"📖 Found Wikipedia page: {page_url}")
 
             # Check if this is an episode list page
             if 'episodes' not in page_url.lower():
@@ -391,32 +391,32 @@ class TVEpisodeCache:
                         # For Looney Tunes, only accept links that mention the show specifically
                         show_specific = any(word in link_text.lower() for word in ['looney', 'tunes', 'toon'])
                         if not show_specific:
-                            print(f"⚠️  Skipping irrelevant episode list link for anthology show: {link_text}")
+                            logger.warning(f"⚠️  Skipping irrelevant episode list link for anthology show: {link_text}")
                             episode_link = None
                     
                     if episode_link:
-                        print(f"📖 Found episode list page: {episode_url}")
+                        logger.info(f"📖 Found episode list page: {episode_url}")
                         page_url = episode_url
                         response = requests.get(page_url, headers=headers, timeout=10)
                         response.raise_for_status()
                         soup = BeautifulSoup(response.content, 'lxml')
                     else:
-                        print(f"⚠️  No relevant episode list link found, using main page")
+                        logger.warning(f"⚠️  No relevant episode list link found, using main page")
                 else:
-                    print(f"⚠️  No episode list link found, using main page")
+                    logger.warning(f"⚠️  No episode list link found, using main page")
                     # For shows like Stranger Things, try searching for season-specific pages
                     season_links = soup.find_all('a', href=re.compile(r'/wiki/.*season.*\d+', re.IGNORECASE))
                     if season_links:
                         # Try the first season page
                         season_url = 'https://en.wikipedia.org' + season_links[0].get('href')
-                        print(f"📖 Trying season page: {season_url}")
+                        logger.info(f"📖 Trying season page: {season_url}")
                         try:
                             response = self._cached_get(season_url, headers=headers, timeout=10)
                             response.raise_for_status()
                             soup = BeautifulSoup(response.content, 'lxml')
                             page_url = season_url
                         except:
-                            print(f"⚠️  Season page failed, using main page")
+                            logger.warning(f"⚠️  Season page failed, using main page")
 
             # Fetch the page content (if not already fetched)
             if 'soup' not in locals():
@@ -431,11 +431,11 @@ class TVEpisodeCache:
                 episode_data['wikipedia_url'] = page_url
                 return episode_data
 
-            print(f"❌ Could not parse episode data from Wikipedia page")
+            logger.error(f"❌ Could not parse episode data from Wikipedia page")
             return None
 
         except Exception as e:
-            print(f"❌ Error fetching Wikipedia data for '{show_title}': {e}")
+            logger.error(f"❌ Error fetching Wikipedia data for '{show_title}': {e}")
             return None
 
     def _parse_wikipedia_episodes(self, soup: BeautifulSoup, show_title: str) -> Optional[Dict[str, Any]]:
@@ -450,35 +450,35 @@ class TVEpisodeCache:
         episodes_found = self._parse_standard_tables_enhanced(soup, episode_data)
         if episodes_found > 0:
             total_episodes = sum(len(season['episodes']) for season in episode_data['seasons'].values())
-            print(f"✅ Parsed {total_episodes} episodes across {len(episode_data['seasons'])} seasons")
+            logger.info(f"✅ Parsed {total_episodes} episodes across {len(episode_data['seasons'])} seasons")
             return episode_data
 
         # Strategy 2: Infobox episode lists
         episodes_found = self._parse_infobox_episodes(soup, episode_data)
         if episodes_found > 0:
             total_episodes = sum(len(season['episodes']) for season in episode_data['seasons'].values())
-            print(f"✅ Parsed {total_episodes} episodes from infobox")
+            logger.info(f"✅ Parsed {total_episodes} episodes from infobox")
             return episode_data
 
         # Strategy 3: Alternative table formats
         episodes_found = self._parse_alternative_tables(soup, episode_data)
         if episodes_found > 0:
             total_episodes = sum(len(season['episodes']) for season in episode_data['seasons'].values())
-            print(f"✅ Parsed {total_episodes} episodes from alternative format")
+            logger.info(f"✅ Parsed {total_episodes} episodes from alternative format")
             return episode_data
 
         # Strategy 4: List-based parsing (fallback)
         episodes_found = self._parse_list_episodes(soup, episode_data)
         if episodes_found > 0:
             total_episodes = sum(len(season['episodes']) for season in episode_data['seasons'].values())
-            print(f"✅ Parsed {total_episodes} episodes from list format")
+            logger.info(f"✅ Parsed {total_episodes} episodes from list format")
             return episode_data
 
         # Strategy 5: Season summary table parsing (for shows like Batman)
         episodes_found = self._parse_season_summary_table(soup, episode_data)
         if episodes_found > 0:
             total_episodes = sum(len(season['episodes']) for season in episode_data['seasons'].values())
-            print(f"✅ Parsed {total_episodes} episodes from season summary")
+            logger.info(f"✅ Parsed {total_episodes} episodes from season summary")
             return episode_data
 
         return None
@@ -489,7 +489,7 @@ class TVEpisodeCache:
 
         # Find all tables that look like episode tables
         tables = soup.find_all('table', {'class': re.compile(r'wikitable.*')})
-        print(f"📊 Found {len(tables)} wikitable tables on the page")
+        logger.info(f"📊 Found {len(tables)} wikitable tables on the page")
 
         for i, table in enumerate(tables):
             # Check if this is an episode table by looking at headers
@@ -498,7 +498,7 @@ class TVEpisodeCache:
                 continue
 
             header_texts = [h.get_text().strip().lower() for h in headers]
-            print(f"📋 Table {i+1} headers: {header_texts[:6]}...")  # Show first 6 headers
+            logger.info(f"📋 Table {i+1} headers: {header_texts[:6]}...")  # Show first 6 headers
 
             # Enhanced episode table detection
             has_episode_info = any(
@@ -511,15 +511,15 @@ class TVEpisodeCache:
             if not (has_episode_info and has_title):
                 continue
 
-            print(f"📊 Found episode table with headers: {header_texts[:5]}...")
+            logger.info(f"📊 Found episode table with headers: {header_texts[:5]}...")
 
             # Try to determine the season for this table
             season_num = self._get_table_season_enhanced(table, soup)
             if season_num is None:
-                print(f"⚠️  Could not determine season for table {i+1}")
+                logger.warning(f"⚠️  Could not determine season for table {i+1}")
                 continue
 
-            print(f"📅 Table {i+1} is for Season {season_num}")
+            logger.info(f"📅 Table {i+1} is for Season {season_num}")
 
             # Parse the table rows with enhanced logic
             table_episodes = self._parse_table_rows_enhanced(table, header_texts, season_num, episode_data)
@@ -1084,7 +1084,7 @@ class TVEpisodeCache:
             if not (has_season and has_episodes):
                 continue
 
-            print(f"📊 Found season summary table with headers: {header_texts[:4]}...")
+            logger.info(f"📊 Found season summary table with headers: {header_texts[:4]}...")
 
             # Find column indices
             season_col = None
@@ -1122,7 +1122,7 @@ class TVEpisodeCache:
                     continue
                 episode_count = int(episodes_match.group(1))
 
-                print(f"📅 Season {season_num}: {episode_count} episodes")
+                logger.info(f"📅 Season {season_num}: {episode_count} episodes")
 
                 # Create placeholder episodes for this season
                 season_key = str(season_num)
@@ -1255,34 +1255,34 @@ class TVEpisodeCache:
 
         # Special handling for Looney Tunes - use full filmography instead of Wikipedia
         if 'looney' in show_title.lower() and 'tunes' in show_title.lower():
-            print(f"🎬 Loading Looney Tunes data from full filmography...")
+            logger.info(f"🎬 Loading Looney Tunes data from full filmography...")
             episode_data = self.get_looney_tunes_data()
             if episode_data:
                 # Save to cache for consistency
                 self.save_episode_data(show_title, episode_data)
-                print(f"✅ Successfully loaded Looney Tunes episode data ({len(episode_data.get('seasons', {}))} seasons)")
+                logger.info(f"✅ Successfully loaded Looney Tunes episode data ({len(episode_data.get('seasons', {}))} seasons)")
                 return episode_data
             else:
-                print(f"❌ Failed to load Looney Tunes filmography data")
+                logger.error(f"❌ Failed to load Looney Tunes filmography data")
                 return None
 
         # Check cache first (unless force refresh)
         if not force_refresh and self.is_cache_valid(show_id):
             cached_data = self.get_cached_episode_data(show_title)
             if cached_data:
-                print(f"✅ Using cached episode data for '{show_title}'")
+                logger.info(f"✅ Using cached episode data for '{show_title}'")
                 return cached_data
 
         # Try to fetch from Wikipedia
-        print(f"🔍 Fetching episode data for '{show_title}' from Wikipedia...")
+        logger.info(f"🔍 Fetching episode data for '{show_title}' from Wikipedia...")
         episode_data = self.fetch_wikipedia_episodes(show_title)
         if episode_data:
             episode_data['source'] = 'wikipedia'
             self.save_episode_data(show_title, episode_data)
-            print(f"✅ Successfully cached episode data from Wikipedia")
+            logger.info(f"✅ Successfully cached episode data from Wikipedia")
             return episode_data
 
-        print(f"❌ No episode data found for '{show_title}' from Wikipedia")
+        logger.error(f"❌ No episode data found for '{show_title}' from Wikipedia")
         return None
 
     def _generate_search_variations(self, show_title: str) -> List[str]:

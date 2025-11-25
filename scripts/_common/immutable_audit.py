@@ -13,6 +13,9 @@ Features:
 
 Usage:
     from _common.immutable_audit import ImmutableAuditLog
+
+import logging
+logger = logging.getLogger(__name__)
     
     audit = ImmutableAuditLog()
     audit.initialize()  # Verifies chain integrity
@@ -87,13 +90,13 @@ class ImmutableAuditLog:
         integrity = self.verify_chain_integrity()
         
         if integrity['is_compromised']:
-            print(f"[WARN] Audit chain compromised!")
-            print(f"   Valid entries: {integrity['valid_entries']}/{integrity['total_entries']}")
-            print(f"   Integrity: {integrity['integrity_percentage']:.2f}%")
-            print(f"   Invalid entries: {integrity['invalid_entries']}")
+            logger.warning(f"[WARN] Audit chain compromised!")
+            logger.info(f"   Valid entries: {integrity['valid_entries']}/{integrity['total_entries']}")
+            logger.info(f"   Integrity: {integrity['integrity_percentage']:.2f}%")
+            logger.info(f"   Invalid entries: {integrity['invalid_entries']}")
             # Don't raise exception here - let startup protocol handle it
         else:
-            print(f"[OK] Audit chain verified: {integrity['total_entries']} entries (100% integrity)")
+            logger.info(f"[OK] Audit chain verified: {integrity['total_entries']} entries (100% integrity)")
         
         self.initialized = True
         
@@ -118,9 +121,9 @@ class ImmutableAuditLog:
                     if lines:
                         last_entry = json.loads(lines[-1].strip())
                         self.last_hash = last_entry['hash']
-                        print(f"[LOAD] Loaded audit log: {self.current_log_file.name}")
+                        logger.info(f"[LOAD] Loaded audit log: {self.current_log_file.name}")
             except Exception as e:
-                print(f"[WARN] Could not load last hash from {self.current_log_file.name}: {e}")
+                logger.warning(f"[WARN] Could not load last hash from {self.current_log_file.name}: {e}")
                 self.last_hash = "0" * 64
         else:
             self._create_new_log_file()
@@ -130,7 +133,7 @@ class ImmutableAuditLog:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{self.log_prefix}-{timestamp}.jsonl"
         self.current_log_file = self.log_directory / filename
-        print(f"[NEW] Created new audit log: {filename}")
+        logger.info(f"[NEW] Created new audit log: {filename}")
     
     def _calculate_hash(self, entry: Dict[str, Any]) -> str:
         """
@@ -208,7 +211,7 @@ class ImmutableAuditLog:
         """Rotate log file if size exceeds threshold."""
         if self.current_log_file and self.current_log_file.exists():
             if self.current_log_file.stat().st_size > self.max_log_size:
-                print(f"🔄 Rotating log file (size: {self.current_log_file.stat().st_size / 1024 / 1024:.2f} MB)")
+                logger.info(f"🔄 Rotating log file (size: {self.current_log_file.stat().st_size / 1024 / 1024:.2f} MB)")
                 self._create_new_log_file()
     
     def verify_chain_integrity(self) -> Dict[str, Any]:
@@ -248,7 +251,7 @@ class ImmutableAuditLog:
                         valid_entries += 1
                     else:
                         invalid_entries.append(entry['id'])
-                        print(f"[WARN] Hash mismatch in entry {entry['id']} (file: {log_file.name})")
+                        logger.warning(f"[WARN] Hash mismatch in entry {entry['id']} (file: {log_file.name})")
         
         integrity_pct = (valid_entries / total_entries * 100) if total_entries > 0 else 100.0
         
@@ -361,12 +364,12 @@ if __name__ == "__main__":
     import sys
     
     if len(sys.argv) < 2:
-        print("Usage: python immutable_audit.py <command>")
-        print("Commands:")
-        print("  init           - Initialize audit system")
-        print("  verify         - Verify chain integrity")
-        print("  stats          - Show statistics")
-        print("  search [type]  - Search audit logs")
+        logger.info("Usage: python immutable_audit.py <command>")
+        logger.info("Commands:")
+        logger.info("  init           - Initialize audit system")
+        logger.info("  verify         - Verify chain integrity")
+        logger.info("  stats          - Show statistics")
+        logger.info("  search [type]  - Search audit logs")
         sys.exit(1)
     
     command = sys.argv[1]
@@ -374,41 +377,41 @@ if __name__ == "__main__":
     
     if command == "init":
         audit.initialize()
-        print("✅ Audit system initialized")
+        logger.info("✅ Audit system initialized")
     
     elif command == "verify":
         audit.initialize()
         integrity = audit.verify_chain_integrity()
-        print(f"\n[REPORT] Chain Integrity Report:")
-        print(f"   Total entries: {integrity['total_entries']}")
-        print(f"   Valid entries: {integrity['valid_entries']}")
-        print(f"   Integrity: {integrity['integrity_percentage']:.2f}%")
+        logger.info(f"\n[REPORT] Chain Integrity Report:")
+        logger.info(f"   Total entries: {integrity['total_entries']}")
+        logger.info(f"   Valid entries: {integrity['valid_entries']}")
+        logger.info(f"   Integrity: {integrity['integrity_percentage']:.2f}%")
         if integrity['is_compromised']:
-            print(f"   [WARN] COMPROMISED - Invalid entries: {integrity['invalid_entries']}")
+            logger.info(f"   [WARN] COMPROMISED - Invalid entries: {integrity['invalid_entries']}")
         else:
-            print(f"   [OK] VERIFIED - Chain is intact")
+            logger.info(f"   [OK] VERIFIED - Chain is intact")
     
     elif command == "stats":
         audit.initialize()
         stats = audit.get_statistics()
-        print(f"\n📊 Audit Statistics:")
-        print(f"   Total entries: {stats['total_entries']}")
-        print(f"   Log files: {stats['log_files_count']}")
-        print(f"   Total size: {stats['total_log_size_mb']:.2f} MB")
-        print(f"   Oldest entry: {stats['oldest_entry_timestamp']}")
-        print(f"   Newest entry: {stats['newest_entry_timestamp']}")
-        print(f"   Integrity: {stats['integrity_percentage']:.2f}%")
+        logger.info(f"\n📊 Audit Statistics:")
+        logger.info(f"   Total entries: {stats['total_entries']}")
+        logger.info(f"   Log files: {stats['log_files_count']}")
+        logger.info(f"   Total size: {stats['total_log_size_mb']:.2f} MB")
+        logger.info(f"   Oldest entry: {stats['oldest_entry_timestamp']}")
+        logger.info(f"   Newest entry: {stats['newest_entry_timestamp']}")
+        logger.info(f"   Integrity: {stats['integrity_percentage']:.2f}%")
     
     elif command == "search":
         audit.initialize()
         event_type = sys.argv[2] if len(sys.argv) > 2 else None
         results = audit.search(event_type=event_type)
-        print(f"\n🔍 Search Results: {len(results)} entries")
+        logger.info(f"\n🔍 Search Results: {len(results)} entries")
         for entry in results[:10]:  # Show first 10
-            print(f"   [{entry['timestamp']}] {entry['type']} by {entry['actor']}")
+            logger.info(f"   [{entry['timestamp']}] {entry['type']} by {entry['actor']}")
         if len(results) > 10:
-            print(f"   ... and {len(results) - 10} more")
+            logger.info(f"   ... and {len(results) - 10} more")
     
     else:
-        print(f"❌ Unknown command: {command}")
+        logger.error(f"❌ Unknown command: {command}")
         sys.exit(1)

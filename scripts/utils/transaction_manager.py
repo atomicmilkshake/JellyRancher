@@ -6,7 +6,7 @@ enabling safe execution and rollback of media library reorganization.
 
 Architecture:
     - TransactionManager: Main orchestration class with context manager support
-    - FileHasher: MD5 calculation and verification utility
+    - FileHasher: BLAKE3 calculation and verification utility (migrated from MD5 in Phase 48-A)
     - Models: Type-safe data classes for operations and results
 
 Usage:
@@ -27,7 +27,7 @@ Usage:
         shutil.move(op.source_path, op.destination_path)
 
         # Verify and complete
-        tm.complete_operation(tx_id, FileHasher.calculate_md5(op.destination_path))
+        tm.complete_operation(tx_id, FileHasher.calculate_hash(op.destination_path))
 
     # Rollback if needed
     tm.rollback_batch(batch_id)
@@ -41,17 +41,25 @@ Best Practices:
     - Single Responsibility Principle (separation of concerns)
 """
 
-import hashlib
 import json
 import logging
 import shutil
 import sqlite3
+import sys
 from contextlib import contextmanager
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Tuple
 from enum import Enum
+
+# BLAKE3 for fast, secure hashing (Phase 48-A: MD5 → BLAKE3 migration)
+try:
+    import blake3  # type: ignore
+except ImportError:
+    import subprocess
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "blake3"])
+    import blake3  # type: ignore
 
 
 # ============================================================================
@@ -182,29 +190,29 @@ class RollbackResult:
 
 class FileHasher:
     """
-    Utility class for MD5 hash calculation and verification.
+    Utility class for BLAKE3 hash calculation and verification.
 
-    Note: MD5 is used for file integrity verification, not cryptographic security.
-    It's faster than SHA-256 for large video files and sufficient for detecting
-    file corruption or modification.
+    Note: BLAKE3 is used for file integrity verification. It's faster than MD5/SHA-256
+    and cryptographically secure. Phase 48-A migrated from MD5 to BLAKE3 for consistency
+    with JellyfinSafeExecutor.
     """
 
     @staticmethod
-    def calculate_md5(file_path: str | Path, chunk_size: int = 8192) -> str:
+    def calculate_hash(file_path: str | Path, chunk_size: int = 8192) -> str:
         """
-        Calculate MD5 hash of a file.
+        Calculate BLAKE3 hash of a file.
 
         Args:
             file_path: Path to file
             chunk_size: Size of chunks to read (8KB default for memory efficiency)
 
         Returns:
-            Hexadecimal MD5 hash string
+            Hexadecimal BLAKE3 hash string
 
         Raises:
             FileNotFoundError: If file doesn't exist
             PermissionError: If file can't be read
-            RuntimeError: If MD5 calculation fails
+            RuntimeError: If hash calculation fails
         """
         try:
             file_path = Path(file_path)
@@ -215,7 +223,7 @@ class FileHasher:
             if not file_path.is_file():
                 raise ValueError(f"Not a file: {file_path}")
 
-            hasher = hashlib.md5()
+            hasher = blake3.blake3()
 
             with open(file_path, 'rb') as f:
                 while chunk := f.read(chunk_size):
@@ -231,31 +239,42 @@ class FileHasher:
         except OSError as e:
             raise PermissionError(f"Cannot read file {file_path}: {e}")
         except Exception as e:
-            raise RuntimeError(f"MD5 calculation failed for {file_path}: {e}")
+            raise RuntimeError(f"BLAKE3 calculation failed for {file_path}: {e}")
 
     @staticmethod
-    def verify_md5(file_path: str | Path, expected_md5: str) -> bool:
+    def verify_hash(file_path: str | Path, expected_hash: str) -> bool:
         """
-        Verify file matches expected MD5 hash.
+        Verify file matches expected BLAKE3 hash.
 
         Args:
             file_path: Path to file
-            expected_md5: Expected MD5 hash
+            expected_hash: Expected BLAKE3 hash
 
         Returns:
             True if hash matches, False otherwise
         """
         try:
-            actual_md5 = FileHasher.calculate_md5(file_path)
-            matches = actual_md5 == expected_md5
+            actual_hash = FileHasher.calculate_hash(file_path)
+            matches = actual_hash == expected_hash
             if not matches:
                 # Log hash mismatch for debugging
                 logging.getLogger(__name__).warning(
-                    f"MD5 mismatch for {file_path}: expected {expected_md5}, got {actual_md5}"
+                    f"Hash mismatch for {file_path}: expected {expected_hash}, got {actual_hash}"
                 )
             return matches
         except (FileNotFoundError, PermissionError, ValueError, RuntimeError):
             return False
+
+    # Backward compatibility aliases (deprecated - use calculate_hash/verify_hash)
+    @staticmethod
+    def calculate_md5(file_path: str | Path, chunk_size: int = 8192) -> str:
+        """Deprecated: Use calculate_hash() instead. Now returns BLAKE3 hash."""
+        return FileHasher.calculate_hash(file_path, chunk_size)
+
+    @staticmethod
+    def verify_md5(file_path: str | Path, expected_hash: str) -> bool:
+        """Deprecated: Use verify_hash() instead. Now verifies BLAKE3 hash."""
+        return FileHasher.verify_hash(file_path, expected_hash)
 
 
 # ============================================================================

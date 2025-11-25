@@ -12,6 +12,9 @@ from typing import Dict, Optional
 from pathlib import Path
 import tempfile
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 class CredentialCache:
     """
@@ -94,9 +97,9 @@ class CredentialCache:
                     session_data = json.load(f)
                     cls._cache.update(session_data.get('credentials', {}))
                     # Don't load master password from file for security
-                print(f"🔄 Session loaded: {len(cls._cache)} cached credentials")
+                logger.info(f"🔄 Session loaded: {len(cls._cache)} cached credentials")
             except Exception as e:
-                print(f"⚠️  Could not load session: {e}")
+                logger.warning(f"⚠️  Could not load session: {e}")
                 cls._cache = {}
 
     @classmethod
@@ -111,7 +114,7 @@ class CredentialCache:
             with open(session_file, 'w') as f:
                 json.dump(session_data, f)
         except Exception as e:
-            print(f"⚠️  Could not save session: {e}")
+            logger.warning(f"⚠️  Could not save session: {e}")
 
     @classmethod
     def _clear_session(cls) -> None:
@@ -188,7 +191,7 @@ class CredentialCache:
             cached_password = cls._load_password()
             
             if cached_password:
-                print("🔑 Using cached master password...")
+                logger.info("🔑 Using cached master password...")
                 # Create credential manager with cached password
                 cls._credential_manager = CredentialManager(password=cached_password)
             else:
@@ -205,10 +208,10 @@ class CredentialCache:
             # Save session immediately after loading
             cls._save_session()
 
-            print(f"🔓 Credential cache initialized ({len(cls._cache)} credentials loaded)")
+            logger.info(f"🔓 Credential cache initialized ({len(cls._cache)} credentials loaded)")
 
         except Exception as e:
-            print(f"❌ Failed to initialize credential cache: {e}")
+            logger.error(f"❌ Failed to initialize credential cache: {e}")
             cls._cache = {}
             raise
 
@@ -220,7 +223,7 @@ class CredentialCache:
         """
         cls._cache.clear()
         cls._clear_session()
-        print("🔒 Credential cache cleared")
+        logger.info("🔒 Credential cache cleared")
 
     @classmethod
     def is_initialized(cls) -> bool:

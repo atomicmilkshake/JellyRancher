@@ -393,14 +393,15 @@ class FileScanner:
             # Get file statistics
             stat = file_path.stat()
 
-            # Calculate MD5 hash ONLY if enabled (major performance impact)
+            # Calculate BLAKE3 hash ONLY if enabled (major performance impact)
+            # Note: Field still named md5_hash for backward compatibility, but uses BLAKE3 algorithm
             md5_hash: Optional[str] = None
             if self.calculate_md5:
                 try:
-                    md5_hash = FileHasher.calculate_md5(file_path)
+                    md5_hash = FileHasher.calculate_hash(file_path)
                 except (FileNotFoundError, PermissionError, OSError) as e:
                     # If we can't hash the file, log the issue but still keep the record
-                    error_msg = f"Cannot calculate MD5 for {file_path}: {e}"
+                    error_msg = f"Cannot calculate hash for {file_path}: {e}"
                     logger.debug(error_msg)
                     self.statistics.errors.append(error_msg)
 

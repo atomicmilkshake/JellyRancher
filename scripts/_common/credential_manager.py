@@ -12,6 +12,9 @@ Features:
 
 Usage:
     from _common.credential_manager import CredentialManager
+
+import logging
+logger = logging.getLogger(__name__)
     
     # Initialize (prompts for master password, or reads from JELLYFIN_ORG_PASSWORD env var)
     creds = CredentialManager()
@@ -83,12 +86,12 @@ class CredentialManager:
         password = os.environ.get(self.ENV_VAR_NAME)
         
         if password:
-            print(f"[KEY] Master password loaded from {self.ENV_VAR_NAME} environment variable")
+            logger.info(f"[KEY] Master password loaded from {self.ENV_VAR_NAME} environment variable")
             return password
         
         # Prompt user (normal workflow)
-        print(f"[KEY] Enter master password to decrypt credential store")
-        print(f"    (Optional: Set {self.ENV_VAR_NAME} environment variable to skip prompt)")
+        logger.info(f"[KEY] Enter master password to decrypt credential store")
+        logger.info(f"    (Optional: Set {self.ENV_VAR_NAME} environment variable to skip prompt)")
         # User prefers visible asterisk-like hint; actual input remains hidden for safety
         password = self._get_password_with_mask("Master password (typing is active; characters will not be shown): ")
         
@@ -110,7 +113,7 @@ class CredentialManager:
         import msvcrt
         import sys
         
-        print(prompt, end='', flush=True)
+        logger.info(prompt, end='', flush=True)
         
         password = ""
         while True:
@@ -118,7 +121,7 @@ class CredentialManager:
             
             # Enter key
             if char == b'\r' or char == b'\n':
-                print()  # New line
+                logger.info()  # New line
                 break
             
             # Backspace
@@ -161,7 +164,7 @@ class CredentialManager:
             salt = os.urandom(16)  # 16-byte salt
             with open(self.salt_file, 'wb') as f:
                 f.write(salt)
-            print(f"🔐 Created new encryption salt: {self.salt_file}")
+            logger.info(f"🔐 Created new encryption salt: {self.salt_file}")
         
         # Derive key from password using PBKDF2HMAC
         kdf = PBKDF2HMAC(
@@ -226,7 +229,7 @@ class CredentialManager:
         credentials = self._load_credentials()
         credentials[key] = value
         self._save_credentials(credentials)
-        print(f"✅ Credential stored: {key}")
+        logger.info(f"✅ Credential stored: {key}")
     
     def get_credential(self, key: str) -> Optional[str]:
         """
@@ -259,7 +262,7 @@ class CredentialManager:
         if key in credentials:
             del credentials[key]
             self._save_credentials(credentials)
-            print(f"✅ Credential deleted: {key}")
+            logger.info(f"✅ Credential deleted: {key}")
             return True
         return False
     
@@ -292,17 +295,17 @@ if __name__ == "__main__":
     import sys
     
     if len(sys.argv) < 2:
-        print("Usage: python credential_manager.py <command> [args]")
-        print("Commands:")
-        print("  set <key> <value>  - Store a credential")
-        print("  get <key>          - Retrieve a credential")
-        print("  delete <key>       - Delete a credential")
-        print("  list               - List all credential keys")
-        print("\nCommon credential keys:")
-        print("  opensubtitles_username")
-        print("  opensubtitles_password")
-        print("  opensubtitles_com_username  (if using opensubtitles.com)")
-        print("  opensubtitles_com_password")
+        logger.info("Usage: python credential_manager.py <command> [args]")
+        logger.info("Commands:")
+        logger.info("  set <key> <value>  - Store a credential")
+        logger.info("  get <key>          - Retrieve a credential")
+        logger.info("  delete <key>       - Delete a credential")
+        logger.info("  list               - List all credential keys")
+        logger.info("\nCommon credential keys:")
+        logger.info("  opensubtitles_username")
+        logger.info("  opensubtitles_password")
+        logger.info("  opensubtitles_com_username  (if using opensubtitles.com)")
+        logger.info("  opensubtitles_com_password")
         sys.exit(1)
     
     command = sys.argv[1]
@@ -310,7 +313,7 @@ if __name__ == "__main__":
     
     if command == "set":
         if len(sys.argv) < 4:
-            print("Usage: python credential_manager.py set <key> <value>")
+            logger.info("Usage: python credential_manager.py set <key> <value>")
             sys.exit(1)
         key = sys.argv[2]
         value = sys.argv[3]
@@ -318,31 +321,31 @@ if __name__ == "__main__":
     
     elif command == "get":
         if len(sys.argv) < 3:
-            print("Usage: python credential_manager.py get <key>")
+            logger.info("Usage: python credential_manager.py get <key>")
             sys.exit(1)
         key = sys.argv[2]
         value = creds.get_credential(key)
         if value:
-            print(f"{key}: {value}")
+            logger.info(f"{key}: {value}")
         else:
-            print(f"❌ Credential not found: {key}")
+            logger.error(f"❌ Credential not found: {key}")
     
     elif command == "delete":
         if len(sys.argv) < 3:
-            print("Usage: python credential_manager.py delete <key>")
+            logger.info("Usage: python credential_manager.py delete <key>")
             sys.exit(1)
         key = sys.argv[2]
         if creds.delete_credential(key):
-            print(f"✅ Deleted: {key}")
+            logger.info(f"✅ Deleted: {key}")
         else:
-            print(f"❌ Not found: {key}")
+            logger.error(f"❌ Not found: {key}")
     
     elif command == "list":
         keys = creds.list_credentials()
-        print(f"📋 Stored credentials ({len(keys)}):")
+        logger.info(f"📋 Stored credentials ({len(keys)}):")
         for key in keys:
-            print(f"   - {key}")
+            logger.info(f"   - {key}")
     
     else:
-        print(f"❌ Unknown command: {command}")
+        logger.error(f"❌ Unknown command: {command}")
         sys.exit(1)

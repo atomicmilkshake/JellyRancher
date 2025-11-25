@@ -197,10 +197,30 @@
 **New Fixtures:** mock_project, mock_roundup, mock_project_with_roundup, sample_proposed_operations, sample_analysis_results
 **Total:** 284 tests passing in 10.88s
 
+## PHASE 48: Codebase Compliance & Modernization ✅
+**Date:** 2025-11-25 | **Triggered By:** NotebookLM audit fact-checking
+**Sub-phases:**
+- **48-A:** BLAKE3 Hashing Unification - Migrated all hashing from MD5 to BLAKE3
+  - Updated FileHasher class in transaction_manager.py (blake3 import, calculate_hash method)
+  - Removed MD5 fallback from jellyfin_safe_executor.py quick_mode
+  - Updated file_scanner.py to use FileHasher.calculate_hash()
+  - Updated execution_view.py hash verification
+  - Updated tests (hash length 32→64 chars)
+- **48-B:** Print→Logger Migration Script - Created tools/migrate_print_to_logger.py (~400 lines)
+  - Pattern-based classification (error/warn/debug/info)
+  - Auto-injects logger setup if missing
+  - Ran on scripts/_common/ (8 files, 205 prints migrated)
+- **48-C:** Legacy Code Cleanup
+  - Deleted tools/ingest_functions_to_chromadb.py (ChromaDB vestige)
+  - ProjectManager archival SKIPPED (still actively used as adapter pattern for roundups)
+**Files Modified:** transaction_manager.py, jellyfin_safe_executor.py, file_scanner.py, execution_view.py, 8× _common/*.py
+**Tests Created:** Updated test_transaction_manager.py (BLAKE3 expected hash), test_file_scanner.py (hash length)
+**Result:** 284/284 tests passing
+
 ## CURRENT STATUS
-**Last Phase:** 47 (pytest-qt GUI Test Suite)
-**Last Updated:** 2025-11-25 10:07:07
-**Journal Lines:** ~300 (well below 2,000 threshold)
+**Last Phase:** 48 (Codebase Compliance & Modernization)
+**Last Updated:** 2025-11-25
+**Journal Lines:** ~330 (well below 2,000 threshold)
 
 **What's Working:**
 ✅ Round-Up persistence system (8-step workflow, auto-save, backups)
@@ -208,7 +228,7 @@
 ✅ Tri-mode analysis (LLM/Regex/Hybrid) with 80-90% cost savings
 ✅ Pre-analysis filtering (30-40% token reduction)
 ✅ Subtitle coverage analyzer and downloader (fully wired)
-✅ Production execution with MD5 verification and rollback
+✅ Production execution with BLAKE3 verification and rollback
 ✅ Dark mode default, single-click navigation, middle-click tabs
 ✅ Comprehensive error handling with global exception handler
 ✅ 284 automated tests (161 backend + 46 GUI + workers + LLM)

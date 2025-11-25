@@ -256,10 +256,10 @@ class TestFileScannerScan:
     
     @pytest.mark.integration
     def test_scan_calculates_md5_when_enabled(self, tmp_path):
-        """Scanner should calculate MD5 when enabled."""
+        """Scanner should calculate hash when enabled (BLAKE3 since Phase 48-A)."""
         test_file = tmp_path / "test.mkv"
         test_file.write_bytes(b"test content for hashing")
-        
+
         scanner = FileScanner(
             extensions={".mkv"},
             include_subtitles=False,
@@ -267,10 +267,10 @@ class TestFileScannerScan:
             calculate_md5=True
         )
         results = scanner.scan_folder(tmp_path)
-        
+
         assert len(results) == 1
         assert results[0].md5_hash is not None
-        assert len(results[0].md5_hash) == 32  # MD5 hex length
+        assert len(results[0].md5_hash) == 64  # BLAKE3 hex length (was 32 for MD5)
     
     @pytest.mark.integration
     def test_scan_skips_md5_when_disabled(self, tmp_path):
