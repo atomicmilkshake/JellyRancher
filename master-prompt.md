@@ -113,6 +113,51 @@ Example: `search "find TMDB metadata for movies"`
 
 **Documentation:** Log index updates in commit messages (`docs: Index updated for feat X`) and journal entries.
 
+### **Test Maintenance (Run Before Committing):**
+
+**BEFORE committing ANY code changes:**
+```bash
+.venv\Scripts\python.exe -m pytest tests/ -v
+```
+
+**Mandatory Rules:**
+1. **All tests must pass** - No exceptions. Broken tests = broken code.
+2. **Fix broken tests first** - If your changes broke tests, update the tests to match new behavior (or fix the code if tests are correct).
+3. **New code needs new tests** - If you add/modify functionality, add/modify tests.
+4. **Test failures block commits** - Document failures in journal, fix, then commit.
+
+**Test Update Workflow:**
+```
+1. Make code changes
+2. Run tests: .venv\Scripts\python.exe -m pytest tests/ -v
+3. If failures:
+   a. Identify broken tests (check error messages)
+   b. Determine if code or test is wrong
+   c. Fix code OR update test assertions/mocks
+   d. Re-run tests until all pass
+4. If new functionality:
+   a. Add tests for new functions/classes
+   b. Verify new tests pass
+5. Commit only when all tests pass
+```
+
+**Quick Test Commands:**
+```bash
+# Run all tests
+.venv\Scripts\python.exe -m pytest tests/ -v
+
+# Run specific test file
+.venv\Scripts\python.exe -m pytest tests/test_roundup_manager.py -v
+
+# Run with coverage
+.venv\Scripts\python.exe -m pytest tests/ --cov=scripts --cov-report=term-missing
+
+# Run only GUI tests
+.venv\Scripts\python.exe -m pytest tests/test_gui_views.py -v
+```
+
+**Documentation:** Log test updates in commit messages (`test: Update tests for feat X`) and journal entries.
+
 ### **Git Workflow (After Every Phase):**
 ```
 1. git add .
@@ -255,7 +300,8 @@ ALWAYS request gui_runtime_state.json BEFORE:
 | **Function not in index** | Query first → If missing, add before implementing |
 | **GUI state >24hr old** | Request fresh capture before ANY changes |
 | **Unclear requirements** | ASK before assuming. Philosophy: "Never assume major design decisions" |
-| **Test failures** | Document full error in journal before attempting fix |
+| **Test failures** | Fix tests before committing. Document failure → fix → verify pass |
+| **New/modified code** | Add/update tests. Run full suite before commit |
 
 ### **Recovery Protocols:**
 
@@ -386,6 +432,11 @@ A **Round-Up** is a saved session representing one media library organization pr
 ---
 
 ## **CHANGELOG**
+
+**v3.1 (2025-11-25):**
+- Added Test Maintenance section to Section II (mandatory pre-commit testing)
+- Updated Quick Decision Tree with test-related scenarios
+- Tests now part of standard development workflow
 
 **v3.0 (2025-11-21):**
 - Replaced ProjectManager with Round-Up persistence system
