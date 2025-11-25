@@ -62,8 +62,7 @@
 - Fixed JellyfinConfigManager API usage (replaced load_config with is_enabled/get_server_url/get_api_key)
 **Git Commit:** 882720e
 ## PHASE 33G-1: Scan Data Preview with Pre-Analysis Filtering ✅
-**Date:** 2025-11-19 10:14:22 - 10:24:00 | **Status:** COMPLETE
-**Goal:** Implement comprehensive pre-analysis filtering to reduce LLM token costs and improve analysis quality
+**Date:** 2025-11-19 10:14:22 - 10:24:00**Goal:** Implement comprehensive pre-analysis filtering to reduce LLM token costs and improve analysis quality
 **Context:** User requested "preview scan data prior to analysis, where additional filtering can take place" (aligns with plan.md Point 2)
 **Implementation Summary:**
 **1. Enhanced ScanResultsView (+350 lines):**
@@ -162,7 +161,7 @@ Scan → Results Tab → Apply Filters → Send to Analysis → Run LLM
 - Persistence of filters to scan_options_json (filter config passed directly)
 - Filter presets/save/load functionality
 **Rationale:** Core filtering functionality complete and working. Advanced features can be added incrementally based on user feedback without breaking existing workflow.
-**Status:** COMPLETE ✅ - Core filtering workflow complete and functional.
+ ✅ - Core filtering workflow complete and functional.
 **Git Commit:** Pending user test confirmation
 ## PHASE 33J: Journal Compression & Master Prompt Update ✅
 **Date:** 2025-11-19 10:26:04 - 10:29:32
@@ -184,7 +183,7 @@ Scan → Results Tab → Apply Filters → Send to Analysis → Run LLM
 Added Section I.4 "Journal Formatting Rules (STRICT)" to prevent future formatting issues and maintain journal efficiency.
 **Status:** Compression complete. Journal ready for continued use. Master prompt updated with permanent formatting rules.
 ## PHASE 35: GUI Runtime Capture System with F12 Hotkey ✅
-**Date:** 2025-11-19 15:12:03 - 17:27:54 | **Status:** COMPLETE | **Commit:** ff7722f
+**Date:** 2025-11-19 15:12:03 - 17:27:54 | **Commit:** ff7722f
 **Goal:** Implement runtime GUI capture system to provide LLMs with visual context for accurate GUI code assistance
 **Context:** User identified that LLM cannot "see" the GUI, which causes:
 - Assumptions about widget positions/hierarchy
@@ -289,9 +288,9 @@ Fixed PyQt6 GUI Dev Workflow Bootstrapper.py (line 136 syntax error: removed 'Nu
 - Reduces back-and-forth (no more "I can't see your layout" questions)
 - Master prompt Section IV ensures this workflow is permanent
 **Testing Recommendation:** User should press F12 in Studio to generate first capture, then paste JSON in next GUI-related prompt to verify LLM understands the format
-**Status:** COMPLETE - GUI capture system fully functional and documented
+ - GUI capture system fully functional and documented
 ## PHASE 35 UX ENHANCEMENT: Auto-Clipboard & Dialog Polish ✅
-**Date:** 2025-11-19 20:02:00 - 20:29:28 | **Status:** COMPLETE | **Commits:** 8d50237, e61606b, 973f8d0
+**Date:** 2025-11-19 20:02:00 - 20:29:28 | **Commits:** 8d50237, e61606b, 973f8d0
 **Context:** User identified UX flaw - capture dialog required manual file opening to get JSON. Requested auto-clipboard copy with enhanced dialog.
 **Implementation:**
 **1. Auto-Clipboard Integration:**
@@ -354,9 +353,9 @@ Created `_show_capture_success_dialog()` method with professional UX:
 - After: 2 steps (F12 → Ctrl+V)
 - Time savings: ~10 seconds per capture
 - User friction: 50% reduction
-**Status:** COMPLETE - F12 capture system now has professional UX with seamless clipboard integration
+ - F12 capture system now has professional UX with seamless clipboard integration
 ## PHASE 37J: Project Explorer Section Header Click Fix ✅
-**Date:** 2025-11-21 04:55:44 | **Status:** COMPLETE | **Commit:** 0a37c45
+**Date:** 2025-11-21 04:55:44 | **Commit:** 0a37c45
 **Goal:** Fix non-functional Project Explorer section headers (📁 Scans, 🤖 Analyses, etc.).
 **Context:** User reported that the 5 section headers in Project Explorer (Scans, Analyses, Action Plans, Execution, Reports) did nothing when double-clicked.
 **Root Cause Analysis:**
@@ -372,12 +371,11 @@ Created `_show_capture_success_dialog()` method with professional UX:
 **Git Commit:** 0a37c45 - "fix: Enable double-click on Project Explorer section headers"
 **Pushed to GitHub:** ✅
 **Impact:** Users can now double-click section headers to open corresponding views, matching intuitive UX expectations.
-**Status:** COMPLETE ✅
+ ✅
 ## CURRENT STATUS
 **Last Phase:** 35 (GUI Runtime Capture System - Complete with UX Enhancement)
 **Last Updated:** 2025-11-19 20:29:28
 **Journal Status:** 850 lines (well below 2,000 line threshold)
-**Application Status:** COMPLETE
 **What's Working:**
 ✅ Complete project management system
 ✅ Full workflow: Scan → Results (with filtering) → Analyze → Enrich → Review → Execute
@@ -402,7 +400,7 @@ Created `_show_capture_success_dialog()` method with professional UX:
 - Git commits required for significant phases
 - Journal formatting rules now enforced in master-prompt.md Section I.4
 ## PHASE 33E-2: Core Utilities Error Handling Enhancement ✅
-**Date:** 2025-11-19 10:32:01 - 10:36:08 | **Status:** COMPLETE | **Commit:** 2a5f13d
+**Date:** 2025-11-19 10:32:01 - 10:36:08 | **Commit:** 2a5f13d
 **Goal:** Systematically add comprehensive error handling to core utility modules (FileScanner, InventoryRepository)
 **Enhanced Functions in scripts/core/file_scanner.py (4 critical methods):**
 - ✅ __init__(): Input validation (TypeError for invalid types), extension set validation, exclusion path resolution with fallback
@@ -442,9 +440,9 @@ Created `_show_capture_success_dialog()` method with professional UX:
 - Database corruption (integrity errors, connection failures, transaction safety)
 - JSON parsing errors (malformed provider IDs)
 - Large-scale batch operation failures (per-record isolation prevents cascade failures)
-**Status:** COMPLETE - Core utilities now have enterprise-grade error handling
+ - Core utilities now have enterprise-grade error handling
 ## PHASE 33E-3: Media Processing Error Handling Enhancement ✅
-**Date:** 2025-11-19 10:38:22 - 10:40:57 | **Status:** COMPLETE | **Commit:** da4ea6e
+**Date:** 2025-11-19 10:38:22 - 10:40:57 | **Commit:** da4ea6e
 **Goal:** Add comprehensive error handling to critical media processing module (LLMStructureAnalyzer)
 **Enhanced Functions in scripts/media/llm_structure_analyzer.py (ALL 4 methods):**
 - ✅ __init__(): Model name validation, Poe client initialization with RuntimeError on failure
@@ -475,9 +473,9 @@ Created `_show_capture_success_dialog()` method with professional UX:
 - JSON parsing errors (malformed LLM responses, thinking text before JSON)
 - File I/O errors (permission issues, directory creation failures)
 - Serialization failures (non-JSON-serializable data)
-**Status:** COMPLETE - LLM analysis module now has enterprise-grade error handling
+ - LLM analysis module now has enterprise-grade error handling
 ## PHASE 33E-4: Action Plan Generator Error Handling Enhancement ✅
-**Date:** 2025-11-19 10:42:06 - 10:44:12 | **Status:** COMPLETE | **Commit:** f4233e5
+**Date:** 2025-11-19 10:42:06 - 10:44:12 | **Commit:** f4233e5
 **Goal:** Add comprehensive error handling to Action Plan Generator (critical for Review workflow)
 **Enhanced Functions in scripts/core/action_plan_generator.py (4 critical methods):**
 - ✅ __init__(): Input validation (TypeError for invalid types), scanned_files empty check, AppConfigManager initialization with RuntimeError on failure, _build_indices error recovery
@@ -510,7 +508,7 @@ Created `_show_capture_success_dialog()` method with professional UX:
 - Index building failures (AttributeError, TypeError on records)
 - Duplicate handling errors (sort failures, operation creation issues)
 - Batch processing failures (per-file isolation prevents cascade)
-**Status:** COMPLETE - Action Plan Generator now has enterprise-grade error handling
+ - Action Plan Generator now has enterprise-grade error handling
 ## WORKFLOW COMPLIANCE ASSESSMENT: Application vs. plan.md
 **Date:** 2025-11-19 10:46:21 - 10:50:55
 **Method:** Systematic code analysis (NO documentation reading)
@@ -550,7 +548,7 @@ Code Evidence: subtitle_downloader.py exists (file listing confirmed), unclear i
 - Auto-save every 30 seconds (project_manager.py)
 **CONCLUSION:** Application faithfully implements Points 1-6 with significant value-adds. Points 7-8 have backend support but unclear UI integration.
 ## PHASE 34: Tri-Mode Analysis System (LLM + Regex + Hybrid) ✅
-**Date:** 2025-11-19 11:03:27 - 11:40:15 | **Status:** COMPLETE | **Commit:** 3dcb5ed
+**Date:** 2025-11-19 11:03:27 - 11:40:15 | **Commit:** 3dcb5ed
 **Context:** User requested integration of Grok 4.1's regex-based media analysis as alternative to LLM analysis. Goal: Provide users with choice of analysis modes based on use case (speed vs. accuracy vs. cost).
 **Implementation: Three-Mode Analysis Architecture**
 **1. Created regex_structure_analyzer.py (~450 lines):**
@@ -611,7 +609,7 @@ Code Evidence: subtitle_downloader.py exists (file listing confirmed), unclear i
 - Regex mode enables offline workflows
 - All modes produce compatible output for downstream processing
 **Value Proposition:** Industry-leading feature - no competitor offers this flexibility. Grok's regex patterns proven excellent, architecture perfectly suited for pluggable analyzers, hybrid approach unique and cost-effective.
-**Status:** COMPLETE - Tri-mode analysis system fully functional and integrated
+ - Tri-mode analysis system fully functional and integrated
 **Bug Fix (11:45:57):** JSON serialization error when Path objects used as dict keys in folder_structure
 - Added _make_json_serializable() helper method to LLMStructureAnalyzer
 - Recursively converts Path → str, handles dicts/lists/sets/tuples
@@ -624,7 +622,7 @@ Code Evidence: subtitle_downloader.py exists (file listing confirmed), unclear i
 **Git Commit:** 64a7ceb - "fix: Phase 34 - JSON serialization for Path objects + Windows launcher"
 **Pushed to GitHub:** ✅
 ## PHASE 36: Function Index System Overhaul ✅
-**Date:** 2025-11-19 20:43:10 - 22:08:21 | **Status:** COMPLETE | **Commits:** a8b7489, 675ef55
+**Date:** 2025-11-19 20:43:10 - 22:08:21 | **Commits:** a8b7489, 675ef55
 **Context:** User requested complete rebuild of function index WITH LLM enhancement but WITHOUT ChromaDB storage. Previous implementation had ~500 lines of dead ChromaDB code causing confusion.
 **Obstacle:** Initial misunderstanding - removed LLM enhancement when user only wanted ChromaDB removed
 **Breakthrough Solution:** User clarified requirements: Keep LLM docstring generation using Grok-Code-Fast-1, remove ChromaDB entirely, use function_analysis_schema.json format
@@ -716,7 +714,7 @@ Expected Output from LLM:
 - LLM enhancement available when needed (user decision per build)
 - Zero ChromaDB dependencies or warnings
 - Clean, maintainable codebase
-**Status:** COMPLETE - Function index system clean and functional with optional LLM enhancement
+ - Function index system clean and functional with optional LLM enhancement
 ## SESSION SUMMARY: 2025-11-19 (10:26 AM - 11:50 AM)
 **Duration:** ~3.5 hours of focused development
 **Major Accomplishments:**
@@ -757,11 +755,10 @@ Expected Output from LLM:
 - Type hints throughout
 - Logging at all critical points
 - Enterprise-grade error handling
-**Application Status:** COMPLETE
 **Launch Method:** Double-click start_studio.bat
 **Next Session:** Ready for user testing, subtitle coverage integration (Points 7-8), or additional features
-## PHASE 37A: Response Style Standardization in Master Prompt ✅**Date:** 2025-11-20 18:54:24 | **Status:** COMPLETE | **Commit:** df03ceb**Goal:** Embed "formal, measured tone" directive as I.5 in master-prompt.md per user command, for consistent professional responses across sessions.**Implementation:** Inserted subsection after I.4 (lines 35-39): Tone (formal/measured), Structure (narrative paragraphs), Rationale (readability), Enforcement (post-ingestion verification). Verified via read_file.**Obstacle:** Tool interruption on initial journal append.**Breakthrough:** Retried edit_file with precise anchor; user accepted prompt changes.**Files Modified:** master-prompt.md (+10 lines).**Git:** Staged/committed df03ceb ("docs: add I.5..."), pushed origin/master.**Impact:** Future assistants self-adopt style via startup protocol. Aligns Section I authority.**Status:** COMPLETE - Directive canonical.## PHASE 37E/F: Project Workflow Polish + AnalysisView Table Population + Critical Bug Fixes ✅**Date:** 2025-11-20 22:10:45 - 22:15:00 | **Status:** COMPLETE | **Commits:** e79aad5, fe9150c, d821be7**Goal:** Fix Qt6 API errors, populate plan/metadata tables per plan.md Point 5, add auto-resume tabs, explorer badges, and fix scan visibility refresh bug.**Context:** User reported AnalysisView crash (QTabBar.setSpacing invalid), no scan visibility in explorer despite DB persistence, missing table population from analysis results.**Implementation Summary:****1. Qt6 API Fix (e79aad5):**- Removed invalid `self.tab_widget.tabBar().setSpacing(8)` - QTabBar has no setSpacing in PyQt6- AnalysisView now launches without crashes**2. Table Population Methods (fe9150c):**- Added `_populate_plan_table(analysis_result)`: Parses `reorganization_plan.folder_changes`, populates 6-column table (Original Path, Proposed Path, Action, Subtitles, Confidence, Notes)- Added `_populate_metadata_table(canonical_db)`: Combines movies + tv_shows, populates 5-column table (Title, Year, TMDb ID, Seasons/Eps, Status)- Called from `_on_analysis_finished()` and `_on_metadata_finished()`- Per plan.md Point 5: "editable table for user review"**3. Auto-Resume Tabs (e79aad5):**- `load_project()` now reads `ProjectState.current_view` + `last_scan_session_id`- Auto-opens ScanResultsView or AnalysisView with data on project load- Enables seamless resume workflow**4. Explorer Badges (e79aad5):**- `_update_project_explorer()` queries `get_scan_summary()` / `get_analysis_summary()`- Sub-items show "Scan #10 (2801 files, 554.8 GB)" / "Analysis #1 (42 issues, HIGH)"- Added helper methods in ProjectManager: `get_scan_summary(session_id)`, `get_analysis_summary(analysis_id)`**5. Explorer Refresh Bug Fix (d821be7):**- Root cause: `scan_sessions`/`analyses` lists stale after scan/analysis complete- Fix: `_on_scan_completed()` and `_on_analysis_saved()` now reload project from DB before `_update_project_explorer()`- Verified: Dogshit has 10 scans in DB (query confirmed), now visible in explorer**6. Mode Logic Separation:**- Added `_toggle_llm_controls()`: Hide LLM model combo for Regex mode (user request)- Cleaner UI: Only show relevant controls per mode**Files Modified:**- scripts/ui/analysis_view.py (+78 lines: table methods, toggle, spacing fix)- scripts/core/project_manager.py (+30 lines: summary helpers)- jelly_rancher_studio.py (+16 lines: reload project, auto-resume, badges)**Total Enhancement:** +124 lines, -2 lines**Git Commits:**- e79aad5: "fix: Phase 37E/F - Remove invalid QTabBar.setSpacing, populate plan/metadata tables, auto-resume tabs, explorer badges"- fe9150c: "fix: Add missing _populate_plan_table and _populate_metadata_table methods"- d821be7: "fix: Refresh project explorer after scans/analyses complete - reload project to update scan_sessions/analyses lists"**Pushed to GitHub:** ✅**Impact:**- AnalysisView functional (no crashes)- Plan table shows reorganization operations (per plan.md Point 5)- Metadata table shows canonical DB results- Explorer shows scan/analysis stats with badges- Auto-resume enables seamless workflow continuation- Scans now visible immediately after completion**Testing Results:**- Database query confirmed: Dogshit has 10 scans persisted- Explorer refresh verified: New scans appear after completion- Table population verified: Plan/metadata tables populate from analysis results- Auto-resume verified: Project load opens last view with data**Status:** COMPLETE ✅ - All critical bugs fixed, tables functional, workflow polished.## PHASE 37G: Reorg Plan Table Display Fix ✅**Date:** 2025-11-20 23:17:06 | **Status:** COMPLETE | **Commit:** (pending)**Goal:** Fix broken Reorg Plan table display - user reported seeing QLineEdit instead of proper table with rows/columns.**Context:** User reported "I don't know what the FUCK I'm looking at" - GUI capture showed Reorg Plan tab displaying single QLineEdit widget instead of proper QTableWidget with reorganization operations.**Root Cause Analysis:**- Table population method `_populate_plan_table()` lacked defensive checks- No validation of analysis_result structure- Table could enter edit mode unexpectedly- Missing error visibility for debugging**Implementation:**1. Enhanced `_populate_plan_table()` method:- Added null check for `self.plan_table` widget- Added validation of `reorganization_plan` structure- Added type checking for `folder_changes` items- Added string conversion for all cell values- Added comprehensive logging at each step- Added graceful error handling with user-visible error message2. Table Configuration Improvements:- Set `setEditTriggers(NoEditTriggers)` - prevents edit mode issues- Set `setSortingEnabled(True)` - allows column sorting- Ensured proper column initialization before population3. Debug Logging:- Added logging of analysis_result keys- Added logging of reorganization_plan structure- Added logging of folder_changes count- Added per-row validation logging**Files Modified:**- scripts/ui/analysis_view.py (+35 lines: enhanced error handling, logging, table config)**Impact:**- Table now properly displays reorganization operations as rows/columns- Read-only mode prevents accidental edit mode issues- Better error visibility for debugging data structure mismatches- Sorting capability improves usability**Testing:**- Requires user verification that table now displays correctly after analysis**Status:** COMPLETE ✅ - Table display fixed, awaiting user confirmation.## PHASE 37H: Function Index Query Logging & Enforcement ✅**Date:** 2025-11-20 23:21:03 | **Status:** COMPLETE | **Commit:** (pending)**Goal:** Implement query logging and review tools to enforce function index usage per master-prompt.md Section II.2 "Don't Reinvent the Wheel" rule.**Context:** User requested enforcement mechanism for function index queries to ensure compliance with master-prompt.md requirement that all new functionality must query the index first.**Implementation:**1. Query Logging (query_function_index_semantic.py):- Added `_log_query_to_file()` function to log all queries to `data/function_index_queries.log`- Log format: `TIMESTAMP | QUERY: ... | RESULTS: N | TOP-K: N`- Automatic logging on every search command- Non-blocking: logging failures don't prevent queries from executing- Creates `data/` directory if it doesn't exist2. Review Tool (tools/review_index_usage.py):- New script for query statistics and audit review- Features: Summary statistics (total queries, unique queries, avg results, date range), Most common queries (top 10), Queries by day (last 7 days), Detailed query log (sorted by timestamp, newest first), Filter by days (`--days N`), Summary-only mode (`--summary`), Configurable output limit (`--limit N`)- Usage: `.venv\Scripts\python.exe tools/review_index_usage.py [--days N] [--summary]`3. Master Prompt Update (master-prompt.md):- Added enforcement note to Section II.2 documenting automatic logging- Specified log file location: `data/function_index_queries.log`- Documented review tool usage- Clarified that queries should be documented in journal for significant phases**Files Modified:**- tools/query_function_index_semantic.py (+25 lines: logging function, import datetime, log call in search command)- tools/review_index_usage.py (+250 lines: new review tool with statistics and detailed log viewing)- master-prompt.md (+2 lines: enforcement documentation)**Impact:**- Automatic audit trail of all function index queries- Review capability for compliance checking- Statistics help identify usage patterns- Enforces "Don't Reinvent the Wheel" rule without breaking workflow- Non-intrusive: logging is automatic and silent**Testing:**- Query logging verified: Log file created in `data/function_index_queries.log`- Review tool verified: Statistics and detailed view functional- Master prompt updated: Enforcement documented**Status:** COMPLETE ✅ - Query logging and review tools implemented.## PHASE 37I: Project Visibility & Button Tooltips ✅**Date:** 2025-11-20 23:27:15 | **Status:** COMPLETE | **Commit:** (pending)**Goal:** Fix user confusion about project loading state and Project Explorer button functionality.**Context:** User reported: "I don't see jack shit evidence that a 'project' is loaded" and "What the fuck do the buttons on the top left even do?" - GUI showed project loaded in metadata but no clear visual indicators.**Implementation:**1. Project Visibility Enhancements:- Added prominent project name label in Project Explorer header (below "Project Explorer" title)- Label shows "(No project loaded)" when no project, "📁 ProjectName" when loaded- Green bold styling when project is active- Window title already showed project name, but now Explorer header also shows it- Updated `load_project()` to set project name label- Updated `close_project()` to reset project name label2. Button Tooltips (Project Explorer):- Added detailed tooltips to all 5 action buttons explaining their purpose:- "▶ Scan Folders": "Open the Scan view to scan folders for media files. This is the first step in organizing your media library."- "▶ Analyze Structure": "Open the Analysis view to analyze folder structure using LLM, Regex, or Hybrid analysis. Detects movies, TV shows, and generates reorganization plans."- "▶ Review Plan": "Open the Review view to review and approve/reject the reorganization plan before execution. Edit proposed paths and actions."- "▶ Execute Operations": "Open the Execution view to execute the approved reorganization plan. Moves/renames files according to the plan with transaction logging and rollback support."- "▶ Manage Subtitles": "Open the Subtitles view to manage subtitle files. Detect coverage, download missing subtitles, and organize subtitle files."**Files Modified:**- jelly_rancher_studio.py (+25 lines: project name label, tooltips, window title updates)**Impact:**- Clear visual indication when project is loaded (Explorer header + window title + status bar)- Users understand what each button does via tooltips- Better UX: no more confusion about project state- Professional appearance with styled project name display**Testing:**- Requires user verification that project name appears in Explorer header when loaded- Tooltips visible on button hover**Status:** COMPLETE ✅ - Project visibility and button tooltips implemented.## PHASE 37J: Project Explorer Section Header Click Fix ✅
-**Date:** 2025-11-21 04:55:44 | **Status:** COMPLETE | **Commit:** 0a37c45
+## PHASE 37A: Response Style Standardization in Master Prompt ✅**Date:** 2025-11-20 18:54:24 | **Commit:** df03ceb**Goal:** Embed "formal, measured tone" directive as I.5 in master-prompt.md per user command, for consistent professional responses across sessions.**Implementation:** Inserted subsection after I.4 (lines 35-39): Tone (formal/measured), Structure (narrative paragraphs), Rationale (readability), Enforcement (post-ingestion verification). Verified via read_file.**Obstacle:** Tool interruption on initial journal append.**Breakthrough:** Retried edit_file with precise anchor; user accepted prompt changes.**Files Modified:** master-prompt.md (+10 lines).**Git:** Staged/committed df03ceb ("docs: add I.5..."), pushed origin/master.**Impact:** Future assistants self-adopt style via startup protocol. Aligns Section I authority. - Directive canonical.## PHASE 37E/F: Project Workflow Polish + AnalysisView Table Population + Critical Bug Fixes ✅**Date:** 2025-11-20 22:10:45 - 22:15:00 | **Commits:** e79aad5, fe9150c, d821be7**Goal:** Fix Qt6 API errors, populate plan/metadata tables per plan.md Point 5, add auto-resume tabs, explorer badges, and fix scan visibility refresh bug.**Context:** User reported AnalysisView crash (QTabBar.setSpacing invalid), no scan visibility in explorer despite DB persistence, missing table population from analysis results.**Implementation Summary:****1. Qt6 API Fix (e79aad5):**- Removed invalid `self.tab_widget.tabBar().setSpacing(8)` - QTabBar has no setSpacing in PyQt6- AnalysisView now launches without crashes**2. Table Population Methods (fe9150c):**- Added `_populate_plan_table(analysis_result)`: Parses `reorganization_plan.folder_changes`, populates 6-column table (Original Path, Proposed Path, Action, Subtitles, Confidence, Notes)- Added `_populate_metadata_table(canonical_db)`: Combines movies + tv_shows, populates 5-column table (Title, Year, TMDb ID, Seasons/Eps, Status)- Called from `_on_analysis_finished()` and `_on_metadata_finished()`- Per plan.md Point 5: "editable table for user review"**3. Auto-Resume Tabs (e79aad5):**- `load_project()` now reads `ProjectState.current_view` + `last_scan_session_id`- Auto-opens ScanResultsView or AnalysisView with data on project load- Enables seamless resume workflow**4. Explorer Badges (e79aad5):**- `_update_project_explorer()` queries `get_scan_summary()` / `get_analysis_summary()`- Sub-items show "Scan #10 (2801 files, 554.8 GB)" / "Analysis #1 (42 issues, HIGH)"- Added helper methods in ProjectManager: `get_scan_summary(session_id)`, `get_analysis_summary(analysis_id)`**5. Explorer Refresh Bug Fix (d821be7):**- Root cause: `scan_sessions`/`analyses` lists stale after scan/analysis complete- Fix: `_on_scan_completed()` and `_on_analysis_saved()` now reload project from DB before `_update_project_explorer()`- Verified: Dogshit has 10 scans in DB (query confirmed), now visible in explorer**6. Mode Logic Separation:**- Added `_toggle_llm_controls()`: Hide LLM model combo for Regex mode (user request)- Cleaner UI: Only show relevant controls per mode**Files Modified:**- scripts/ui/analysis_view.py (+78 lines: table methods, toggle, spacing fix)- scripts/core/project_manager.py (+30 lines: summary helpers)- jelly_rancher_studio.py (+16 lines: reload project, auto-resume, badges)**Total Enhancement:** +124 lines, -2 lines**Git Commits:**- e79aad5: "fix: Phase 37E/F - Remove invalid QTabBar.setSpacing, populate plan/metadata tables, auto-resume tabs, explorer badges"- fe9150c: "fix: Add missing _populate_plan_table and _populate_metadata_table methods"- d821be7: "fix: Refresh project explorer after scans/analyses complete - reload project to update scan_sessions/analyses lists"**Pushed to GitHub:** ✅**Impact:**- AnalysisView functional (no crashes)- Plan table shows reorganization operations (per plan.md Point 5)- Metadata table shows canonical DB results- Explorer shows scan/analysis stats with badges- Auto-resume enables seamless workflow continuation- Scans now visible immediately after completion**Testing Results:**- Database query confirmed: Dogshit has 10 scans persisted- Explorer refresh verified: New scans appear after completion- Table population verified: Plan/metadata tables populate from analysis results- Auto-resume verified: Project load opens last view with data ✅ - All critical bugs fixed, tables functional, workflow polished.## PHASE 37G: Reorg Plan Table Display Fix ✅**Date:** 2025-11-20 23:17:06 | **Commit:** (pending)**Goal:** Fix broken Reorg Plan table display - user reported seeing QLineEdit instead of proper table with rows/columns.**Context:** User reported "I don't know what the FUCK I'm looking at" - GUI capture showed Reorg Plan tab displaying single QLineEdit widget instead of proper QTableWidget with reorganization operations.**Root Cause Analysis:**- Table population method `_populate_plan_table()` lacked defensive checks- No validation of analysis_result structure- Table could enter edit mode unexpectedly- Missing error visibility for debugging**Implementation:**1. Enhanced `_populate_plan_table()` method:- Added null check for `self.plan_table` widget- Added validation of `reorganization_plan` structure- Added type checking for `folder_changes` items- Added string conversion for all cell values- Added comprehensive logging at each step- Added graceful error handling with user-visible error message2. Table Configuration Improvements:- Set `setEditTriggers(NoEditTriggers)` - prevents edit mode issues- Set `setSortingEnabled(True)` - allows column sorting- Ensured proper column initialization before population3. Debug Logging:- Added logging of analysis_result keys- Added logging of reorganization_plan structure- Added logging of folder_changes count- Added per-row validation logging**Files Modified:**- scripts/ui/analysis_view.py (+35 lines: enhanced error handling, logging, table config)**Impact:**- Table now properly displays reorganization operations as rows/columns- Read-only mode prevents accidental edit mode issues- Better error visibility for debugging data structure mismatches- Sorting capability improves usability**Testing:**- Requires user verification that table now displays correctly after analysis ✅ - Table display fixed, awaiting user confirmation.## PHASE 37H: Function Index Query Logging & Enforcement ✅**Date:** 2025-11-20 23:21:03 | **Commit:** (pending)**Goal:** Implement query logging and review tools to enforce function index usage per master-prompt.md Section II.2 "Don't Reinvent the Wheel" rule.**Context:** User requested enforcement mechanism for function index queries to ensure compliance with master-prompt.md requirement that all new functionality must query the index first.**Implementation:**1. Query Logging (query_function_index_semantic.py):- Added `_log_query_to_file()` function to log all queries to `data/function_index_queries.log`- Log format: `TIMESTAMP | QUERY: ... | RESULTS: N | TOP-K: N`- Automatic logging on every search command- Non-blocking: logging failures don't prevent queries from executing- Creates `data/` directory if it doesn't exist2. Review Tool (tools/review_index_usage.py):- New script for query statistics and audit review- Features: Summary statistics (total queries, unique queries, avg results, date range), Most common queries (top 10), Queries by day (last 7 days), Detailed query log (sorted by timestamp, newest first), Filter by days (`--days N`), Summary-only mode (`--summary`), Configurable output limit (`--limit N`)- Usage: `.venv\Scripts\python.exe tools/review_index_usage.py [--days N] [--summary]`3. Master Prompt Update (master-prompt.md):- Added enforcement note to Section II.2 documenting automatic logging- Specified log file location: `data/function_index_queries.log`- Documented review tool usage- Clarified that queries should be documented in journal for significant phases**Files Modified:**- tools/query_function_index_semantic.py (+25 lines: logging function, import datetime, log call in search command)- tools/review_index_usage.py (+250 lines: new review tool with statistics and detailed log viewing)- master-prompt.md (+2 lines: enforcement documentation)**Impact:**- Automatic audit trail of all function index queries- Review capability for compliance checking- Statistics help identify usage patterns- Enforces "Don't Reinvent the Wheel" rule without breaking workflow- Non-intrusive: logging is automatic and silent**Testing:**- Query logging verified: Log file created in `data/function_index_queries.log`- Review tool verified: Statistics and detailed view functional- Master prompt updated: Enforcement documented ✅ - Query logging and review tools implemented.## PHASE 37I: Project Visibility & Button Tooltips ✅**Date:** 2025-11-20 23:27:15 | **Commit:** (pending)**Goal:** Fix user confusion about project loading state and Project Explorer button functionality.**Context:** User reported: "I don't see jack shit evidence that a 'project' is loaded" and "What the fuck do the buttons on the top left even do?" - GUI showed project loaded in metadata but no clear visual indicators.**Implementation:**1. Project Visibility Enhancements:- Added prominent project name label in Project Explorer header (below "Project Explorer" title)- Label shows "(No project loaded)" when no project, "📁 ProjectName" when loaded- Green bold styling when project is active- Window title already showed project name, but now Explorer header also shows it- Updated `load_project()` to set project name label- Updated `close_project()` to reset project name label2. Button Tooltips (Project Explorer):- Added detailed tooltips to all 5 action buttons explaining their purpose:- "▶ Scan Folders": "Open the Scan view to scan folders for media files. This is the first step in organizing your media library."- "▶ Analyze Structure": "Open the Analysis view to analyze folder structure using LLM, Regex, or Hybrid analysis. Detects movies, TV shows, and generates reorganization plans."- "▶ Review Plan": "Open the Review view to review and approve/reject the reorganization plan before execution. Edit proposed paths and actions."- "▶ Execute Operations": "Open the Execution view to execute the approved reorganization plan. Moves/renames files according to the plan with transaction logging and rollback support."- "▶ Manage Subtitles": "Open the Subtitles view to manage subtitle files. Detect coverage, download missing subtitles, and organize subtitle files."**Files Modified:**- jelly_rancher_studio.py (+25 lines: project name label, tooltips, window title updates)**Impact:**- Clear visual indication when project is loaded (Explorer header + window title + status bar)- Users understand what each button does via tooltips- Better UX: no more confusion about project state- Professional appearance with styled project name display**Testing:**- Requires user verification that project name appears in Explorer header when loaded- Tooltips visible on button hover ✅ - Project visibility and button tooltips implemented.## PHASE 37J: Project Explorer Section Header Click Fix ✅
+**Date:** 2025-11-21 04:55:44 | **Commit:** 0a37c45
 **Goal:** Fix non-functional Project Explorer section headers (📁 Scans, 🤖 Analyses, etc.).
 **Context:** User reported that the 5 section headers in Project Explorer (Scans, Analyses, Action Plans, Execution, Reports) did nothing when double-clicked.
 **Root Cause Analysis:**
@@ -777,9 +774,9 @@ Expected Output from LLM:
 **Git Commit:** 0a37c45 - "fix: Enable double-click on Project Explorer section headers"
 **Pushed to GitHub:** ✅
 **Impact:** Users can now double-click section headers to open corresponding views, matching intuitive UX expectations.
-**Status:** COMPLETE ✅
+ ✅
 ## PHASE 37K: Remove Redundant Action Buttons ✅
-**Date:** 2025-11-21 05:05:00 | **Status:** COMPLETE | **Commit:** 936ac07
+**Date:** 2025-11-21 05:05:00 | **Commit:** 936ac07
 **Goal:** Fix GUI redundancy - action buttons duplicated tree section header functionality.
 **Context:** User identified that 5 action buttons (Scan, Analyze, Review, Execute, Subtitles) did same thing as tree section headers.
 **Implementation:**
@@ -790,9 +787,9 @@ Expected Output from LLM:
 **Git Commit:** 936ac07 - "refactor: Remove redundant action buttons from Project Explorer"
 **Pushed to GitHub:** ✅
 **Impact:** Cleaner UI, no duplicate controls, tree is now primary navigation.
-**Status:** COMPLETE ✅
+ ✅
 ## PHASE 37L: Tree UX Single-Click + Styling ✅
-**Date:** 2025-11-21 05:15:00 | **Status:** COMPLETE | **Commit:** aa047eb
+**Date:** 2025-11-21 05:15:00 | **Commit:** aa047eb
 **Goal:** Improve Project Explorer tree usability - single-click instead of double-click, visual polish.
 **Context:** User reported tree items looked like buttons, double-click requirement not obvious.
 **Implementation:**
@@ -805,9 +802,9 @@ Expected Output from LLM:
 **Git Commit:** aa047eb - "ux: Improve Project Explorer tree interaction and visual clarity"
 **Pushed to GitHub:** ✅
 **Impact:** More intuitive navigation, clearer visual hierarchy, professional appearance.
-**Status:** COMPLETE ✅
+ ✅
 ## PHASE 37M: ExecutionView super().__init__() Fix ✅
-**Date:** 2025-11-21 05:20:00 | **Status:** COMPLETE | **Commit:** 4730d72
+**Date:** 2025-11-21 05:20:00 | **Commit:** 4730d72
 **Goal:** Fix ExecutionView crash on launch.
 **Context:** User reported RuntimeError when clicking Execution - super-class __init__() never called.
 **Root Cause:** ExecutionView.__init__() missing super().__init__(parent) call - PyQt6 requires this before setLayout().
@@ -816,9 +813,9 @@ Expected Output from LLM:
 **Git Commit:** 4730d72 - "fix: Add missing super().__init__() call in ExecutionView"
 **Pushed to GitHub:** ✅
 **Impact:** ExecutionView now launches without crash.
-**Status:** COMPLETE ✅
+ ✅
 ## PHASE 37N: Dark Mode Default + Window Size + Color Audit ✅
-**Date:** 2025-11-21 05:25:00 | **Status:** COMPLETE | **Commit:** 6a1286e
+**Date:** 2025-11-21 05:25:00 | **Commit:** 6a1286e
 **Goal:** Make dark mode default, reduce window height 20%, audit all colors for dark mode compatibility.
 **Context:** User requested dark mode as default, 20% shorter window, and proper dark mode colors throughout.
 **Implementation:**
@@ -832,9 +829,9 @@ Expected Output from LLM:
 **Git Commit:** 6a1286e - "ux: Dark mode default + 20% shorter window + color audit"
 **Pushed to GitHub:** ✅
 **Impact:** Application launches in dark mode with proper contrast throughout.
-**Status:** COMPLETE ✅
+ ✅
 ## PHASE 37O: Middle-Click to Close Tabs ✅
-**Date:** 2025-11-21 05:35:00 | **Status:** COMPLETE | **Commit:** 07e2664
+**Date:** 2025-11-21 05:35:00 | **Commit:** 07e2664
 **Goal:** Add standard browser/IDE behavior - middle-click on tab to close it.
 **Context:** User requested middle-click to close tabs for convenience.
 **Implementation:**
@@ -847,10 +844,9 @@ Expected Output from LLM:
 **Git Commit:** 07e2664 - "feat: Add middle-click to close tabs"
 **Pushed to GitHub:** ✅
 **Impact:** Standard UX pattern - middle-click closes tabs (except Welcome tab).
-**Status:** COMPLETE ✅
+ ✅
 ## PHASE 38: Round-Up Persistence System ✅
-**Date:** 2025-11-21 | **Status:** COMPLETE
-**Goal:** Replace broken ProjectManager system with Round-Up persistence per user specification (master-prompt.md Section VII).
+**Date:** 2025-11-21**Goal:** Replace broken ProjectManager system with Round-Up persistence per user specification (master-prompt.md Section VII).
 **Context:** User provided detailed Round-Up specification requiring:
 - Welcome Screen on startup with recent Round-Ups
 - 8-step workflow tracking (Scan → Summary → Analysis → Metadata → Review → Execute → Subtitle Audit → Downloads)
@@ -943,12 +939,11 @@ Expected Output from LLM:
 - Resumability: Pick up exactly where you left off with step tracking
 - Safety: Pre-execution backups prevent data loss
 - Professional UX: Welcome Screen, save indicators, unsaved changes prompts
-**Status:** COMPLETE ✅ - Round-Up system fully implemented
+ ✅ - Round-Up system fully implemented
 ## CURRENT STATUS
 **Last Phase:** 38 (Round-Up Persistence System ✅)
 **Last Updated:** 2025-11-21
 **Journal Lines:** ~850 (below 2,000 threshold)
-**Application Status:** COMPLETE
 **Session Summary (2025-11-21 04:55 - 05:37):**
 - 6 phases completed (37J-37O)
 - 6 commits pushed to GitHub
@@ -972,8 +967,7 @@ Expected Output from LLM:
 - All work must be documented in this journal (NO BLANK LINES, NO SEPARATOR LINES)
 - Git commits required for significant phases
 ## PHASE 39: Structure Summary Progress Bar ✅
-**Date:** 2025-11-22 | **Status:** COMPLETE
-**Goal:** Add progress bar to Structure Summary (Step 2) loading to prevent UI freeze for large scans.
+**Date:** 2025-11-22**Goal:** Add progress bar to Structure Summary (Step 2) loading to prevent UI freeze for large scans.
 **Context:** User reported clicking "Structure Summary" in Round-Up explorer caused UI freeze for large scan sessions (5000+ files). Loading was blocking the main thread.
 **Root Cause Analysis:**
 - `ScanResultsView._load_scan_results()` ran synchronously on main thread
@@ -1013,10 +1007,9 @@ Expected Output from LLM:
 - scripts/core/workers.py (+145 lines)
 - scripts/ui/scan_results_view.py (+80/-100 lines)
 **Testing:** Syntax verification passed, imports verified.
-**Status:** COMPLETE ✅
+ ✅
 ## PHASE 39B: Round-Up Scan Session Persistence Fix ✅
-**Date:** 2025-11-22 | **Status:** COMPLETE
-**Goal:** Fix "No scan data found" error when clicking Structure Summary after app restart.
+**Date:** 2025-11-22**Goal:** Fix "No scan data found" error when clicking Structure Summary after app restart.
 **Root Cause:**
 - `scan_session_id` was saved to `self.last_scan_session_id` (memory only)
 - On app restart, this was lost
@@ -1034,10 +1027,9 @@ Expected Output from LLM:
 **Files Modified:**
 - jelly_rancher_studio.py (+8 lines: config persistence and retrieval)
 **Testing:** Syntax verification passed.
-**Status:** COMPLETE ✅
+ ✅
 ## PHASE 39C: Analysis and Metadata ID Persistence ✅
-**Date:** 2025-11-22 | **Status:** COMPLETE
-**Goal:** Apply same persistence pattern from Phase 39B to analysis_id and metadata_id for workflow step continuity.
+**Date:** 2025-11-22**Goal:** Apply same persistence pattern from Phase 39B to analysis_id and metadata_id for workflow step continuity.
 **Changes Made:**
 1. **`_on_analysis_saved(analysis_id)`:** Now persists `analysis_id` to `roundup.config['analysis_id']`
 2. **`_on_metadata_built(metadata_id)`:** Now persists `metadata_id` to `roundup.config['metadata_id']`
@@ -1053,10 +1045,9 @@ Each workflow step that produces an ID now follows the same persistence pattern:
 **Files Modified:**
 - jelly_rancher_studio.py (+15 lines: persistence and retrieval for analysis_id)
 **Testing:** Syntax verification passed.
-**Status:** COMPLETE ✅
+ ✅
 ## PHASE 39D: Workflow Robustness Improvements ✅
-**Date:** 2025-11-22 | **Status:** COMPLETE
-**Goal:** Address four critical workflow issues for Round-Up reliability.
+**Date:** 2025-11-22**Goal:** Address four critical workflow issues for Round-Up reliability.
 
 ### Issue 1 & 2: Database Location Mismatch & Adapter Completeness
 **Problem:** ScanResultsLoadWorker hardcoded `data/media_library.db`; Round-Ups have their own `data.db`.
@@ -1113,10 +1104,9 @@ Each workflow step that produces an ID now follows the same persistence pattern:
 | 6 (Execute) | `execution_id`, `execution_success_count`, `execution_fail_count` |
 
 **Testing:** Syntax verification passed for all modified files.
-**Status:** COMPLETE ✅
+ ✅
 ## PHASE 39E: Structure Summary Legacy Fallback + Caching ✅
-**Date:** 2025-11-22 17:15:29 | **Status:** COMPLETE
-**Goal:** Fix "No scan data found in Round-Up database" error and implement statistics caching for faster Structure Summary loads.
+**Date:** 2025-11-22 17:15:29**Goal:** Fix "No scan data found in Round-Up database" error and implement statistics caching for faster Structure Summary loads.
 **Context:** User reported error when clicking Structure Summary - scan data existed in legacy database but not in Round-Up database (scans performed before Phase 39D dual-save was added).
 ### Fix 1: Legacy Database Fallback
 **Problem:** `ScanResultsLoadWorker` tried Round-Up database first, failed without fallback when empty.
@@ -1155,10 +1145,9 @@ Each workflow step that produces an ID now follows the same persistence pattern:
 - scripts/ui/scan_results_view.py (+7 lines: pass roundup refs to worker)
 - scripts/ui/scan_view.py (+5 lines: debug logging)
 **Testing:** Syntax verification passed for all modified files.
-**Status:** COMPLETE ✅
+ ✅
 ## PHASE 40: Analysis Tab Redesign with Extrapolation Engine ✅
-**Date:** 2025-11-24 14:54:48 - 15:29:58 | **Status:** COMPLETE
-**Goal:** Rebuild Analysis tab per user specification with folder-to-file extrapolation, color-coded actions table, and snapshot integration.
+**Date:** 2025-11-24 14:54:48 - 15:29:58**Goal:** Rebuild Analysis tab per user specification with folder-to-file extrapolation, color-coded actions table, and snapshot integration.
 **Context:** User dissatisfied with current LLM Analysis tab - missing extrapolation step (folder-level LLM suggestions → file-level actions), disconnected tabs, existing code not being used.
 **Core Architecture Change:**
 ```
@@ -1189,10 +1178,9 @@ Connected `send_to_review` signal to open ReviewView with preloaded operations.
 - scripts/ui/review_view.py (+40 lines)
 - jelly_rancher_studio.py (+30 lines)
 **Testing:** Import verification passed. All modules load successfully.
-**Status:** COMPLETE ✅
+ ✅
 ## PHASE 41: Cleanup & Comprehensive Error Handling ✅
-**Date:** 2025-11-24 18:43:48 | **Status:** COMPLETE
-**Goal:** Clean up legacy artifacts, fix GUI naming issues, remove legacy database fallback, implement comprehensive error handling and logging across all modules.
+**Date:** 2025-11-24 18:43:48**Goal:** Clean up legacy artifacts, fix GUI naming issues, remove legacy database fallback, implement comprehensive error handling and logging across all modules.
 **Context:** User requested:
 1. Remove old scans and legacy database references
 2. Fix "LLM Analysis" still visible in GUI (should be "Analysis")
@@ -1306,10 +1294,9 @@ New shared error handling utilities module with:
 - Enterprise-grade error handling with decorators
 - Global exception handler prevents unhandled crashes
 - Proper logging in all critical modules
-**Status:** COMPLETE ✅
+ ✅
 ## PHASE 42: Scan Results Performance & UX Improvements ✅
-**Date:** 2025-11-24 20:36:56 | **Status:** COMPLETE
-**Goal:** Fix app freeze when loading scan results, add caching, simplify New Round-Up dialog.
+**Date:** 2025-11-24 20:36:56**Goal:** Fix app freeze when loading scan results, add caching, simplify New Round-Up dialog.
 **Context:** User reported:
 1. App freezes when loading Structure Summary (Scan Results) with 5,991 files
 2. No loading indicator visible during freeze
@@ -1400,10 +1387,9 @@ CREATE TABLE structure_cache (
 - No more UI freeze for large scans
 - Cleaner New Round-Up dialog
 - Better debugging for database issues
-**Status:** COMPLETE ✅
+ ✅
 ## PHASE 43: Backend Testing Framework ✅
-**Date:** 2025-11-24 21:13:10 | **Status:** COMPLETE
-**Goal:** Establish comprehensive automated testing framework for all backend modules underpinning the GUI.
+**Date:** 2025-11-24 21:13:10**Goal:** Establish comprehensive automated testing framework for all backend modules underpinning the GUI.
 **Context:** User requested shift from manual GUI debugging to automated testing with explicit instructions for future coding assistants.
 ### Function Index Queries (Mandatory Protocol)
 Per testing plan, all code required function index queries before implementation:
@@ -1469,4 +1455,4 @@ addopts = -v --tb=short
 | 1: Core Backend | roundup_manager.py, file_scanner.py, extrapolation_engine.py | ✅ 80%+ |
 | 2: Media Processing | regex_structure_analyzer.py | ✅ 70%+ |
 | 3: Workers | workers.py (QThread) | ⏳ Pending (requires pytest-qt) |
-**Status:** COMPLETE ✅
+ ✅
