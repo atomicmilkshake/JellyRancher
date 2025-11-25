@@ -508,18 +508,26 @@ class AnalysisView(QWidget):
                 self.btn_run.setEnabled(False)
                 return
             
-            # Convert dicts to FileRecord-like objects for folder structure
+            # Convert dicts to FileRecord objects for folder structure
             self.scanned_files = []
             for file_dict in scan_file_dicts:
-                # Create a simple object that has the attributes needed by get_folder_structure
+                abs_path = Path(file_dict['path'])
+                # Parse scan_timestamp from created_at or use current time
+                if file_dict.get('created_at'):
+                    try:
+                        scan_timestamp = datetime.fromisoformat(file_dict['created_at'])
+                    except (ValueError, TypeError):
+                        scan_timestamp = datetime.now()
+                else:
+                    scan_timestamp = datetime.now()
+                
                 file_record = FileRecord(
-                    absolute_path=Path(file_dict['path']),
-                    relative_path=Path(file_dict['relative_path']) if file_dict.get('relative_path') else None,
+                    absolute_path=abs_path,
                     size_bytes=file_dict.get('size_bytes', 0),
                     extension=file_dict.get('extension', ''),
-                    md5_hash=file_dict.get('md5_hash'),
-                    created_at=file_dict.get('created_at'),
-                    modified_at=file_dict.get('modified_at')
+                    parent_folder=abs_path.parent,
+                    scan_timestamp=scan_timestamp,
+                    md5_hash=file_dict.get('md5_hash') or None
                 )
                 self.scanned_files.append(file_record)
             

@@ -523,6 +523,17 @@ class JellyRancherStudio(QMainWindow):
         logger.info(f"Loaded Round-Up: {roundup.name} (Step {roundup.current_step}/8)")
 
         self.roundup_changed.emit(roundup)
+        
+        # Auto-open appropriate tab based on current step
+        if roundup.current_step == 3:
+            # Analysis step - auto-open Analysis tab
+            self._open_analysis_view()
+        elif roundup.current_step == 2:
+            # Structure Summary step - auto-open Scan Results tab
+            self._open_scan_results_view()
+        elif roundup.current_step == 1:
+            # Scan step - auto-open Scan tab
+            self._open_scan_view()
 
     def _save_roundup(self):
         """Save the current Round-Up."""
