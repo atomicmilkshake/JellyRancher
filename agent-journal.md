@@ -1587,3 +1587,56 @@ git commit -m "test: Complete Phase 43 Backend Testing Framework (161 tests)"
 - tests/test_llm_structure_analyzer.py (25 tests)
 ### Files Deleted
 - tests/test_project_manager.py (deprecated)
+## PHASE 45: Analysis Tab Token Estimation & UI Restructure
+**Date:** 2025-11-24 22:47:36
+**Goal:** Improve Analysis tab UX with token estimation, enhanced preview dialog, sub-tabs, and prompt chunking.
+**Context:** User reported prompt preview was "insanely long" and Analysis tab was crowded. Requested token estimation display, human-readable preview, sub-tab organization, and chunking for large datasets.
+### Implementation Summary
+**1. Token Estimation (analysis_view.py)**
+- Added `_estimate_tokens()` method using `chars // 4` formula (consistent with generate_docstrings_with_llm.py)
+- Added `_update_token_estimate()` to refresh label on data load
+- Added `lbl_token_estimate` in Analysis Controls section
+- Format: "~12,500 tokens (50KB) • 1,016 folders"
+- Color-coded warnings: green (normal), orange (>50K), red (>100K with chunking warning)
+**2. Enhanced Preview Dialog (analysis_view.py)**
+- Replaced simple text dialog with tabbed interface:
+  - Tab 1: "Summary (Human-Readable)" - QTableWidget with folder path, file count, size, file types
+  - Tab 2: "Raw JSON Prompt" - Full JSON for debugging/copying
+- Added QStatusBar at bottom: "~12,500 tokens | 50,234 characters | 1,016 folders"
+- Warning styling for large prompts (yellow >50K, red >100K)
+**3. Sub-Tab Restructure (analysis_view.py)**
+- Replaced single scroll area with QTabWidget:
+  - ⚙️ Setup: Source Data + Analysis Controls (includes token estimate)
+  - 📊 Results: Analysis Output + Extrapolated File Actions table
+  - 🔒 Safety: Snapshots & Metadata
+- Each tab has its own scroll area for content
+**4. Prompt Chunking (llm_structure_analyzer.py)**
+- Added `MAX_FOLDERS_PER_CHUNK = 200` constant
+- Added `_chunk_folder_structure()`: Splits large structures preserving metadata keys
+- Added `analyze_structure_chunked()`:
+  - Automatic chunking when folders > 200
+  - Progress callback support for UI updates
+  - Chunk context injection to help LLM understand partial data
+  - Result merging: combines detected_media, folder_changes, compliance_issues, multi_part_episodes
+### Files Modified
+| File | Changes |
+|------|---------|
+| scripts/ui/analysis_view.py | +QTabWidget/QStatusBar imports, +_estimate_tokens(), +_update_token_estimate(), restructured _init_ui() to sub-tabs, enhanced _preview_prompt() with tabbed dialog |
+| scripts/media/llm_structure_analyzer.py | +MAX_FOLDERS_PER_CHUNK, +_chunk_folder_structure(), +analyze_structure_chunked() |
+### Key Code Additions
+**Token Estimation Formula:**
+```python
+estimated_tokens = char_count // 4  # ~4 chars per token
+```
+**Chunking Logic:**
+```python
+MAX_FOLDERS_PER_CHUNK = 200
+# Splits folder_structure into chunks, preserves metadata keys
+# Each chunk gets _chunk_info: {chunk_number, total_chunks, folders_in_chunk, total_folders}
+```
+### Bug Fix (Same Session)
+- Fixed `TypeError: '<' not supported between 'str' and 'WindowsPath'` in `_update_source_data_display()`
+- Root cause: Mixed Path objects and string metadata keys in folder_structure dict
+- Solution: Filter metadata keys before sorting, use `key=lambda x: str(x[0])` for sort
+### Linter Status
+- No errors in modified files

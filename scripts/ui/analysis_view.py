@@ -24,7 +24,8 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit,
     QComboBox, QMessageBox, QGroupBox, QProgressBar, QScrollArea,
     QDialog, QDialogButtonBox, QTableWidget, QTableWidgetItem, QHeaderView,
-    QTreeWidget, QTreeWidgetItem, QCheckBox, QFrame, QSplitter, QApplication
+    QTreeWidget, QTreeWidgetItem, QCheckBox, QFrame, QSplitter, QApplication,
+    QTabWidget, QStatusBar
 )
 from PyQt6.QtGui import QFont, QColor, QBrush
 from PyQt6.QtCore import Qt, pyqtSignal
@@ -144,48 +145,110 @@ class AnalysisView(QWidget):
             raise
     
     def _init_ui(self):
-        """Build the unified scrollable UI with collapsible sections."""
-        # Main layout with scroll area
+        """Build the UI with sub-tabs for better organization."""
+        # Main layout
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         
-            # Title
+        # Title
         title = QLabel("Analysis")
         title.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
         title.setStyleSheet("padding: 12px; background: transparent;")
         main_layout.addWidget(title)
         
-        # Scroll area for content
+        # Sub-tabs for better organization
+        self.sub_tabs = QTabWidget()
+        self.sub_tabs.setDocumentMode(True)
+        
+        # Tab 1: Setup - Source Data + Analysis Controls
+        setup_tab = self._create_setup_tab()
+        self.sub_tabs.addTab(setup_tab, "⚙️ Setup")
+        
+        # Tab 2: Results - Analysis Output + Extrapolated Actions
+        results_tab = self._create_results_tab()
+        self.sub_tabs.addTab(results_tab, "📊 Results")
+        
+        # Tab 3: Safety - Snapshots & Metadata
+        safety_tab = self._create_safety_tab()
+        self.sub_tabs.addTab(safety_tab, "🔒 Safety")
+        
+        main_layout.addWidget(self.sub_tabs, 1)
+    
+    def _create_setup_tab(self) -> QWidget:
+        """Create the Setup tab with Source Data and Analysis Controls."""
+        tab = QWidget()
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         
-        content_widget = QWidget()
-        content_layout = QVBoxLayout(content_widget)
-        content_layout.setSpacing(12)
-        content_layout.setContentsMargins(12, 0, 12, 12)
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setSpacing(12)
+        layout.setContentsMargins(12, 12, 12, 12)
         
-        # Section 1: Source Data (Collapsible, initially collapsed)
-        self._create_source_data_section(content_layout)
+        # Source Data section
+        self._create_source_data_section(layout)
         
-        # Section 2: Analysis Controls (Always visible)
-        self._create_controls_section(content_layout)
+        # Analysis Controls section
+        self._create_controls_section(layout)
         
-        # Section 3: Analysis Output (Collapsible)
-        self._create_output_section(content_layout)
+        layout.addStretch()
+        scroll.setWidget(content)
         
-        # Section 4: Extrapolated Actions Table (Main content)
-        self._create_actions_table_section(content_layout)
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        tab_layout.addWidget(scroll)
+        return tab
+    
+    def _create_results_tab(self) -> QWidget:
+        """Create the Results tab with Analysis Output and Actions Table."""
+        tab = QWidget()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
         
-        # Section 5: Snapshot & Metadata (Collapsible)
-        self._create_snapshot_metadata_section(content_layout)
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setSpacing(12)
+        layout.setContentsMargins(12, 12, 12, 12)
         
-        # Stretch at bottom
-        content_layout.addStretch()
+        # Analysis Output section
+        self._create_output_section(layout)
         
-        scroll.setWidget(content_widget)
-        main_layout.addWidget(scroll, 1)
+        # Extrapolated Actions Table section
+        self._create_actions_table_section(layout)
+        
+        layout.addStretch()
+        scroll.setWidget(content)
+        
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        tab_layout.addWidget(scroll)
+        return tab
+    
+    def _create_safety_tab(self) -> QWidget:
+        """Create the Safety tab with Snapshots & Metadata."""
+        tab = QWidget()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setSpacing(12)
+        layout.setContentsMargins(12, 12, 12, 12)
+        
+        # Snapshot & Metadata section
+        self._create_snapshot_metadata_section(layout)
+        
+        layout.addStretch()
+        scroll.setWidget(content)
+        
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        tab_layout.addWidget(scroll)
+        return tab
 
     def _create_source_data_section(self, parent_layout: QVBoxLayout):
         """Section 1: Folder structure preview - what the LLM will see."""
@@ -269,6 +332,11 @@ class AnalysisView(QWidget):
         
         row2.addStretch()
         layout.addLayout(row2)
+        
+        # Token estimate (updated when data loads)
+        self.lbl_token_estimate = QLabel("📊 Token estimate: N/A (load scan data)")
+        self.lbl_token_estimate.setStyleSheet("color: #888; font-style: italic;")
+        layout.addWidget(self.lbl_token_estimate)
         
         # Progress bar and status
         self.progress_bar = QProgressBar()
@@ -497,6 +565,7 @@ class AnalysisView(QWidget):
         filter_text = f" ({', '.join(filter_desc)})" if filter_desc else ""
         
         self._update_source_data_display()
+        self._update_token_estimate()
         self._set_status(f"✓ Ready: {len(self.scanned_files)} filtered files{filter_text}", success=True)
         self.btn_run.setEnabled(True)
         self.btn_preview.setEnabled(True)
@@ -511,12 +580,16 @@ class AnalysisView(QWidget):
         total_files = 0
         total_size = 0
         
-        for folder_path, data in sorted(self.folder_structure.items()):
-            if folder_path in ('project_name', 'scan_id', 'total_files'):
-                continue
-            
-            if not isinstance(data, dict):
-                    continue
+        # Filter out metadata keys and normalize Path keys to strings for sorting
+        metadata_keys = {'project_name', 'scan_id', 'total_files'}
+        folder_items = [
+            (folder_path, data)
+            for folder_path, data in self.folder_structure.items()
+            if folder_path not in metadata_keys and isinstance(data, dict)
+        ]
+        
+        # Sort by string representation of folder path (handles both Path and str)
+        for folder_path, data in sorted(folder_items, key=lambda x: str(x[0])):
                 
             file_count = data.get('file_count', 0)
             size_bytes = data.get('total_size', 0)
@@ -546,6 +619,73 @@ class AnalysisView(QWidget):
             f"Total: {total_files} files, {total_gb:.1f} GB across "
             f"{self.folder_tree.topLevelItemCount()} folders"
         )
+        
+        # Update token estimate when source data changes
+        self._update_token_estimate()
+
+    def _estimate_tokens(self) -> tuple:
+        """
+        Estimate token count for the LLM prompt.
+        
+        Uses chars // 4 formula (same as generate_docstrings_with_llm.py).
+        
+        Returns:
+            Tuple of (estimated_tokens, char_count, folder_count)
+        """
+        if not self.folder_structure:
+            return (0, 0, 0)
+        
+        try:
+            analyzer = LLMStructureAnalyzer()
+            prompt = analyzer._build_analysis_prompt(self.folder_structure)
+            char_count = len(prompt)
+            estimated_tokens = char_count // 4
+            
+            # Count folders (excluding metadata keys)
+            metadata_keys = {'project_name', 'scan_id', 'total_files'}
+            folder_count = sum(
+                1 for k in self.folder_structure.keys()
+                if k not in metadata_keys and isinstance(self.folder_structure.get(k), dict)
+            )
+            
+            return (estimated_tokens, char_count, folder_count)
+        except Exception as e:
+            logger.warning(f"Token estimation failed: {e}")
+            return (0, 0, 0)
+    
+    def _update_token_estimate(self):
+        """Update the token estimate label with current prompt size."""
+        if not hasattr(self, 'lbl_token_estimate'):
+            return
+            
+        tokens, chars, folders = self._estimate_tokens()
+        
+        if tokens == 0:
+            self.lbl_token_estimate.setText("Token estimate: N/A (no data)")
+            self.lbl_token_estimate.setStyleSheet("color: #888; font-style: italic;")
+            return
+        
+        # Format size
+        if chars >= 1_000_000:
+            size_str = f"{chars / 1_000_000:.1f} MB"
+        elif chars >= 1_000:
+            size_str = f"{chars / 1_000:.1f} KB"
+        else:
+            size_str = f"{chars} bytes"
+        
+        text = f"📊 ~{tokens:,} tokens ({size_str}) • {folders:,} folders"
+        
+        # Warning color if exceeds 100K tokens (large context)
+        if tokens > 100_000:
+            self.lbl_token_estimate.setStyleSheet("color: #ff6b6b; font-weight: bold;")
+            text += " ⚠️ Large prompt - chunking recommended"
+        elif tokens > 50_000:
+            self.lbl_token_estimate.setStyleSheet("color: #ffa500; font-weight: bold;")
+            text += " ⚠️ Large prompt"
+        else:
+            self.lbl_token_estimate.setStyleSheet("color: #4CAF50; font-weight: bold;")
+        
+        self.lbl_token_estimate.setText(text)
 
     # =========================================================================
     # Analysis Execution
@@ -578,7 +718,7 @@ class AnalysisView(QWidget):
             QMessageBox.warning(self, "Model Refresh Failed", f"Could not fetch models:\n{e}")
     
     def _preview_prompt(self):
-        """Preview the LLM prompt."""
+        """Preview the LLM prompt with human-readable and raw JSON tabs."""
         if not self.folder_structure:
             QMessageBox.warning(self, "No Data", "No scan data available.")
             return
@@ -587,31 +727,126 @@ class AnalysisView(QWidget):
             analyzer = LLMStructureAnalyzer()
             prompt = analyzer._build_analysis_prompt(self.folder_structure)
             
+            # Calculate stats
+            char_count = len(prompt)
+            token_estimate = char_count // 4
+            metadata_keys = {'project_name', 'scan_id', 'total_files'}
+            folder_count = sum(
+                1 for k in self.folder_structure.keys()
+                if k not in metadata_keys and isinstance(self.folder_structure.get(k), dict)
+            )
+            
             dialog = QDialog(self)
             dialog.setWindowTitle("Prompt Preview")
-            dialog.resize(800, 600)
+            dialog.resize(900, 700)
             
             layout = QVBoxLayout(dialog)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(0)
             
-            info = QLabel(f"Prompt length: {len(prompt):,} characters")
-            layout.addWidget(info)
+            # Tab widget for Human-Readable vs Raw JSON
+            tab_widget = QTabWidget()
+            
+            # Tab 1: Human-Readable Summary
+            human_tab = QWidget()
+            human_layout = QVBoxLayout(human_tab)
+            human_layout.setContentsMargins(8, 8, 8, 8)
+            
+            summary_label = QLabel(
+                f"<b>Analysis will process {folder_count:,} folders</b><br>"
+                f"Estimated tokens: ~{token_estimate:,} | Characters: {char_count:,}"
+            )
+            human_layout.addWidget(summary_label)
+            
+            # Folder table (human-readable)
+            folder_table = QTableWidget()
+            folder_table.setColumnCount(4)
+            folder_table.setHorizontalHeaderLabels(["Folder Path", "Files", "Size", "File Types"])
+            folder_table.setAlternatingRowColors(True)
+            folder_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+            folder_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+            folder_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+            
+            # Populate folder table
+            folder_items = [
+                (k, v) for k, v in self.folder_structure.items()
+                if k not in metadata_keys and isinstance(v, dict)
+            ]
+            folder_table.setRowCount(len(folder_items))
+            
+            for row, (folder_path, data) in enumerate(sorted(folder_items, key=lambda x: str(x[0]))):
+                file_count = data.get('file_count', 0)
+                size_bytes = data.get('total_size', 0)
+                file_types = data.get('file_types', {})
+                
+                # Format size
+                size_mb = size_bytes / (1024 * 1024)
+                size_str = f"{size_mb:.1f} MB" if size_mb < 1024 else f"{size_mb/1024:.1f} GB"
+                
+                # Format types
+                types_list = [f"{ext}: {cnt}" for ext, cnt in list(file_types.items())[:5]]
+                types_str = ", ".join(types_list)
+                if len(file_types) > 5:
+                    types_str += f" (+{len(file_types) - 5} more)"
+                
+                folder_table.setItem(row, 0, QTableWidgetItem(str(folder_path)))
+                folder_table.setItem(row, 1, QTableWidgetItem(str(file_count)))
+                folder_table.setItem(row, 2, QTableWidgetItem(size_str))
+                folder_table.setItem(row, 3, QTableWidgetItem(types_str))
+            
+            human_layout.addWidget(folder_table)
+            tab_widget.addTab(human_tab, "📋 Summary (Human-Readable)")
+            
+            # Tab 2: Raw JSON Prompt
+            raw_tab = QWidget()
+            raw_layout = QVBoxLayout(raw_tab)
+            raw_layout.setContentsMargins(8, 8, 8, 8)
+            
+            raw_info = QLabel("Full JSON prompt that will be sent to the LLM:")
+            raw_layout.addWidget(raw_info)
             
             text = QTextEdit()
             text.setReadOnly(True)
             text.setPlainText(prompt)
-            text.setStyleSheet("font-family: 'Consolas', monospace;")
-            layout.addWidget(text)
+            text.setStyleSheet("font-family: 'Consolas', 'Courier New', monospace; font-size: 11px;")
+            raw_layout.addWidget(text)
             
-            buttons = QDialogButtonBox()
-            btn_copy = buttons.addButton("Copy to Clipboard", QDialogButtonBox.ButtonRole.ActionRole)
+            tab_widget.addTab(raw_tab, "🔧 Raw JSON Prompt")
+            
+            layout.addWidget(tab_widget, 1)
+            
+            # Buttons
+            buttons_layout = QHBoxLayout()
+            buttons_layout.setContentsMargins(8, 8, 8, 8)
+            
+            btn_copy = QPushButton("📋 Copy Prompt")
             btn_copy.clicked.connect(lambda: QApplication.clipboard().setText(prompt))
-            btn_close = buttons.addButton(QDialogButtonBox.StandardButton.Close)
+            buttons_layout.addWidget(btn_copy)
+            
+            buttons_layout.addStretch()
+            
+            btn_close = QPushButton("Close")
             btn_close.clicked.connect(dialog.close)
-            layout.addWidget(buttons)
+            buttons_layout.addWidget(btn_close)
+            
+            layout.addLayout(buttons_layout)
+            
+            # Status bar at bottom
+            status_bar = QStatusBar()
+            status_text = f"~{token_estimate:,} tokens  |  {char_count:,} characters  |  {folder_count:,} folders"
+            if token_estimate > 100_000:
+                status_text += "  |  ⚠️ Large prompt - consider chunking"
+                status_bar.setStyleSheet("background: #ffcccc;")
+            elif token_estimate > 50_000:
+                status_text += "  |  ⚠️ Large prompt"
+                status_bar.setStyleSheet("background: #fff3cd;")
+            status_bar.showMessage(status_text)
+            layout.addWidget(status_bar)
             
             dialog.exec()
             
         except Exception as e:
+            logger.error(f"Preview prompt error: {e}", exc_info=True)
             QMessageBox.critical(self, "Error", f"Failed to generate prompt:\n{e}")
     
     def _run_analysis(self):

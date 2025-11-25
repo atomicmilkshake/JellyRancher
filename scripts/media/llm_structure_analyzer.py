@@ -187,6 +187,158 @@ class LLMStructureAnalyzer:
             self.logger.error(f"Unexpected error during analysis: {e}", exc_info=True)
             raise RuntimeError(f"Failed to analyze structure: {e}")
     
+    # Chunking constants
+    MAX_FOLDERS_PER_CHUNK = 200
+    
+    def _chunk_folder_structure(self, structure_summary: Dict) -> List[Dict]:
+        """
+        Split a large folder structure into smaller chunks for processing.
+        
+        Args:
+            structure_summary: Full folder structure dictionary
+            
+        Returns:
+            List of chunk dictionaries, each containing a subset of folders
+            plus metadata keys (project_name, scan_id, total_files)
+        """
+        # Separate metadata from folder data
+        metadata_keys = {'project_name', 'scan_id', 'total_files'}
+        metadata = {k: v for k, v in structure_summary.items() if k in metadata_keys}
+        
+        folders = [
+            (k, v) for k, v in structure_summary.items()
+            if k not in metadata_keys and isinstance(v, dict)
+        ]
+        
+        if len(folders) <= self.MAX_FOLDERS_PER_CHUNK:
+            return [structure_summary]  # No chunking needed
+        
+        # Split folders into chunks
+        chunks = []
+        for i in range(0, len(folders), self.MAX_FOLDERS_PER_CHUNK):
+            chunk_folders = folders[i:i + self.MAX_FOLDERS_PER_CHUNK]
+            
+            # Build chunk dict with metadata + folder subset
+            chunk_dict = dict(metadata)
+            chunk_dict['_chunk_info'] = {
+                'chunk_number': len(chunks) + 1,
+                'total_chunks': (len(folders) + self.MAX_FOLDERS_PER_CHUNK - 1) // self.MAX_FOLDERS_PER_CHUNK,
+                'folders_in_chunk': len(chunk_folders),
+                'total_folders': len(folders)
+            }
+            
+            for folder_path, folder_data in chunk_folders:
+                chunk_dict[folder_path] = folder_data
+            
+            chunks.append(chunk_dict)
+        
+        self.logger.info(f"Split {len(folders)} folders into {len(chunks)} chunks")
+        return chunks
+    
+    def analyze_structure_chunked(
+        self, 
+        structure_summary: Dict,
+        additional_context: Optional[str] = None,
+        progress_callback: Optional[callable] = None
+    ) -> Dict:
+        """
+        Analyze folder structure with automatic chunking for large datasets.
+        
+        For structures with more than MAX_FOLDERS_PER_CHUNK folders, this method
+        splits the data into chunks, processes each sequentially, and merges results.
+        
+        Args:
+            structure_summary: Structure summary from FolderStructureScanner
+            additional_context: Optional additional context for the LLM
+            progress_callback: Optional callback(current_chunk, total_chunks, message)
+            
+        Returns:
+            Merged dictionary containing combined results from all chunks
+            
+        Raises:
+            TypeError: If structure_summary is not a dictionary
+            ValueError: If structure_summary is empty
+            RuntimeError: If LLM analysis fails
+        """
+        chunks = self._chunk_folder_structure(structure_summary)
+        
+        if len(chunks) == 1:
+            # No chunking needed, use standard analysis
+            return self.analyze_structure(structure_summary, additional_context)
+        
+        self.logger.info(f"Processing {len(chunks)} chunks for large structure analysis")
+        
+        # Process each chunk and collect results
+        all_detected_media = []
+        all_folder_changes = []
+        all_compliance_issues = []
+        all_multi_part_episodes = []
+        all_reasoning = []
+        
+        for i, chunk in enumerate(chunks, 1):
+            chunk_info = chunk.get('_chunk_info', {})
+            chunk_num = chunk_info.get('chunk_number', i)
+            total_chunks = chunk_info.get('total_chunks', len(chunks))
+            
+            if progress_callback:
+                progress_callback(chunk_num, total_chunks, f"Analyzing chunk {chunk_num}/{total_chunks}...")
+            
+            self.logger.info(f"Processing chunk {chunk_num}/{total_chunks} ({chunk_info.get('folders_in_chunk', 0)} folders)")
+            
+            # Add chunk context to help LLM understand partial data
+            chunk_context = (
+                f"This is chunk {chunk_num} of {total_chunks} (total folders: {chunk_info.get('total_folders', 0)}).\n"
+                f"Analyze only the folders in this chunk. Results will be merged later.\n"
+            )
+            if additional_context:
+                chunk_context += f"\n{additional_context}"
+            
+            try:
+                result = self.analyze_structure(chunk, chunk_context)
+                
+                # Collect results from this chunk
+                all_detected_media.extend(result.get('detected_media', []))
+                
+                reorg_plan = result.get('reorganization_plan', {})
+                all_folder_changes.extend(reorg_plan.get('folder_changes', []))
+                all_compliance_issues.extend(reorg_plan.get('jellyfin_compliance_issues', []))
+                
+                all_multi_part_episodes.extend(result.get('multi_part_episodes', []))
+                
+                reasoning = result.get('reasoning', '')
+                if reasoning:
+                    all_reasoning.append(f"[Chunk {chunk_num}]: {reasoning}")
+                    
+            except Exception as e:
+                self.logger.error(f"Failed to analyze chunk {chunk_num}: {e}")
+                all_reasoning.append(f"[Chunk {chunk_num}]: ERROR - {e}")
+        
+        # Merge results
+        merged_result = {
+            'detected_media': all_detected_media,
+            'reorganization_plan': {
+                'summary': f"Merged analysis of {len(chunks)} chunks covering {chunk_info.get('total_folders', 0)} folders",
+                'folder_changes': all_folder_changes,
+                'jellyfin_compliance_issues': list(set(all_compliance_issues))  # Dedupe
+            },
+            'multi_part_episodes': all_multi_part_episodes,
+            'reasoning': "\n\n".join(all_reasoning),
+            'metadata': {
+                'timestamp': datetime.now().isoformat(),
+                'model_used': self.model,
+                'chunks_processed': len(chunks),
+                'total_folders': chunk_info.get('total_folders', 0),
+                'detected_count': len(all_detected_media)
+            }
+        }
+        
+        self.logger.info(
+            f"Chunked analysis complete: {len(all_detected_media)} media items "
+            f"from {len(chunks)} chunks"
+        )
+        
+        return merged_result
+    
     def _build_analysis_prompt(
         self, 
         structure_summary: Dict,
