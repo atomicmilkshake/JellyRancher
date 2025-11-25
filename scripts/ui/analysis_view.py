@@ -14,7 +14,6 @@ Key feature: ExtrapolationEngine converts folder-level LLM suggestions to file-l
 """
 
 import logging
-import sqlite3
 import json
 import os
 from datetime import datetime
@@ -32,7 +31,6 @@ from PyQt6.QtCore import Qt, pyqtSignal
 
 from scripts.core.project_manager import ProjectManager, Project
 from scripts.core.file_scanner import FileScanner, FileRecord
-from scripts.core.inventory_repository import InventoryRepository
 from scripts.core.roundup_manager import RoundUpManager
 from scripts.core.action_plan import ProposedOperation, ActionType, Confidence
 from scripts.core.extrapolation_engine import ExtrapolationEngine
@@ -110,7 +108,6 @@ class AnalysisView(QWidget):
             
             self.project = project
             self.project_manager = project_manager
-            self.inventory_repo = InventoryRepository()
             
             # State variables
             self.current_analysis_id = None
@@ -495,24 +492,16 @@ class AnalysisView(QWidget):
     def _load_scan_data(self):
         """Load scan data from the Round-Up database."""
         try:
-            # Check if using Round-Up system
-            if hasattr(self.project, 'roundup') and self.project.roundup:
-                self._load_from_roundup()
-            else:
-                # Legacy fallback for old project system
-                self._load_from_legacy_db()
-                
-        except Exception as e:
-            logger.error(f"Error loading scan data: {e}", exc_info=True)
-            self._set_status(f"Error loading scan data: {e}", error=True)
-    
-    def _load_from_roundup(self):
-        """Load scan data from Round-Up database."""
-        roundup = self.project.roundup
-        manager = self.project.manager if hasattr(self.project, 'manager') else RoundUpManager()
-        
-        # Get scan files from Round-Up
-        scan_file_dicts = manager.get_scan_files(roundup)
+            if not hasattr(self.project, 'roundup') or not self.project.roundup:
+                self._set_status("No Round-Up found. Please create or open a Round-Up first.", error=True)
+                self.btn_run.setEnabled(False)
+                return
+            
+            roundup = self.project.roundup
+            manager = self.project.manager if hasattr(self.project, 'manager') else RoundUpManager()
+            
+            # Get scan files from Round-Up
+            scan_file_dicts = manager.get_scan_files(roundup)
         
         if not scan_file_dicts:
             self._set_status("No scan data found. Please run a scan first.", error=True)
@@ -551,51 +540,10 @@ class AnalysisView(QWidget):
         self.btn_preview.setEnabled(True)
         
         logger.info(f"Loaded {len(self.scanned_files)} files from Round-Up '{roundup.name}'")
-    
-    def _load_from_legacy_db(self):
-        """Load scan data from legacy media_library.db (fallback)."""
-        conn = sqlite3.connect("data/media_library.db")
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT id, total_files, scan_options_json 
-            FROM project_scan_sessions 
-            WHERE project_id = ? 
-            ORDER BY scan_start DESC 
-            LIMIT 1
-        ''', (self.project.id,))
-        
-        row = cursor.fetchone()
-        if row:
-            scan_id, total_files, options_json = row
-            options = json.loads(options_json) if options_json else {}
-            folders = options.get('folders', [])
-            inventory_sessions = options.get('inventory_session_ids', [])
-
-            self.scanned_files = []
-            for session_id in inventory_sessions:
-                self.scanned_files.extend(self.inventory_repo.get_all_files(session_id))
-
-            if self.scanned_files:
-                scanner = FileScanner()
-                self.folder_structure = scanner.get_folder_structure(self.scanned_files)
-                self.folder_structure['project_name'] = self.project.name
-                self.folder_structure['scan_id'] = scan_id
-                self.folder_structure['total_files'] = len(self.scanned_files)
                 
-                self._update_source_data_display()
-                self._update_token_estimate()
-                self._set_status(f"Ready: {len(self.scanned_files)} files from {len(folders)} folder(s)")
-                self.btn_run.setEnabled(True)
-                self.btn_preview.setEnabled(True)
-            else:
-                self._set_status("Scan data found but inventory unavailable. Please run a new scan.", error=True)
-                self.btn_run.setEnabled(False)
-        else:
-            self._set_status("No scan data found. Please run a scan first.", error=True)
-            self.btn_run.setEnabled(False)
-        
-        conn.close()
+        except Exception as e:
+            logger.error(f"Error loading scan data: {e}", exc_info=True)
+            self._set_status(f"Error loading scan data: {e}", error=True)
     
     def _use_filtered_data(self):
         """Use filtered data from ScanResultsView."""
