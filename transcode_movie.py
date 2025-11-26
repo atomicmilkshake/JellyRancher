@@ -1,0 +1,340 @@
+#!/usr/bin/env python3
+"""
+Transcode Movie - Convert video to 1080p HEVC MP4 with AAC audio
+
+Usage:
+    python transcode_movie.py "movie search term" [--output-dir OUTPUT_DIR]
+    python transcode_movie.py "barbie mermaid" --output-dir "L:\#MEDIA\Movies\Barbie in A Mermaid Tale (2010)"
+"""
+
+import sys
+import argparse
+import subprocess
+import shutil
+from pathlib import Path
+from typing import Optional, List
+
+sys.path.insert(0, str(Path(__file__).parent))
+
+from scripts.core.jellyfin_client import JellyfinClient
+from scripts.core.jellyfin_config import JellyfinConfigManager
+
+
+def find_video_file(source_path: Path) -> tuple[Optional[Path], bool]:
+    """
+    Find the actual video file in a path (handles DVD folders, etc.)
+    
+    Args:
+        source_path: Path from Jellyfin (may be folder or file)
+    
+    Returns:
+        Tuple of (Path to video file or IFO file, is_dvd_structure)
+        For DVD structures, returns the IFO file path which ffmpeg can use
+    """
+    if source_path.is_file():
+        # Check if it's a video file
+        video_extensions = {'.mkv', '.mp4', '.avi', '.m4v', '.mov', '.wmv', '.flv', 
+                           '.webm', '.mpg', '.mpeg', '.ts', '.vob', '.mpeg2'}
+        if source_path.suffix.lower() in video_extensions:
+            return source_path, False
+    
+    # If it's a directory, search for video files
+    if source_path.is_dir():
+        # Check for DVD structure (VIDEO_TS folder with IFO files)
+        video_ts_dir = source_path / 'VIDEO_TS'
+        if video_ts_dir.exists():
+            # Look for main title IFO (usually VTS_01_0.IFO or VTS_02_0.IFO)
+            # Find the largest VTS set (main movie)
+            ifo_files = list(video_ts_dir.glob('VTS_*_0.IFO'))
+            if ifo_files:
+                # Get corresponding VOB files to determine size
+                largest_size = 0
+                largest_ifo = None
+                for ifo in ifo_files:
+                    vts_num = ifo.stem.split('_')[1]  # Extract VTS number
+                    vob_files = list(video_ts_dir.glob(f'VTS_{vts_num}_*.VOB'))
+                    total_size = sum(vob.stat().st_size for vob in vob_files if vob.exists())
+                    if total_size > largest_size:
+                        largest_size = total_size
+                        largest_ifo = ifo
+                
+                if largest_ifo:
+                    print(f"Found DVD structure, using IFO: {largest_ifo.name}")
+                    return largest_ifo, True
+        
+        # Look for regular video files
+        video_extensions = {'.mkv', '.mp4', '.avi', '.m4v', '.mov', '.wmv', '.flv', 
+                           '.webm', '.mpg', '.mpeg', '.ts', '.vob', '.mpeg2'}
+        for pattern in ['*.mkv', '*.mp4', '*.avi', '*.m4v', '*.mov', '*.mpg', '*.mpeg']:
+            matches = list(source_path.rglob(pattern))
+            if matches:
+                return matches[0], False
+    
+    return None, False
+
+
+def check_ffmpeg() -> bool:
+    """Check if ffmpeg is available."""
+    try:
+        result = subprocess.run(
+            ['ffmpeg', '-version'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
+
+def transcode_to_hevc(
+    input_file: Path,
+    output_file: Path,
+    target_resolution: str = "1080p",
+    crf: int = 23,
+    preset: str = "medium",
+    is_dvd: bool = False
+) -> bool:
+    """
+    Transcode video to HEVC (H.265) MP4 with AAC audio.
+    
+    Args:
+        input_file: Source video file
+        output_file: Output MP4 file path
+        target_resolution: Target resolution (720p, 1080p, 2160p)
+        crf: Constant Rate Factor (18-28, lower = higher quality, 23 is default)
+        preset: Encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow)
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    # Resolution mapping
+    resolution_map = {
+        "720p": "1280:720",
+        "1080p": "1920:1080",
+        "2160p": "3840:2160"
+    }
+    
+    scale = resolution_map.get(target_resolution.lower(), "1920:1080")
+    
+    # Ensure output directory exists
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Build ffmpeg command
+    # Video: HEVC (libx265), scale to target resolution, maintain aspect ratio
+    # Audio: AAC, 192kbps, stereo (or keep original channels if 2ch)
+    # Container: MP4
+    cmd = ['ffmpeg']
+    
+    # For DVD IFO files, ffmpeg can read them directly
+    # Just pass the IFO file - ffmpeg will handle the DVD structure
+    cmd.extend(['-i', str(input_file)])
+    
+    cmd.extend([
+        '-c:v', 'libx265',           # HEVC video codec
+        '-preset', preset,           # Encoding speed/quality tradeoff
+        '-crf', str(crf),            # Quality (18-28, 23 is default)
+        '-vf', f'scale={scale}:force_original_aspect_ratio=decrease,pad={scale}:(ow-iw)/2:(oh-ih)/2',  # Scale and pad to maintain aspect
+        '-c:a', 'aac',               # AAC audio codec
+        '-b:a', '192k',              # Audio bitrate
+        '-ac', '2',                  # Stereo (2 channels)
+        '-movflags', '+faststart',   # Web-optimized (fast start)
+        '-y',                        # Overwrite output file
+        str(output_file)
+    ])
+    
+    print(f"\nTranscoding command:")
+    print(f"  Input:  {input_file}")
+    print(f"  Output: {output_file}")
+    print(f"  Resolution: {target_resolution}")
+    print(f"  Quality: CRF {crf} (preset: {preset})")
+    print(f"\nRunning ffmpeg (this may take a while)...\n")
+    
+    try:
+        # Run ffmpeg with real-time output
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            bufsize=1
+        )
+        
+        # Print output in real-time
+        for line in process.stdout:
+            print(line, end='')
+        
+        process.wait()
+        
+        if process.returncode == 0:
+            print(f"\n[SUCCESS] Transcoding completed successfully!")
+            print(f"  Output file: {output_file}")
+            if output_file.exists():
+                size_mb = output_file.stat().st_size / (1024 * 1024)
+                print(f"  Output size: {size_mb:.2f} MB")
+            return True
+        else:
+            print(f"\n[ERROR] Transcoding failed with return code {process.returncode}")
+            return False
+            
+    except Exception as e:
+        print(f"\n[ERROR] Error during transcoding: {e}")
+        return False
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Transcode movie from Jellyfin library to 1080p HEVC MP4',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python transcode_movie.py "barbie mermaid"
+  python transcode_movie.py "star wars" --resolution 720p --crf 20
+  python transcode_movie.py "matrix" --output-dir "D:\\Transcoded"
+        """
+    )
+    parser.add_argument(
+        'search_term',
+        help='Movie search term (case-insensitive)'
+    )
+    parser.add_argument(
+        '--output-dir',
+        type=str,
+        help='Output directory (default: same directory as source)'
+    )
+    parser.add_argument(
+        '--resolution',
+        choices=['720p', '1080p', '2160p'],
+        default='1080p',
+        help='Target resolution (default: 1080p)'
+    )
+    parser.add_argument(
+        '--crf',
+        type=int,
+        default=23,
+        choices=range(18, 29),
+        metavar='18-28',
+        help='Quality setting: 18 (highest quality, larger file) to 28 (lower quality, smaller file). Default: 23'
+    )
+    parser.add_argument(
+        '--preset',
+        choices=['ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium', 'slow', 'slower', 'veryslow'],
+        default='medium',
+        help='Encoding speed preset (default: medium)'
+    )
+    
+    args = parser.parse_args()
+    
+    # Check ffmpeg availability
+    if not check_ffmpeg():
+        print("[ERROR] ffmpeg not found in PATH")
+        print("Please install ffmpeg and ensure it's in your system PATH")
+        sys.exit(1)
+    
+    # Query Jellyfin for movie
+    config = JellyfinConfigManager()
+    client = JellyfinClient(
+        server_url=config.get_server_url(),
+        api_key=config.get_api_key()
+    )
+    
+    print("Testing Jellyfin connection...")
+    if not client.test_connection():
+        print("[ERROR] Jellyfin connection failed!")
+        sys.exit(1)
+    
+    print("Connected successfully\n")
+    
+    # Search for movie
+    print(f"Searching for: '{args.search_term}'...")
+    items = client.get_all_items(
+        item_types=['Movie'],
+        fields=['Name', 'Path', 'MediaSources', 'Id', 'ProductionYear']
+    )
+    
+    search_lower = args.search_term.lower()
+    matches = [
+        item for item in items
+        if search_lower in item.get('Name', '').lower()
+    ]
+    
+    if not matches:
+        print(f"No movies found matching '{args.search_term}'")
+        sys.exit(1)
+    
+    if len(matches) > 1:
+        print(f"\nFound {len(matches)} matches:")
+        for i, movie in enumerate(matches):
+            print(f"  {i+1}. {movie['Name']} ({movie.get('ProductionYear', 'N/A')})")
+        print(f"\nUsing first match: {matches[0]['Name']}\n")
+    
+    movie = matches[0]
+    source_path = Path(movie['Path'])
+    
+    print(f"Movie: {movie['Name']}")
+    print(f"Source path: {source_path}")
+    
+    # Find actual video file
+    video_file, is_dvd = find_video_file(source_path)
+    if not video_file:
+        print(f"[ERROR] Could not find video file in: {source_path}")
+        sys.exit(1)
+    
+    print(f"Video file: {video_file}")
+    if is_dvd:
+        print("DVD structure detected - will use IFO file for proper decoding")
+    
+    # Determine output path
+    if args.output_dir:
+        output_dir = Path(args.output_dir)
+    else:
+        # Use same directory as source, or parent if source is a file
+        if source_path.is_file():
+            output_dir = source_path.parent
+        else:
+            output_dir = source_path.parent
+    
+    # Generate output filename
+    movie_name = movie['Name']
+    year = movie.get('ProductionYear', '')
+    if year:
+        output_filename = f"{movie_name} ({year}).mp4"
+    else:
+        output_filename = f"{movie_name}.mp4"
+    
+    # Clean filename (remove invalid characters)
+    invalid_chars = '<>:"/\\|?*'
+    for char in invalid_chars:
+        output_filename = output_filename.replace(char, '_')
+    
+    output_file = output_dir / output_filename
+    
+    # Check if output already exists
+    if output_file.exists():
+        response = input(f"\nOutput file already exists: {output_file}\nOverwrite? (y/N): ")
+        if response.lower() != 'y':
+            print("Cancelled.")
+            sys.exit(0)
+    
+    # Transcode
+    success = transcode_to_hevc(
+        video_file,
+        output_file,
+        target_resolution=args.resolution,
+        crf=args.crf,
+        preset=args.preset,
+        is_dvd=is_dvd
+    )
+    
+    if success:
+        print(f"\n[SUCCESS] Transcoded movie saved to:")
+        print(f"  {output_file}")
+        sys.exit(0)
+    else:
+        print(f"\n[ERROR] Transcoding failed")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
+
