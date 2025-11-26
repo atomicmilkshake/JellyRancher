@@ -726,6 +726,7 @@ python transcode_movie.py "matrix" --resolution 1080p --crf 20 --preset slow
 ```
 
 **Result:** Successfully located "Barbie in A Mermaid Tale" (DVD structure, MPEG2 720x576, AC3 audio) and initiated transcoding to 1080p HEVC MP4. Tools are reusable for any movie in Jellyfin library. Transcoding runs in background and will output to: `L:\#MEDIA\Movies\Barbie Dolphin Magic (2017)\Barbie in A Mermaid Tale (2010).mp4`
+**Git Commit:** c9cc1f2 "feat: Add Jellyfin query and video transcoding tools"
 
 **Known Limitations:**
 - DVD IFO file handling: ffmpeg reads IFO directly (no special dvdnav flag needed)
