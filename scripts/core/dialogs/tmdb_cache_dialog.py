@@ -98,6 +98,8 @@ class TMDBCacheDialog(QDialog):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        # Non-modal dialog (Phase 48-E-4: Modal banishment)
+        self.setModal(False)
         self.logger = ProjectLogger("tmdb_cache_dialog")
         self.settings = SettingsManager()
         self.tmdb = TMDBBackend()
@@ -109,12 +111,27 @@ class TMDBCacheDialog(QDialog):
         self.cache_worker: Optional[TMDBCacheWorker] = None
         
         self.init_ui()
+    
+    def _set_status(self, message: str, level: str = 'info'):
+        """Show status message in parent window's status bar if available."""
+        if self.parent() and hasattr(self.parent(), 'status_label'):
+            if level == 'error':
+                self.parent().status_label.setText(f"❌ {message}")
+                self.parent().status_label.setStyleSheet("color: red;")
+            elif level == 'warning':
+                self.parent().status_label.setText(f"⚠ {message}")
+                self.parent().status_label.setStyleSheet("color: orange;")
+            else:
+                self.parent().status_label.setText(f"ℹ {message}")
+                self.parent().status_label.setStyleSheet("color: green;")
+        if hasattr(self, 'logger'):
+            self.logger.info(f"[{level.upper()}] {message}")
         self.load_api_key()
     
     def init_ui(self):
         """Initialize the dialog UI."""
         self.setWindowTitle("TMDB Episode Cache Generator")
-        self.setModal(True)
+        self.setModal(False)  # Non-modal (Phase 48-E-4: Modal banishment)
         self.resize(900, 700)
         
         layout = QVBoxLayout(self)
@@ -124,7 +141,7 @@ class TMDBCacheDialog(QDialog):
         layout.addWidget(search_group)
         
         # Splitter for results and preview
-        splitter = QSplitter(Qt.Horizontal)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
         
         # Results section
         results_widget = self.create_results_section()
@@ -257,33 +274,18 @@ class TMDBCacheDialog(QDialog):
         api_key = self.settings.get_tmdb_api_key()
         
         if not api_key:
-            QMessageBox.warning(
-                self,
-                "TMDB API Key Required",
-                "No TMDB API key found. Please go to Settings → TMDB Configuration "
-                "and enter your API key. You can get a free API key from "
-                "https://www.themoviedb.org/settings/api"
-            )
+            self._set_status("TMDB API Key Required: No TMDB API key found. Please go to Settings → TMDB Configuration and enter your API key. You can get a free API key from https://www.themoviedb.org/settings/api", level='warning')
             self.search_button.setEnabled(False)
             return
         
         try:
             self.tmdb.set_api_key(api_key)
             if not self.tmdb.validate_api_key():
-                QMessageBox.warning(
-                    self,
-                    "Invalid TMDB API Key",
-                    "The TMDB API key is invalid or expired. Please check your API key "
-                    "in Settings → TMDB Configuration. Make sure you're using a v3 API key "
-                    "from https://www.themoviedb.org/settings/api"
-                )
+                self._set_status("Invalid TMDB API Key: The TMDB API key is invalid or expired. Please check your API key in Settings → TMDB Configuration. Make sure you're using a v3 API key from https://www.themoviedb.org/settings/api", level='warning')
                 self.search_button.setEnabled(False)
         except Exception as e:
-            QMessageBox.critical(
-                self,
-                "Error",
-                f"Error validating API key: {str(e)}"
-            )
+            self._set_status(f"Error: Error validating API key: {e}", level='error')
+            self.logger.error(f"Error validating API key: {e}", exc_info=True)
             self.search_button.setEnabled(False)
     
     def search_tmdb(self):
@@ -299,20 +301,12 @@ class TMDBCacheDialog(QDialog):
                 self.direct_lookup(show_id)
                 return
             except ValueError:
-                QMessageBox.warning(
-                    self,
-                    "Invalid ID",
-                    "TMDB ID must be a number."
-                )
+                self._set_status("Invalid ID: TMDB ID must be a number.", level='warning')
                 return
         
         # Otherwise need show name
         if not query:
-            QMessageBox.warning(
-                self,
-                "No Query",
-                "Please enter a show name to search."
-            )
+            self._set_status("No Query: Please enter a show name to search.", level='warning')
             return
         
         # Get optional year
@@ -356,22 +350,15 @@ class TMDBCacheDialog(QDialog):
         self.search_button.setEnabled(True)
         
         if count == 0:
-            QMessageBox.information(
-                self,
-                "No Results",
-                "No shows found. Try a different search term."
-            )
+            self._set_status("No Results: No shows found. Try a different search term.", level='info')
     
     def on_search_error(self, error: str):
         """Handle search error."""
         self.progress_label.setText("Search failed")
         self.search_button.setEnabled(True)
         
-        QMessageBox.critical(
-            self,
-            "Search Error",
-            f"Error searching TMDB:\n{error}"
-        )
+        self._set_status(f"Search Error: Error searching TMDB: {error}", level='error')
+        self.logger.error(f"Error searching TMDB: {error}", exc_info=True)
         self.logger.error(f"TMDB search error: {error}")
     
     def populate_results(self):
@@ -421,11 +408,7 @@ class TMDBCacheDialog(QDialog):
         
         tmdb_id = self.selected_show.get('id')
         if not tmdb_id:
-            QMessageBox.warning(
-                self,
-                "No ID",
-                "Selected show has no TMDB ID."
-            )
+            self._set_status("No ID: Selected show has no TMDB ID.", level='warning')
             return
         
         # Ask for output location
@@ -465,11 +448,7 @@ class TMDBCacheDialog(QDialog):
         self.progress_bar.setValue(100)
         self.progress_label.setText(f"Cache generated: {cache_path}")
         
-        QMessageBox.information(
-            self,
-            "Success",
-            f"Episode cache generated successfully!\n\n{cache_path}"
-        )
+        self._set_status(f"Success: Episode cache generated successfully! {cache_path}", level='info')
         
         self.logger.info(f"Cache generated: {cache_path}")
         self.accept()  # Close dialog with success
@@ -480,11 +459,8 @@ class TMDBCacheDialog(QDialog):
         self.search_button.setEnabled(True)
         self.generate_button.setEnabled(True)
         
-        QMessageBox.critical(
-            self,
-            "Generation Error",
-            f"Error generating cache:\n{error}"
-        )
+        self._set_status(f"Generation Error: Error generating cache: {error}", level='error')
+        self.logger.error(f"Error generating cache: {error}", exc_info=True)
         self.logger.error(f"Cache generation error: {error}")
     
     def closeEvent(self, event):

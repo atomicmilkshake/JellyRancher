@@ -83,17 +83,22 @@ class ReviewView(QWidget):
             self.action_plan_worker = None
             
             self._init_ui()
-            
+
             logger.info(f"ReviewView initialized successfully for project: {project.name}")
-            
+
         except Exception as e:
             logger.error(f"Failed to initialize ReviewView: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "Initialization Error",
-                f"Failed to initialize review view:\n\n{str(e)}\n\nPlease check the logs for details.",
-            )
+            self._set_status(f"✗ Failed to initialize review view: {e}")
             raise
+
+    def _set_status(self, message: str):
+        """Set status message in main window's status bar (non-modal notification)."""
+        try:
+            main_window = self.window()
+            if main_window and hasattr(main_window, 'status_label'):
+                main_window.status_label.setText(message)
+        except Exception:
+            logger.warning(f"Could not set status: {message}")
     
     def _init_ui(self):
         """
@@ -245,11 +250,7 @@ class ReviewView(QWidget):
             self.setLayout(layout)
         except Exception as e:
             logger.error(f"Failed to initialize review UI: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "UI Initialization Error",
-                f"Failed to initialize review interface:\n\n{str(e)}\n\nPlease restart the application.",
-            )
+            self._set_status(f"✗ Failed to initialize review interface: {e}")
             raise
     
     def _load_analysis_data(self):
@@ -408,7 +409,7 @@ class ReviewView(QWidget):
                 options = json.loads(row[0]) if row[0] else {}
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse scan options JSON: {e}", exc_info=True)
-                QMessageBox.warning(self, "Data Error", "Invalid scan session data. Please re-run the scan.")
+                self._set_status("⚠ Invalid scan session data - please re-run the scan")
                 return
 
             session_ids = options.get("inventory_session_ids", [])
@@ -424,10 +425,10 @@ class ReviewView(QWidget):
 
         except sqlite3.Error as e:
             logger.error(f"Database error loading scanned files: {e}", exc_info=True)
-            QMessageBox.critical(self, "Database Error", f"Failed to load scan data from database:\n\n{str(e)}")
+            self._set_status(f"✗ Database error: {e}")
         except Exception as e:
             logger.error("Failed to load scanned files: %s", e, exc_info=True)
-            QMessageBox.critical(self, "Load Error", f"Failed to load scanned files:\n\n{str(e)}")
+            self._set_status(f"✗ Failed to load scanned files: {e}")
     
     def step_5_review(self):
         """
@@ -458,16 +459,16 @@ class ReviewView(QWidget):
             if not self.scanned_files:
                 self._load_scanned_files()
             if not self.scanned_files:
-                QMessageBox.warning(self, "No Scan Data", "No scanned files available. Run a scan first.")
+                self._set_status("⚠ No scanned files available - run a scan first")
                 return
             if not self.llm_analysis:
-                QMessageBox.warning(self, "No Analysis", "Run LLM analysis before generating an action plan.")
+                self._set_status("⚠ Run LLM analysis before generating an action plan")
                 return
             if not self.canonical_database:
-                QMessageBox.warning(self, "No Metadata", "Build the metadata database before generating an action plan.")
+                self._set_status("⚠ Build the metadata database before generating an action plan")
                 return
             if self.action_plan_worker and self.action_plan_worker.isRunning():
-                QMessageBox.information(self, "In Progress", "Action plan generation is already running.")
+                self._set_status("⚠ Action plan generation is already running")
                 return
 
             self.lbl_summary.setText("Generating action plan...")
@@ -488,11 +489,7 @@ class ReviewView(QWidget):
             logger.info("Started ActionPlanWorker for project %s", self.project.name)
         except Exception as e:
             logger.error(f"Failed to start action plan generation: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "Action Plan Error",
-                f"Failed to start action plan generation:\n\n{str(e)}\n\nPlease check the logs for details.",
-            )
+            self._set_status(f"✗ Failed to start action plan generation: {e}")
             self.lbl_summary.setText("Failed to start action plan generation")
             self.btn_export.setEnabled(False)
             self.btn_dry_run.setEnabled(False)
@@ -529,18 +526,10 @@ class ReviewView(QWidget):
             enable_actions = len(action_plan) > 0
             self.btn_export.setEnabled(enable_actions)
             self.btn_dry_run.setEnabled(enable_actions)
-            QMessageBox.information(
-                self,
-                "Action Plan Ready",
-                f"Action plan generated with {len(action_plan)} operations.",
-            )
+            self._set_status(f"✓ Action plan ready: {len(action_plan)} operations")
         except Exception as e:
             logger.error(f"Failed to handle action plan completion: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "Processing Error",
-                f"Action plan generated but failed to display:\n\n{str(e)}\n\nPlease try again.",
-            )
+            self._set_status(f"✗ Action plan generated but failed to display: {e}")
             self.lbl_summary.setText("Error displaying action plan")
             self.btn_export.setEnabled(False)
             self.btn_dry_run.setEnabled(False)
@@ -574,11 +563,7 @@ class ReviewView(QWidget):
         """
         try:
             self.lbl_summary.setText(f"Action plan generation failed: {error_msg}")
-            QMessageBox.critical(
-                self,
-                "Action Plan Error",
-                f"Failed to generate action plan:\n\n{error_msg}",
-            )
+            self._set_status(f"✗ Action plan failed: {error_msg}")
             logger.error("ActionPlanWorker error: %s", error_msg)
         except Exception as e:
             logger.error(f"Failed to handle action plan error: {e}", exc_info=True)
@@ -629,7 +614,7 @@ class ReviewView(QWidget):
             
         except Exception as e:
             logger.error(f"Failed to set preloaded operations: {e}", exc_info=True)
-            QMessageBox.critical(self, "Error", f"Failed to load operations:\n{e}")
+            self._set_status(f"✗ Failed to load operations: {e}")
     
     def _populate_table(self):
         """
@@ -732,11 +717,7 @@ class ReviewView(QWidget):
                 self.lbl_summary.setText(f"Loaded {len(self.operations)} operations (summary error)")
         except Exception as e:
             logger.error(f"Failed to populate operations table: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "Table Error",
-                f"Failed to populate operations table:\n\n{str(e)}\n\nPlease try regenerating the action plan.",
-            )
+            self._set_status(f"✗ Failed to populate operations table: {e}")
             self.operations_table.setRowCount(0)
     
     def _on_approve_changed(self, row: int, state: int):
@@ -770,11 +751,7 @@ class ReviewView(QWidget):
                 self._update_summary()
         except Exception as e:
             logger.error(f"Failed to handle approval change for row {row}: {e}", exc_info=True)
-            QMessageBox.warning(
-                self,
-                "Approval Error",
-                f"Failed to update approval status:\n\n{str(e)}\n\nPlease try again.",
-            )
+            self._set_status(f"⚠ Failed to update approval status: {e}")
 
     def _update_summary(self):
         """
@@ -836,11 +813,8 @@ class ReviewView(QWidget):
                     checkbox.setChecked(True)
         except Exception as e:
             logger.error(f"Failed to select all operations: {e}", exc_info=True)
-            QMessageBox.warning(
-                self,
-                "Selection Error",
-                f"Failed to select all operations:\n\n{str(e)}\n\nPlease try again.",
-            )
+            self._set_status(f"Selection Error: {e}. Please try again.", level='warning')
+            logger.warning(f"Failed to select all operations: {e}")
 
     def _approve_selected(self):
         """
@@ -869,11 +843,7 @@ class ReviewView(QWidget):
                         approve_checkbox.setChecked(True)
         except Exception as e:
             logger.error(f"Failed to approve selected operations: {e}", exc_info=True)
-            QMessageBox.warning(
-                self,
-                "Approval Error",
-                f"Failed to approve selected operations:\n\n{str(e)}\n\nPlease try again.",
-            )
+            self._set_status(f"⚠ Failed to approve selected: {e}")
 
     def _reject_selected(self):
         """
@@ -902,11 +872,7 @@ class ReviewView(QWidget):
                         approve_checkbox.setChecked(False)
         except Exception as e:
             logger.error(f"Failed to reject selected operations: {e}", exc_info=True)
-            QMessageBox.warning(
-                self,
-                "Rejection Error",
-                f"Failed to reject selected operations:\n\n{str(e)}\n\nPlease try again.",
-            )
+            self._set_status(f"⚠ Failed to reject selected: {e}")
     
     def _filter_operations(self, search_text: str):
         """
@@ -949,11 +915,9 @@ class ReviewView(QWidget):
                 self.operations_table.setRowHidden(row, not show_row)
         except Exception as e:
             logger.error(f"Failed to filter operations: {e}", exc_info=True)
-            QMessageBox.warning(
-                self,
-                "Filter Error",
-                f"Failed to apply search filter:\n\n{str(e)}\n\nPlease try again.",
-            )
+            self._set_status(f"Filter Error: {e}", level='warning')
+            logger.warning(f"Failed to filter operations: {e}")
+            # Status already set above
 
     def _apply_filter(self, filter_text: str):
         """
@@ -1021,11 +985,7 @@ class ReviewView(QWidget):
                 self.operations_table.setRowHidden(row, not show_row)
         except Exception as e:
             logger.error(f"Failed to apply filter '{filter_text}': {e}", exc_info=True)
-            QMessageBox.warning(
-                self,
-                "Filter Error",
-                f"Failed to apply filter '{filter_text}':\n\n{str(e)}\n\nPlease try again.",
-            )
+            self._set_status(f"⚠ Failed to apply filter: {e}")
 
     def _preview_changes(self):
         """
@@ -1051,17 +1011,13 @@ class ReviewView(QWidget):
             approved_ops = [op for op in self.operations if op.user_approved]
 
             if not approved_ops:
-                QMessageBox.warning(self, "No Operations", "No operations are approved for preview.")
+                self._set_status("⚠ No operations are approved for preview")
                 return
 
             self._show_preview_dialog(approved_ops, "Preview Changes")
         except Exception as e:
             logger.error(f"Failed to preview changes: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "Preview Error",
-                f"Failed to generate preview:\n\n{str(e)}\n\nPlease try again.",
-            )
+            self._set_status(f"✗ Failed to generate preview: {e}")
 
     def _dry_run_preview(self):
         """
@@ -1085,11 +1041,7 @@ class ReviewView(QWidget):
         """
         try:
             if not self.operations:
-                QMessageBox.information(
-                    self,
-                    "No Operations",
-                    "No action plan has been generated yet."
-                )
+                self._set_status("⚠ No action plan has been generated yet")
                 return
 
             self._show_preview_dialog(
@@ -1099,11 +1051,7 @@ class ReviewView(QWidget):
             )
         except Exception as e:
             logger.error(f"Failed to generate dry run preview: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "Preview Error",
-                f"Failed to generate dry run preview:\n\n{str(e)}\n\nPlease try again.",
-            )
+            self._set_status(f"✗ Failed to generate dry run preview: {e}")
 
     def _show_preview_dialog(self, operations: List[ProposedOperation], title: str, intro: str = ""):
         """
@@ -1156,14 +1104,12 @@ class ReviewView(QWidget):
             layout.addWidget(button_box)
 
             dialog.setLayout(layout)
-            dialog.exec()
+            dialog.setModal(False)
+            dialog.show()  # Non-blocking
+            self._preview_dialog = dialog  # Prevent garbage collection
         except Exception as e:
             logger.error(f"Failed to show preview dialog: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "Dialog Error",
-                f"Failed to display preview dialog:\n\n{str(e)}\n\nPlease try again.",
-            )
+            self._set_status(f"✗ Failed to display preview: {e}")
 
     def _export_to_csv(self):
         """
@@ -1196,7 +1142,7 @@ class ReviewView(QWidget):
         """
         try:
             if not self.operations:
-                QMessageBox.information(self, "No Data", "No operations available to export.")
+                self._set_status("⚠ No operations available to export")
                 return
 
             filename, _ = QFileDialog.getSaveFileName(
@@ -1238,24 +1184,20 @@ class ReviewView(QWidget):
                             "YES" if op.user_approved else "NO",
                         ])
 
-                QMessageBox.information(self, "Export Complete", f"Action plan exported to:\n{filename}")
+                self._set_status(f"✓ Exported to: {filename}")
                 logger.info(f"Action plan exported to {filename}")
             except PermissionError as e:
                 logger.error(f"Permission denied exporting to {filename}: {e}", exc_info=True)
-                QMessageBox.critical(self, "Export Failed", f"Permission denied writing to:\n{filename}\n\nPlease choose a different location.")
+                self._set_status(f"✗ Permission denied: {filename}")
             except OSError as e:
                 logger.error(f"OS error exporting to {filename}: {e}", exc_info=True)
-                QMessageBox.critical(self, "Export Failed", f"Failed to write file:\n{filename}\n\n{str(e)}")
+                self._set_status(f"✗ Failed to write file: {e}")
             except Exception as exc:
                 logger.error(f"Action plan export failed: {exc}", exc_info=True)
-                QMessageBox.critical(self, "Export Failed", f"Failed to export action plan:\n\n{str(exc)}")
+                self._set_status(f"✗ Export failed: {exc}")
         except Exception as e:
             logger.error(f"Failed to initiate CSV export: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "Export Error",
-                f"Failed to start export process:\n\n{str(e)}\n\nPlease try again.",
-            )
+            self._set_status(f"✗ Failed to start export: {e}")
     
     def _execute_operations(self):
         """
@@ -1286,41 +1228,20 @@ class ReviewView(QWidget):
             approved_ops = [op for op in self.operations if op.user_approved]
 
             if not approved_ops:
-                QMessageBox.warning(self, "No Operations", "No operations are approved for execution.")
+                self._set_status("⚠ No operations are approved for execution")
                 return
 
-            # Confirm
-            reply = QMessageBox.question(
-                self,
-                "Execute Operations",
-                f"Execute {len(approved_ops)} approved operations?\n\n"
-                f"This will modify files on disk. Continue?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-
-            if reply != QMessageBox.StandardButton.Yes:
-                return
-
-            # Save to database and signal for execution
+            # Save to database and signal for execution (no modal confirmation - use dry-run in Execution view for safety)
             self._save_action_plan_to_database()
 
-            QMessageBox.information(
-                self,
-                "Ready for Execution",
-                f"{len(approved_ops)} operations are ready.\n\n"
-                f"Open the Execution Monitor to run them."
-            )
+            self._set_status(f"✓ {len(approved_ops)} operations ready for execution - open Execution Monitor")
 
             # Emit signal
             if self.current_action_plan_id:
                 self.operations_ready.emit(self.current_action_plan_id)
         except Exception as e:
             logger.error(f"Failed to execute operations: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "Execution Error",
-                f"Failed to prepare operations for execution:\n\n{str(e)}\n\nPlease try again.",
-            )
+            self._set_status(f"✗ Failed to prepare operations: {e}")
 
     def _save_action_plan_to_database(self):
         """
@@ -1375,21 +1296,15 @@ class ReviewView(QWidget):
                 logger.info(f"Saved {len(actions)} review actions to Round-Up")
             else:
                 logger.warning("No Round-Up found, cannot save action plan")
-                QMessageBox.warning(self, "No Round-Up", "Cannot save action plan: No Round-Up is open.")
+                self._set_status("Cannot save action plan: No Round-Up is open.", level='warning')
                 return
 
         except sqlite3.Error as e:
             logger.error(f"Database error saving action plan: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "Database Error",
-                f"Failed to save action plan to database:\n\n{str(e)}\n\nPlease check database connectivity.",
-            )
+            self._set_status(f"Database Error: {e}. Please check database connectivity.", level='error')
+            logger.error(f"Database error saving action plan: {e}", exc_info=True)
         except Exception as e:
             logger.error(f"Failed to save action plan: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "Save Error",
-                f"Failed to save action plan:\n\n{str(e)}\n\nPlease try again.",
-            )
+            self._set_status(f"Save Error: {e}. Please try again.", level='error')
+            logger.error(f"Failed to save action plan: {e}", exc_info=True)
 

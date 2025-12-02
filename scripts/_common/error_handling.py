@@ -47,14 +47,16 @@ def safe_slot(show_error: bool = True, default_return: Any = None, halt_on_error
                     exc_info=True
                 )
                 
-                # Show error dialog if requested
+                # Show error status if requested (non-modal - Phase 48-E-6)
                 if show_error:
                     parent = self if isinstance(self, QWidget) else None
-                    QMessageBox.warning(
-                        parent,
-                        "Operation Failed",
-                        f"An error occurred in {class_name}.{func_name}:\n\n{str(e)}"
-                    )
+                    if parent and hasattr(parent, '_set_status'):
+                        parent._set_status(f"Operation Failed in {class_name}.{func_name}: {e}", level='error')
+                    elif parent and hasattr(parent, 'status_label'):
+                        parent.status_label.setText(f"❌ Operation Failed: {e}")
+                        parent.status_label.setStyleSheet("color: red;")
+                    # Log to console as fallback
+                    logger.error(f"Operation Failed in {class_name}.{func_name}: {e}", exc_info=True)
                 
                 # Re-raise to trigger global exception handler (HALT)
                 if halt_on_error:
@@ -240,15 +242,111 @@ def show_error_dialog(
         message: Main error message
         details: Optional detailed error information
     """
-    msg_box = QMessageBox(parent)
-    msg_box.setIcon(QMessageBox.Icon.Critical)
-    msg_box.setWindowTitle(title)
-    msg_box.setText(message)
+    # Non-modal error display (Phase 48-E-6: Modal banishment)
+    # Show in parent's status bar if available, otherwise log
+    if parent and hasattr(parent, '_set_status'):
+        full_message = f"{message}" + (f"\n{details}" if details else "")
+        parent._set_status(full_message, level='error')
+    elif parent and hasattr(parent, 'status_label'):
+        parent.status_label.setText(f"❌ {message}")
+        parent.status_label.setStyleSheet("color: red;")
+    else:
+        # Fallback: log to console
+        logger.critical(f"{title}: {message}" + (f"\n{details}" if details else ""))
+
+
+def log_function_entry_exit(
+    enabled: bool = True,
+    log_args: bool = True,
+    log_return: bool = True,
+    logger_instance: Optional[logging.Logger] = None
+):
+    """
+    Decorator that logs function entry and exit with key variables.
     
-    if details:
-        msg_box.setDetailedText(details)
+    Logs function entry with parameters and exit with return value.
+    Uses DEBUG level for entry/exit, ERROR for exceptions.
+    Designed to be lightweight with minimal overhead.
     
-    msg_box.exec()
+    Args:
+        enabled: Whether to enable logging for this function (default True)
+        log_args: Whether to log function arguments (default True)
+        log_return: Whether to log return value (default True)
+        logger_instance: Logger to use (defaults to module logger)
+    
+    Usage:
+        @log_function_entry_exit()
+        def my_function(self, param1, param2):
+            return result
+            
+        @log_function_entry_exit(enabled=False)
+        def performance_critical_function(self):
+            # No logging overhead
+            pass
+    """
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            if not enabled:
+                return func(*args, **kwargs)
+            
+            log = logger_instance or logger
+            
+            # Get function qualname for logging
+            func_name = func.__qualname__ if hasattr(func, '__qualname__') else func.__name__
+            
+            # Log function entry
+            if log_args:
+                # Format arguments (key variables only - skip 'self' for methods)
+                arg_strs = []
+                if args:
+                    # Skip 'self' for instance methods
+                    start_idx = 1 if args and hasattr(args[0], '__class__') and args[0].__class__.__name__ in str(type(args[0])) else 0
+                    for i, arg in enumerate(args[start_idx:], start=start_idx):
+                        # Truncate long arguments
+                        arg_repr = repr(arg)
+                        if len(arg_repr) > 100:
+                            arg_repr = arg_repr[:97] + "..."
+                        arg_strs.append(arg_repr)
+                
+                # Format keyword arguments
+                kwarg_strs = []
+                for key, value in kwargs.items():
+                    value_repr = repr(value)
+                    if len(value_repr) > 100:
+                        value_repr = value_repr[:97] + "..."
+                    kwarg_strs.append(f"{key}={value_repr}")
+                
+                all_args = ", ".join(arg_strs + kwarg_strs)
+                log.debug(f"[ENTRY] {func_name}({all_args})")
+            else:
+                log.debug(f"[ENTRY] {func_name}()")
+            
+            # Execute function and log exit/exception
+            try:
+                result = func(*args, **kwargs)
+                
+                # Log function exit
+                if log_return:
+                    result_repr = repr(result)
+                    if len(result_repr) > 200:
+                        result_repr = result_repr[:197] + "..."
+                    log.debug(f"[EXIT] {func_name} -> {result_repr}")
+                else:
+                    log.debug(f"[EXIT] {func_name}")
+                
+                return result
+                
+            except Exception as e:
+                # Log exception with full traceback
+                log.error(
+                    f"[EXCEPTION] {func_name}: {type(e).__name__}: {e}",
+                    exc_info=True
+                )
+                raise
+        
+        return wrapper
+    return decorator
 
 
 def ensure_logging(module_name: str) -> logging.Logger:

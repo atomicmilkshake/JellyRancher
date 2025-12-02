@@ -139,6 +139,8 @@ class CanonicalDBDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        # Non-modal dialog (Phase 48-E-4: Modal banishment)
+        self.setModal(False)
         self.logger = ProjectLogger("canonical_db_dialog")
 
         # State
@@ -147,6 +149,21 @@ class CanonicalDBDialog(QDialog):
         self.worker: Optional[CanonicalDBWorker] = None
 
         self.init_ui()
+    
+    def _set_status(self, message: str, level: str = 'info'):
+        """Show status message in parent window's status bar if available."""
+        if self.parent() and hasattr(self.parent(), 'status_label'):
+            if level == 'error':
+                self.parent().status_label.setText(f"❌ {message}")
+                self.parent().status_label.setStyleSheet("color: red;")
+            elif level == 'warning':
+                self.parent().status_label.setText(f"⚠ {message}")
+                self.parent().status_label.setStyleSheet("color: orange;")
+            else:
+                self.parent().status_label.setText(f"ℹ {message}")
+                self.parent().status_label.setStyleSheet("color: green;")
+        if hasattr(self, 'logger'):
+            self.logger.info(f"[{level.upper()}] {message}")
 
     def init_ui(self):
         """Initialize the dialog UI."""
@@ -359,15 +376,8 @@ class CanonicalDBDialog(QDialog):
 
         self.results_text.setHtml(results_html)
 
-        QMessageBox.information(
-            self,
-            "Success",
-            f"Canonical database built successfully!\n\n"
-            f"Movies: {movies}\n"
-            f"TV Shows: {tv_shows}\n"
-            f"Failures: {failures}\n\n"
-            f"Success Rate: {((movies + tv_shows) / total * 100):.1f}%"
-        )
+        success_msg = f"Canonical database built successfully! Movies: {movies}, TV Shows: {tv_shows}, Failures: {failures}, Success Rate: {((movies + tv_shows) / total * 100):.1f}%"
+        self._set_status(success_msg, level='info')
 
         self.logger.info(f"Canonical database built: {movies} movies, {tv_shows} TV shows, {failures} failures")
         self.accept()  # Close dialog with success
@@ -380,11 +390,8 @@ class CanonicalDBDialog(QDialog):
 
         self.results_text.setHtml(f"<h2>❌ Build Failed</h2><p>Error: {error}</p>")
 
-        QMessageBox.critical(
-            self,
-            "Build Error",
-            f"Error building canonical database:\n{error}"
-        )
+        self._set_status(f"Build Error: {error}", level='error')
+        self.logger.error(f"Error building canonical database: {error}")
         self.logger.error(f"Canonical database build error: {error}")
 
     def closeEvent(self, event):

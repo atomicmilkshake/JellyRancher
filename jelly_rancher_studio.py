@@ -28,9 +28,9 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QSplitter, QTreeWidget, QTreeWidgetItem, QTabWidget, QLabel,
     QMenuBar, QMenu, QStatusBar, QPushButton, QMessageBox, QDialog,
-    QLineEdit, QTextEdit, QDialogButtonBox, QStackedWidget
+    QLineEdit, QTextEdit, QDialogButtonBox, QStackedWidget, QDockWidget
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QEvent
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QEvent, QSettings
 from PyQt6.QtGui import QAction, QFont, QShortcut, QKeySequence
 
 from scripts.core.roundup_manager import RoundUpManager, RoundUp
@@ -45,6 +45,8 @@ from scripts.ui.analysis_view import AnalysisView
 from scripts.ui.review_view import ReviewView
 from scripts.ui.execution_view import ExecutionView
 from scripts.ui.subtitles_view import SubtitlesView
+from scripts.ui.log_viewer import LogViewerWindow
+from scripts.ui.jellybase_view import JellyBaseView
 from scripts.core.dialogs.jellyfin_settings_dialog import JellyfinSettingsDialog
 
 # Initialize logging
@@ -240,12 +242,31 @@ class JellyRancherStudio(QMainWindow):
 
         self._create_menu_bar()
         self._create_main_layout()
+        self._create_log_viewer_dock()
         self._create_status_bar()
         self._setup_keyboard_shortcuts()
         self._setup_gui_capture_shortcut()
+        self._restore_dock_state()
 
         # Start with Welcome Screen (always)
         self._show_welcome_screen()
+        
+        # Check if log viewer should auto-open
+        settings = QSettings("JellyRancher", "Studio")
+        if settings.value("auto_open_log_viewer", False, type=bool):
+            self.log_viewer_dock.setVisible(True)
+            self.log_viewer_action.setChecked(True)
+            # Apply dock position preference
+            dock_position = settings.value("log_viewer_dock_position", "Bottom", type=str)
+            dock_area_map = {
+                "Bottom": Qt.DockWidgetArea.BottomDockWidgetArea,
+                "Left": Qt.DockWidgetArea.LeftDockWidgetArea,
+                "Right": Qt.DockWidgetArea.RightDockWidgetArea,
+                "Top": Qt.DockWidgetArea.TopDockWidgetArea
+            }
+            if dock_position in dock_area_map:
+                self.removeDockWidget(self.log_viewer_dock)
+                self.addDockWidget(dock_area_map[dock_position], self.log_viewer_dock)
 
         logger.info("JellyRancher Studio initialized")
 
@@ -310,8 +331,21 @@ class JellyRancherStudio(QMainWindow):
         shortcuts_action.triggered.connect(self._show_keyboard_shortcuts)
         view_menu.addAction(shortcuts_action)
 
+        view_menu.addSeparator()
+
+        log_viewer_action = QAction("&Log Viewer", self)
+        log_viewer_action.setShortcut("Ctrl+L")
+        log_viewer_action.setCheckable(True)
+        log_viewer_action.triggered.connect(self._toggle_log_viewer)
+        view_menu.addAction(log_viewer_action)
+        self.log_viewer_action = log_viewer_action
+
         # Tools menu
         tools_menu = menubar.addMenu("&Tools")
+
+        # Jellyfin Cleanup removed - now accessible via JellyBase tab
+
+        tools_menu.addSeparator()
 
         jellyfin_action = QAction("&Jellyfin Settings", self)
         jellyfin_action.triggered.connect(self._show_jellyfin_settings)
@@ -326,7 +360,7 @@ class JellyRancherStudio(QMainWindow):
 
     def _create_main_layout(self):
         """Create the main window layout."""
-        # Central stacked widget (Welcome Screen / Workspace)
+        # Central stacked widget (Welcome Screen / Top-level tabs)
         self.central_stack = QStackedWidget()
         self.setCentralWidget(self.central_stack)
 
@@ -336,7 +370,10 @@ class JellyRancherStudio(QMainWindow):
         self.welcome_screen.roundup_created.connect(self._on_roundup_created)
         self.central_stack.addWidget(self.welcome_screen)
 
-        # Create Workspace (will be shown when Round-Up is open)
+        # Create top-level tabs widget (JellyRancher / JellyBase)
+        self.top_level_tabs = QTabWidget()
+        
+        # JellyRancher Tab: Contains existing workspace
         self.workspace_widget = QWidget()
         workspace_layout = QHBoxLayout()
         workspace_layout.setContentsMargins(0, 0, 0, 0)
@@ -360,7 +397,58 @@ class JellyRancherStudio(QMainWindow):
 
         workspace_layout.addWidget(main_splitter)
         self.workspace_widget.setLayout(workspace_layout)
-        self.central_stack.addWidget(self.workspace_widget)
+        self.top_level_tabs.addTab(self.workspace_widget, "JellyRancher")
+
+        # JellyBase Tab: Library management tool
+        self.jellybase_view = JellyBaseView(self)
+        self.top_level_tabs.addTab(self.jellybase_view, "JellyBase")
+
+        self.central_stack.addWidget(self.top_level_tabs)
+
+    def _create_log_viewer_dock(self):
+        """Create the log viewer dock widget."""
+        # Create log viewer widget
+        self.log_viewer = LogViewerWindow(self)
+        
+        # Create dock widget
+        self.log_viewer_dock = QDockWidget("Log Viewer", self)
+        self.log_viewer_dock.setWidget(self.log_viewer)
+        self.log_viewer_dock.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea |
+            Qt.DockWidgetArea.RightDockWidgetArea |
+            Qt.DockWidgetArea.TopDockWidgetArea |
+            Qt.DockWidgetArea.BottomDockWidgetArea
+        )
+        
+        # Add dock to main window (initially hidden)
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.log_viewer_dock)
+        self.log_viewer_dock.setVisible(False)
+        
+        # Connect visibility changes to menu action
+        self.log_viewer_dock.visibilityChanged.connect(
+            lambda visible: setattr(self.log_viewer_action, 'checked', visible) if hasattr(self, 'log_viewer_action') else None
+        )
+
+    def _toggle_log_viewer(self):
+        """Toggle log viewer visibility."""
+        if self.log_viewer_dock.isVisible():
+            self.log_viewer_dock.setVisible(False)
+        else:
+            self.log_viewer_dock.setVisible(True)
+            self.log_viewer_dock.raise_()
+
+    def _restore_dock_state(self):
+        """Restore dock widget state from settings."""
+        settings = QSettings("JellyRancher", "Studio")
+        if settings.value("log_viewer_visible", False, type=bool):
+            self.log_viewer_dock.setVisible(True)
+            if hasattr(self, 'log_viewer_action'):
+                self.log_viewer_action.setChecked(True)
+
+    def _save_dock_state(self):
+        """Save dock widget state to settings."""
+        settings = QSettings("JellyRancher", "Studio")
+        settings.setValue("log_viewer_visible", self.log_viewer_dock.isVisible())
 
     def _create_roundup_explorer(self) -> QWidget:
         """Create the left sidebar Round-Up Explorer."""
@@ -420,10 +508,13 @@ class JellyRancherStudio(QMainWindow):
         pass
 
     def _setup_gui_capture_shortcut(self):
-        """Setup F12 for GUI state capture."""
-        shortcut = QShortcut(QKeySequence("F12"), self)
-        shortcut.activated.connect(self._capture_gui_state)
-        logger.info("F12 GUI capture shortcut registered")
+        """Setup F12 for GUI state capture (works globally, including modal dialogs)."""
+        # Use ApplicationShortcut context so it works even when dialogs have focus
+        # Store reference to prevent garbage collection
+        self._f12_shortcut = QShortcut(QKeySequence("F12"), self)
+        self._f12_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
+        self._f12_shortcut.activated.connect(self._capture_gui_state)
+        logger.info("F12 GUI capture shortcut registered (ApplicationShortcut context)")
 
     # ========================================================================
     # Welcome Screen / Workspace Navigation
@@ -434,12 +525,19 @@ class JellyRancherStudio(QMainWindow):
         self.welcome_screen.refresh()
         self.central_stack.setCurrentWidget(self.welcome_screen)
         self.setWindowTitle("JellyRancher Studio")
+    
+    def _show_top_level_tabs(self):
+        """Show the top-level tabs (JellyRancher/JellyBase)."""
+        self.central_stack.setCurrentWidget(self.top_level_tabs)
+        logger.info("Showing top-level tabs")
         self.save_indicator.setText("No Round-Up open")
         self.status_label.setText("Select or create a Round-Up")
 
     def _show_workspace(self):
         """Show the Workspace (when Round-Up is open)."""
-        self.central_stack.setCurrentWidget(self.workspace_widget)
+        self.central_stack.setCurrentWidget(self.top_level_tabs)
+        # Ensure JellyRancher tab is selected when Round-Up is loaded
+        self.top_level_tabs.setCurrentIndex(0)  # JellyRancher is index 0
 
     # ========================================================================
     # Round-Up Management
@@ -450,7 +548,10 @@ class JellyRancherStudio(QMainWindow):
         from scripts.ui.welcome_screen import NewRoundUpDialog
 
         dialog = NewRoundUpDialog(self)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
+        dialog.setModal(False)  # Non-modal (Phase 48-E-4)
+        dialog.show()
+        # Note: Signal-based acceptance handled in dialog
+        if dialog.exec() == QDialog.DialogCode.Accepted:  # Keep for compatibility
             data = dialog.get_data()
             try:
                 roundup = self.roundup_manager.create(
@@ -459,7 +560,7 @@ class JellyRancherStudio(QMainWindow):
                 )
                 self._load_roundup(roundup)
             except ValueError as e:
-                QMessageBox.critical(self, "Error", str(e))
+                self.status_label.setText(f"✗ Error: {e}")
 
     def _open_roundup_dialog(self):
         """Open Round-Up selection dialog."""
@@ -477,12 +578,9 @@ class JellyRancherStudio(QMainWindow):
             if roundup:
                 self._load_roundup(roundup)
             else:
-                QMessageBox.critical(self, "Error", f"Failed to load Round-Up: {folder}")
+                self.status_label.setText(f"✗ Failed to load Round-Up: {folder}")
         elif folder:
-            QMessageBox.warning(
-                self, "Invalid Selection",
-                "Please select a .roundup folder."
-            )
+            self.status_label.setText("⚠ Invalid selection - please select a .roundup folder")
 
     def _on_roundup_opened(self, roundup: RoundUp):
         """Handle Round-Up opened from Welcome Screen."""
@@ -535,38 +633,25 @@ class JellyRancherStudio(QMainWindow):
     def _save_roundup(self):
         """Save the current Round-Up."""
         if not self.current_roundup:
-            QMessageBox.information(self, "No Round-Up", "No Round-Up is currently open.")
+            self.status_label.setText("⚠ No Round-Up is currently open")
             return
 
         if self.roundup_manager.save(self.current_roundup):
             self._update_save_indicator()
-            self.status_label.setText(f"Saved: {self.current_roundup.name}")
+            self.status_label.setText(f"✓ Saved: {self.current_roundup.name}")
             logger.info(f"Saved Round-Up: {self.current_roundup.name}")
         else:
-            QMessageBox.critical(self, "Error", "Failed to save Round-Up.")
+            self.status_label.setText("✗ Failed to save Round-Up")
 
     def _close_roundup(self):
-        """Close the current Round-Up."""
+        """Close the current Round-Up (auto-saves if unsaved changes)."""
         if not self.current_roundup:
             return
 
-        # Check for unsaved changes
+        # Auto-save unsaved changes (no modal confirmation - per modal banishment)
         if self.current_roundup.has_unsaved_changes:
-            result = QMessageBox.question(
-                self,
-                "Unsaved Changes",
-                f"Round-Up '{self.current_roundup.name}' has unsaved changes.\n\n"
-                f"Save before closing?",
-                QMessageBox.StandardButton.Save |
-                QMessageBox.StandardButton.Discard |
-                QMessageBox.StandardButton.Cancel,
-                QMessageBox.StandardButton.Save
-            )
-
-            if result == QMessageBox.StandardButton.Cancel:
-                return
-            elif result == QMessageBox.StandardButton.Save:
-                self._save_roundup()
+            self._save_roundup()
+            self.status_label.setText(f"✓ Auto-saved and closed: {self.current_roundup.name}")
 
         # Stop auto-save
         self.auto_save_timer.stop()
@@ -824,7 +909,7 @@ class JellyRancherStudio(QMainWindow):
     def _open_scan_view(self):
         """Open the Scan view."""
         if not self.current_roundup or not self.project_adapter:
-            QMessageBox.information(self, "No Round-Up", "Please open a Round-Up first.")
+            self.status_label.setText("⚠ Please open a Round-Up first")
             return
 
         # Check if tab already open
@@ -851,7 +936,7 @@ class JellyRancherStudio(QMainWindow):
         # Check step prerequisites
         can_proceed, error_msg = self._check_step_prerequisites(2)
         if not can_proceed:
-            QMessageBox.warning(self, "Step Not Available", error_msg)
+            self.status_label.setText(f"⚠ {error_msg}")
             return
 
         # Check if tab already open
@@ -873,10 +958,7 @@ class JellyRancherStudio(QMainWindow):
             scan_session_id = self._get_most_recent_scan_session_id()
 
         if scan_session_id is None:
-            QMessageBox.information(
-                self, "No Scan Data",
-                "No scan data found. Please run a scan first."
-            )
+            self.status_label.setText("⚠ No scan data found - please run a scan first")
             return
 
         results_view = ScanResultsView(
@@ -897,7 +979,7 @@ class JellyRancherStudio(QMainWindow):
         # Check step prerequisites
         can_proceed, error_msg = self._check_step_prerequisites(3)
         if not can_proceed:
-            QMessageBox.warning(self, "Step Not Available", error_msg)
+            self.status_label.setText(f"⚠ {error_msg}")
             return
 
         # Check if tab already open
@@ -932,7 +1014,7 @@ class JellyRancherStudio(QMainWindow):
         # Check step prerequisites
         can_proceed, error_msg = self._check_step_prerequisites(5)
         if not can_proceed:
-            QMessageBox.warning(self, "Step Not Available", error_msg)
+            self.status_label.setText(f"⚠ {error_msg}")
             return
 
         # Check if tab already open
@@ -957,7 +1039,7 @@ class JellyRancherStudio(QMainWindow):
         # Check step prerequisites
         can_proceed, error_msg = self._check_step_prerequisites(6)
         if not can_proceed:
-            QMessageBox.warning(self, "Step Not Available", error_msg)
+            self.status_label.setText(f"⚠ {error_msg}")
             return
 
         # Check if tab already open
@@ -987,7 +1069,7 @@ class JellyRancherStudio(QMainWindow):
         # Check step prerequisites (Step 7 - Subtitle Audit)
         can_proceed, error_msg = self._check_step_prerequisites(7)
         if not can_proceed:
-            QMessageBox.warning(self, "Step Not Available", error_msg)
+            self.status_label.setText(f"⚠ {error_msg}")
             return
 
         # Check if tab already open
@@ -1181,12 +1263,25 @@ class JellyRancherStudio(QMainWindow):
 
     def _show_settings(self):
         """Show settings dialog."""
-        QMessageBox.information(self, "Settings", "Settings dialog coming soon!")
+        self.status_label.setText("⚠ Settings dialog coming soon!")
 
     def _show_jellyfin_settings(self):
-        """Show Jellyfin settings dialog."""
+        """Show Jellyfin settings dialog (non-modal)."""
         dialog = JellyfinSettingsDialog(self)
-        dialog.exec()
+        dialog.setModal(False)
+        dialog.show()  # Non-blocking
+        self._jellyfin_dialog = dialog  # Prevent garbage collection
+
+    def _open_jellyfin_cleanup(self):
+        """Open JellyBase tab (legacy method for compatibility)."""
+        # Switch to top-level tabs if still on Welcome Screen
+        if self.central_stack.currentWidget() == self.welcome_screen:
+            self.central_stack.setCurrentWidget(self.top_level_tabs)
+        
+        # Switch to JellyBase tab
+        self.top_level_tabs.setCurrentIndex(1)  # JellyBase is index 1
+        logger.info("Switched to JellyBase tab")
+        self.status_label.setText("✓ Switched to JellyBase")
 
     def _toggle_dark_mode(self, checked: bool):
         """Toggle dark mode."""
@@ -1196,7 +1291,7 @@ class JellyRancherStudio(QMainWindow):
         logger.info(f"Dark mode: {'ENABLED' if checked else 'DISABLED'}")
 
     def _show_keyboard_shortcuts(self):
-        """Show keyboard shortcuts dialog."""
+        """Show keyboard shortcuts dialog (non-modal)."""
         shortcuts_text = """
 <b>JellyRancher Studio - Keyboard Shortcuts</b>
 
@@ -1208,23 +1303,24 @@ class JellyRancherStudio(QMainWindow):
 • Alt+F4 - Exit
 
 <b>Other:</b>
-• F12 - Capture GUI state (for debugging)
+• F12 - Capture GUI state (works in dialogs too, beep confirms)
 
 <b>Workflow:</b>
 • Click steps in the Explorer to navigate
 • Auto-saves every 30 seconds
 """
+        # Non-modal info dialog
         msg = QMessageBox(self)
-        msg.setWindowTitle("Keyboard Shortcuts")
+        msg.setWindowTitle("Keyboard Shortcuts (F12 to capture)")
         msg.setText(shortcuts_text)
         msg.setIcon(QMessageBox.Icon.Information)
-        msg.exec()
+        msg.setModal(False)
+        msg.show()  # Non-blocking
+        self._shortcuts_dialog = msg  # Prevent garbage collection
 
     def _show_about(self):
-        """Show about dialog."""
-        QMessageBox.about(
-            self,
-            "About JellyRancher Studio",
+        """Show about dialog (non-modal)."""
+        about_text = (
             "<h2>JellyRancher Studio</h2>"
             "<p>Version 3.0 (Round-Up Edition)</p>"
             "<p>Professional media library organization</p>"
@@ -1237,6 +1333,14 @@ class JellyRancherStudio(QMainWindow):
             "<li>Safe execution with rollback</li>"
             "</ul>"
         )
+        # Non-modal about dialog
+        msg = QMessageBox(self)
+        msg.setWindowTitle("About JellyRancher Studio (F12 to capture)")
+        msg.setText(about_text)
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.setModal(False)
+        msg.show()  # Non-blocking
+        self._about_dialog = msg  # Prevent garbage collection
 
     def _build_widget_tree(self, widget) -> Dict[str, Any]:
         """Recursively build a JSON representation of the widget hierarchy."""
@@ -1276,7 +1380,11 @@ class JellyRancherStudio(QMainWindow):
         return info
 
     def _capture_gui_state(self):
-        """Capture GUI state for debugging (F12)."""
+        """Capture GUI state for debugging (F12). Works even when modal dialogs are open."""
+        # Immediate feedback - print to console so user knows F12 was received
+        print("F12 pressed - capturing GUI state...")
+        logger.info("F12 GUI capture triggered")
+
         try:
             captures_dir = Path("gui_captures")
             captures_dir.mkdir(exist_ok=True)
@@ -1285,8 +1393,24 @@ class JellyRancherStudio(QMainWindow):
             current_tab_index = self.tab_widget.currentIndex()
             current_tab_name = self.tab_widget.tabText(current_tab_index) if current_tab_index >= 0 else "Welcome"
 
-            # Build complete widget tree
+            # Check if there's an active modal dialog
+            app = QApplication.instance()
+            active_modal = app.activeModalWidget()
+            has_modal_dialog = active_modal is not None
+
+            # Build complete widget tree for main window
             widget_tree = self._build_widget_tree(self)
+
+            # Also capture ALL top-level widgets (dialogs, popups, etc.)
+            top_level_widgets = []
+            for widget in app.topLevelWidgets():
+                if widget is not self and widget.isVisible():
+                    top_level_widgets.append({
+                        "widget_type": widget.__class__.__name__,
+                        "is_modal": widget.isModal() if hasattr(widget, 'isModal') else False,
+                        "window_title": widget.windowTitle() if hasattr(widget, 'windowTitle') else "",
+                        "tree": self._build_widget_tree(widget)
+                    })
 
             timestamp = datetime.now()
             capture_data = {
@@ -1295,15 +1419,22 @@ class JellyRancherStudio(QMainWindow):
                     "current_view": current_tab_name,
                     "roundup": self.current_roundup.name if self.current_roundup else "None",
                     "step": self.current_roundup.current_step if self.current_roundup else 0,
-                    "capture_method": "F12 Quick Capture"
+                    "capture_method": "F12 Quick Capture",
+                    "has_modal_dialog": has_modal_dialog,
+                    "modal_dialog_class": active_modal.__class__.__name__ if active_modal else None
                 },
-                "tree": widget_tree
+                "main_window": widget_tree,
+                "open_dialogs": top_level_widgets
             }
 
-            # Generate filename
+            # Generate filename - include "dialog" suffix if modal is open
             timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
             view_slug = current_tab_name.lower().replace(" ", "_").replace("-", "_")[:20]
-            filename = f"{timestamp_str}_{view_slug}.json"
+            if has_modal_dialog:
+                modal_name = active_modal.__class__.__name__[:15].lower()
+                filename = f"{timestamp_str}_{view_slug}_dialog_{modal_name}.json"
+            else:
+                filename = f"{timestamp_str}_{view_slug}.json"
             output_file = captures_dir / filename
 
             # Custom encoder for Qt objects
@@ -1326,40 +1457,31 @@ class JellyRancherStudio(QMainWindow):
             clipboard = QApplication.clipboard()
             clipboard.setText(json_text)
 
-            self.status_label.setText(f"📸 GUI captured: {filename}")
+            # Non-modal notification: status bar + beep (no QMessageBox!)
+            status_msg = f"✓ GUI captured → clipboard | File: gui_captures/{filename}"
+            self.status_label.setText(status_msg)
             logger.info(f"GUI state captured to {output_file}")
 
-            QMessageBox.information(
-                self,
-                "📸 GUI State Captured",
-                f"✅ Copied to clipboard!\n\n"
-                f"View: {current_tab_name}\n"
-                f"File: gui_captures/{filename}\n\n"
-                f"Press Ctrl+V to paste in your next prompt."
-            )
+            # Beep to indicate capture happened
+            app.beep()
+
+            if has_modal_dialog:
+                logger.info(f"Dialog captured: {active_modal.__class__.__name__}")
 
         except Exception as e:
             logger.error(f"Failed to capture GUI state: {e}", exc_info=True)
-            QMessageBox.critical(self, "Error", f"Failed to capture GUI state: {e}")
+            # Non-modal: status bar error message only
+            self.status_label.setText(f"✗ GUI capture failed: {e}")
 
     def closeEvent(self, event):
-        """Handle window close."""
+        """Handle window close (auto-saves unsaved changes - no modal confirmation)."""
         if self.current_roundup and self.current_roundup.has_unsaved_changes:
-            result = QMessageBox.question(
-                self,
-                "Unsaved Changes",
-                "You have unsaved changes. Save before closing?",
-                QMessageBox.StandardButton.Save |
-                QMessageBox.StandardButton.Discard |
-                QMessageBox.StandardButton.Cancel,
-                QMessageBox.StandardButton.Save
-            )
-
-            if result == QMessageBox.StandardButton.Cancel:
-                event.ignore()
-                return
-            elif result == QMessageBox.StandardButton.Save:
-                self._save_roundup()
+            # Auto-save instead of modal confirmation (per modal banishment)
+            self._save_roundup()
+            logger.info(f"Auto-saved Round-Up on close: {self.current_roundup.name}")
+        
+        # Save dock state
+        self._save_dock_state()
 
         event.accept()
 

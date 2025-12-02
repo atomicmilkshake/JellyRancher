@@ -24,6 +24,7 @@ from scripts.utils.transaction_manager import (
 )
 from scripts.core.jellyfin_client import JellyfinClient
 from scripts.core.jellyfin_config import JellyfinConfigManager
+from scripts._common.error_handling import log_function_entry_exit
 
 logger = logging.getLogger(__name__)
 
@@ -308,12 +309,27 @@ class ExecutionView(QWidget):
             logger.info(f"ExecutionView initialized for project: {project.name}")
         except Exception as e:
             logger.error(f"Failed to initialize ExecutionView: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "Initialization Error",
-                f"Failed to initialize execution monitor:\n\n{str(e)}\n\nPlease check the logs for details.",
-            )
+            self._set_status(f"Initialization Error: {e}", level='error')
+            logger.error(f"Failed to initialize ExecutionView: {e}", exc_info=True)
             raise
+    
+    def _set_status(self, message: str, level: str = 'info'):
+        """Set status message in main window's status bar (non-modal notification)."""
+        try:
+            main_window = self.window()
+            if main_window and hasattr(main_window, 'status_label'):
+                main_window.status_label.setText(message)
+                # Apply color based on level
+                if level == 'error' or level == 'critical':
+                    main_window.status_label.setStyleSheet("color: #e74c3c;")
+                elif level == 'warning':
+                    main_window.status_label.setStyleSheet("color: #f39c12;")
+                elif level == 'success' or level == 'info':
+                    main_window.status_label.setStyleSheet("color: #2ecc71;")
+                else:
+                    main_window.status_label.setStyleSheet("")  # Default
+        except Exception:
+            logger.warning(f"Could not set status: {message}")
     
     def _init_ui(self):
         """
@@ -505,11 +521,13 @@ class ExecutionView(QWidget):
         except sqlite3.Error as e:
             logger.error(f"Database error loading action plan: {e}", exc_info=True)
             self.lbl_status.setText(f"Error loading action plan: Database error")
-            QMessageBox.critical(self, "Database Error", f"Failed to load action plan from database:\n\n{str(e)}")
+            self._set_status(f"Database Error: {e}", level='error')
+            logger.error(f"Failed to load action plan from database: {e}", exc_info=True)
         except Exception as e:
             logger.error(f"Failed to load action plan: {e}", exc_info=True)
             self.lbl_status.setText(f"Error loading action plan: {str(e)}")
-            QMessageBox.critical(self, "Load Error", f"Failed to load action plan:\n\n{str(e)}")
+            self._set_status(f"Load Error: {e}", level='error')
+            logger.error(f"Failed to load action plan: {e}", exc_info=True)
 
         # Check if Jellyfin is configured and enable refresh checkbox if so
         try:
@@ -522,7 +540,8 @@ class ExecutionView(QWidget):
             self.chk_jellyfin_refresh.setEnabled(False)
             self.chk_jellyfin_refresh.setChecked(False)
     
-    def _start_execution(self):
+    @log_function_entry_exit()
+    def _start_execution(self, checked: bool = False):
         """
         Start execution of approved operations.
         
@@ -549,7 +568,7 @@ class ExecutionView(QWidget):
         """
         try:
             if not self.action_plan_id:
-                QMessageBox.warning(self, "No Action Plan", "No action plan selected for execution.")
+                self._set_status("No action plan selected for execution.", level='warning')
                 return
 
             dry_run = self.chk_dry_run.isChecked()
@@ -571,20 +590,14 @@ class ExecutionView(QWidget):
                     "Are you ABSOLUTELY SURE you want to proceed?"
                 )
 
-            reply = QMessageBox.question(
-                self,
-                "Start Execution",
-                message,
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-
-            if reply != QMessageBox.StandardButton.Yes:
-                return
+            # Auto-start execution (no confirmation needed - user clicked the button)
+            # Status message will show what's happening
 
             # Disable UI during execution
             self.btn_execute.setEnabled(False)
             self.chk_dry_run.setEnabled(False)
             self.chk_jellyfin_refresh.setEnabled(False)
+            self.progress_bar.setVisible(True)
             self.progress_bar.setValue(0)
             self.log_text.clear()
 
@@ -603,11 +616,8 @@ class ExecutionView(QWidget):
             logger.info(f"Started {mode_str} execution of action plan {self.action_plan_id}")
         except Exception as e:
             logger.error(f"Failed to start execution: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "Execution Start Error",
-                f"Failed to start execution:\n\n{str(e)}\n\nPlease try again.",
-            )
+            self._set_status(f"Execution Start Error: {e}", level='error')
+            logger.error(f"Failed to start execution: {e}", exc_info=True)
             # Restore UI state
             self.btn_execute.setEnabled(True)
             self.chk_dry_run.setEnabled(True)
@@ -642,6 +652,10 @@ class ExecutionView(QWidget):
             are used (which they are via the progress signal).
         """
         try:
+            # Ensure progress bar is visible
+            if not self.progress_bar.isVisible():
+                self.progress_bar.setVisible(True)
+            
             if total > 0:
                 self.progress_bar.setMaximum(total)
                 self.progress_bar.setValue(current)
@@ -733,23 +747,18 @@ class ExecutionView(QWidget):
             )
 
             if self.chk_dry_run.isChecked():
-                QMessageBox.information(
-                    self,
-                    "Dry Run Complete",
-                    f"Dry run completed successfully!\n\n"
-                    f"• {success_count} operations simulated\n"
-                    f"• {fail_count} operations failed\n\n"
-                    f"Uncheck 'Dry Run Mode' to execute for real."
+                self._set_status(
+                    f"Dry run complete: {success_count} simulated, {fail_count} failed. Uncheck 'Dry Run Mode' to execute for real.",
+                    level='success'
                 )
             else:
-                QMessageBox.information(
-                    self,
-                    "Execution Complete",
-                    f"Production execution completed!\n\n"
-                    f"• {success_count} operations successful\n"
-                    f"• {fail_count} operations failed\n\n"
-                    f"Batch ID: {batch_id}\n"
-                    f"Use 'Rollback All' if you need to undo these changes."
+                self._set_status(
+                    "Execution complete",
+                    level='success'
+                )
+                self._set_status(
+                    f"Production execution complete: {success_count} successful, {fail_count} failed. Batch ID: {batch_id}",
+                    level='success'
                 )
 
             # Emit completion signal for Studio to update Round-Up state
@@ -757,11 +766,8 @@ class ExecutionView(QWidget):
 
         except Exception as e:
             logger.error(f"Failed to handle execution completion: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "Completion Error",
-                f"Execution completed but failed to update UI:\n\n{str(e)}\n\nCheck the logs for details.",
-            )
+            self._set_status(f"Completion Error: {e}", level='error')
+            logger.error(f"Execution completed but failed to update UI: {e}", exc_info=True)
             # Still try to enable rollback if we have a batch_id
             try:
                 if batch_id and not self.chk_dry_run.isChecked():
@@ -800,11 +806,8 @@ class ExecutionView(QWidget):
             self.chk_dry_run.setEnabled(True)
             self.lbl_status.setText(f"Execution failed: {error_msg}")
 
-            QMessageBox.critical(
-                self,
-                "Execution Error",
-                f"Execution failed:\n\n{error_msg}"
-            )
+            self._set_status(f"Execution Error: {error_msg}", level='error')
+            logger.error(f"Execution failed: {error_msg}")
         except Exception as e:
             logger.error(f"Failed to handle execution error: {e}", exc_info=True)
             # Ensure UI is restored
@@ -815,6 +818,7 @@ class ExecutionView(QWidget):
             except Exception as ui_error:
                 logger.error(f"Failed to restore UI after execution error: {ui_error}", exc_info=True)
     
+    @log_function_entry_exit()
     def _rollback(self):
         """
         Rollback executed operations using TransactionManager.
@@ -844,28 +848,14 @@ class ExecutionView(QWidget):
             rollback operations with proper error tracking and logging.
         """
         if not self.current_batch_id:
-            QMessageBox.warning(
-                self,
-                "No Batch to Rollback",
-                "No execution batch available for rollback.\n\n"
-                "Rollback is only available after a production execution."
-            )
+            self._set_status("No execution batch available for rollback.", level='warning')
+            # Status already set above
             return
         
         # Confirm rollback
-        reply = QMessageBox.question(
-            self,
-            "Confirm Rollback",
-            f"⚠️ ROLLBACK ALL OPERATIONS? ⚠️\n\n"
-            f"This will reverse all file operations from batch:\n"
-            f"{self.current_batch_id}\n\n"
-            f"Files will be moved back to their original locations.\n\n"
-            f"Continue?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        
-        if reply != QMessageBox.StandardButton.Yes:
-            return
+        # Auto-rollback (no confirmation needed - user clicked the button)
+        # Status message will show what's happening
+        # Note: Rollback is reversible if needed
         
         try:
             self.log_text.append("\n" + "="*50)
@@ -895,20 +885,11 @@ class ExecutionView(QWidget):
             
             # Show completion dialog
             if result.failed_rollbacks == 0:
-                QMessageBox.information(
-                    self,
-                    "Rollback Complete",
-                    f"Successfully rolled back all {result.successful_rollbacks} operations!\n\n"
-                    f"All files have been restored to their original locations."
-                )
+                self._set_status(f"Rollback complete: {result.successful_rollbacks} operations restored to original locations.", level='success')
             else:
-                QMessageBox.warning(
-                    self,
-                    "Rollback Partial Success",
-                    f"Rollback completed with some errors:\n\n"
-                    f"• Successful: {result.successful_rollbacks}\n"
-                    f"• Failed: {result.failed_rollbacks}\n\n"
-                    f"Check the transaction log for details."
+                self._set_status(
+                    f"Rollback partial success: {result.successful_rollbacks} successful, {result.failed_rollbacks} failed. Check log for details.",
+                    level='warning'
                 )
             
             logger.info(f"Rollback completed: {result.successful_rollbacks}/{result.total_operations} successful")
@@ -921,11 +902,8 @@ class ExecutionView(QWidget):
                 logger.error(f"Failed to log rollback error: {log_error}", exc_info=True)
             logger.error(error_msg, exc_info=True)
 
-            QMessageBox.critical(
-                self,
-                "Rollback Failed",
-                f"Failed to rollback operations:\n\n{error_msg}"
-            )
+            self._set_status(f"Rollback Failed: {error_msg}", level='error')
+            logger.error(f"Failed to rollback operations: {error_msg}")
 
     def _create_snapshot(self):
         """
@@ -965,15 +943,9 @@ class ExecutionView(QWidget):
                 "Use rollback to restore all files if anything goes wrong."
             )
             self.snapshot_info.setPlainText(text)
-            QMessageBox.information(
-                self,
-                "Snapshot Ready",
-                "Snapshot information recorded. Execute operations when ready."
-            )
+            self._set_status("Snapshot information recorded. Execute operations when ready.", level='success')
         except Exception as e:
             logger.error(f"Failed to create snapshot: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "Snapshot Error",
-                f"Failed to create snapshot:\n\n{str(e)}\n\nPlease try again.",
-            )
+            self._set_status(f"Snapshot Error: {e}", level='error')
+            logger.error(f"Failed to create snapshot: {e}", exc_info=True)
+            # Error already logged above

@@ -95,9 +95,26 @@ class JellyfinSettingsDialog(QDialog):
         self.setWindowTitle("Jellyfin Integration Settings")
         self.setMinimumWidth(600)
         self.setMinimumHeight(500)
+        
+        # Non-modal dialog (Phase 48-E-4: Modal banishment)
+        self.setModal(False)
 
         self._init_ui()
         self._load_config()
+    
+    def _set_status(self, message: str, level: str = 'info'):
+        """Show status message in parent window's status bar if available."""
+        if self.parent() and hasattr(self.parent(), 'status_label'):
+            if level == 'error':
+                self.parent().status_label.setText(f"❌ {message}")
+                self.parent().status_label.setStyleSheet("color: red;")
+            elif level == 'warning':
+                self.parent().status_label.setText(f"⚠ {message}")
+                self.parent().status_label.setStyleSheet("color: orange;")
+            else:
+                self.parent().status_label.setText(f"ℹ {message}")
+                self.parent().status_label.setStyleSheet("color: green;")
+        logger.info(f"[{level.upper()}] {message}")
 
     def _init_ui(self):
         """Initialize the user interface."""
@@ -211,19 +228,11 @@ class JellyfinSettingsDialog(QDialog):
         api_key = self.api_key_input.text().strip()
 
         if not server_url:
-            QMessageBox.warning(
-                self,
-                "Missing Server URL",
-                "Please enter the Jellyfin server URL."
-            )
+            self._set_status("Missing Server URL: Please enter the Jellyfin server URL.", level='warning')
             return
 
         if not api_key:
-            QMessageBox.warning(
-                self,
-                "Missing API Key",
-                "Please enter the Jellyfin API key."
-            )
+            self._set_status("Missing API Key: Please enter the Jellyfin API key.", level='warning')
             return
 
         # Disable button during test
@@ -243,17 +252,9 @@ class JellyfinSettingsDialog(QDialog):
 
         # Show result
         if success:
-            QMessageBox.information(
-                self,
-                "Connection Successful",
-                message
-            )
+            self._set_status(f"Connection Successful: {message}", level='info')
         else:
-            QMessageBox.warning(
-                self,
-                "Connection Failed",
-                message
-            )
+            self._set_status(f"Connection Failed: {message}", level='warning')
 
     def accept(self):
         """Save settings and close dialog."""
@@ -266,19 +267,11 @@ class JellyfinSettingsDialog(QDialog):
             api_key = self.api_key_input.text().strip()
 
             if not server_url:
-                QMessageBox.warning(
-                    self,
-                    "Missing Server URL",
-                    "Please enter the Jellyfin server URL or disable integration."
-                )
+                self._set_status("Missing Server URL: Please enter the Jellyfin server URL or disable integration.", level='warning')
                 return
 
             if not api_key:
-                QMessageBox.warning(
-                    self,
-                    "Missing API Key",
-                    "Please enter the Jellyfin API key or disable integration."
-                )
+                self._set_status("Missing API Key: Please enter the Jellyfin API key or disable integration.", level='warning')
                 return
 
             self.config_manager.set_server_url(server_url)

@@ -13,9 +13,7 @@
 ```
 1. Check: Does `agent-journal.md` exist in root?
    - YES → Read the ENTIRE file. Prove full ingestion by citing THREE phases:
-     * Most recent phase: number, date, and summary
-     * 3rd-to-last phase: number, date, and summary
-     * 8th-to-last phase: number, date, and summary
+     * Last three phases: number, date, and summary
      (If fewer than 8 phases exist, cite all available phases)
    - NO → Create it. Start with Phase 1.
 

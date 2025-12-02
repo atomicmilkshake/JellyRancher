@@ -25,9 +25,12 @@ Usage:
         pass
 """
 
+import logging
 import sys
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
@@ -48,6 +51,8 @@ class AppSettingsDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        # Non-modal dialog (Phase 48-E-4: Modal banishment)
+        self.setModal(False)
 
         self.config_manager = AppConfigManager()
 
@@ -57,6 +62,20 @@ class AppSettingsDialog(QDialog):
 
         self._init_ui()
         self._load_config()
+    
+    def _set_status(self, message: str, level: str = 'info'):
+        """Show status message in parent window's status bar if available."""
+        if self.parent() and hasattr(self.parent(), 'status_label'):
+            if level == 'error':
+                self.parent().status_label.setText(f"❌ {message}")
+                self.parent().status_label.setStyleSheet("color: red;")
+            elif level == 'warning':
+                self.parent().status_label.setText(f"⚠ {message}")
+                self.parent().status_label.setStyleSheet("color: orange;")
+            else:
+                self.parent().status_label.setText(f"ℹ {message}")
+                self.parent().status_label.setStyleSheet("color: green;")
+        logger.info(f"[{level.upper()}] {message}")
 
     def _init_ui(self):
         """Initialize the user interface."""
@@ -186,6 +205,37 @@ class AppSettingsDialog(QDialog):
 
         layout.addSpacing(10)
 
+        # Logging settings group
+        logging_group = QGroupBox("Logging Settings")
+        logging_layout = QFormLayout()
+
+        # Function entry/exit logging
+        self.function_logging_enabled = QCheckBox("Enable function entry/exit logging")
+        self.function_logging_enabled.setToolTip("Log function entry and exit with parameters (DEBUG level)")
+        logging_layout.addRow("Function Logging:", self.function_logging_enabled)
+
+        # Log level selector
+        self.log_level_combo = QComboBox()
+        self.log_level_combo.addItems(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
+        self.log_level_combo.setToolTip("Minimum log level to display in log viewer")
+        logging_layout.addRow("Log Level:", self.log_level_combo)
+
+        # Auto-open log viewer
+        self.auto_open_log_viewer = QCheckBox("Auto-open log viewer on startup")
+        self.auto_open_log_viewer.setToolTip("Automatically show log viewer when application starts")
+        logging_layout.addRow("Auto-Open Viewer:", self.auto_open_log_viewer)
+
+        # Dock position preference
+        self.dock_position_combo = QComboBox()
+        self.dock_position_combo.addItems(["Bottom", "Left", "Right", "Top"])
+        self.dock_position_combo.setToolTip("Preferred position for log viewer dock widget")
+        logging_layout.addRow("Log Viewer Position:", self.dock_position_combo)
+
+        logging_group.setLayout(logging_layout)
+        layout.addWidget(logging_group)
+
+        layout.addSpacing(10)
+
         # Help text group
         help_group = QGroupBox("Help & Information")
         help_layout = QVBoxLayout()
@@ -274,6 +324,24 @@ class AppSettingsDialog(QDialog):
             self.config_manager.is_md5_verify_operations()
         )
 
+        # Load logging settings from QSettings
+        from PyQt6.QtCore import QSettings
+        settings = QSettings("JellyRancher", "Studio")
+        self.function_logging_enabled.setChecked(
+            settings.value("function_logging_enabled", True, type=bool)
+        )
+        log_level = settings.value("log_level", "INFO", type=str)
+        index = self.log_level_combo.findText(log_level)
+        if index >= 0:
+            self.log_level_combo.setCurrentIndex(index)
+        self.auto_open_log_viewer.setChecked(
+            settings.value("auto_open_log_viewer", False, type=bool)
+        )
+        dock_position = settings.value("log_viewer_dock_position", "Bottom", type=str)
+        dock_index = self.dock_position_combo.findText(dock_position)
+        if dock_index >= 0:
+            self.dock_position_combo.setCurrentIndex(dock_index)
+
     def _browse_path(self, input_field: QLineEdit, title: str):
         """Open folder browser dialog for path selection."""
         current_path = input_field.text().strip()
@@ -312,11 +380,8 @@ class AppSettingsDialog(QDialog):
             errors.append("Movies and TV Shows paths must be different")
 
         if errors:
-            QMessageBox.warning(
-                self,
-                "Configuration Errors",
-                "Please fix the following issues:\n\n" + "\n".join(f"• {error}" for error in errors)
-            )
+            error_msg = "Configuration Errors: " + "; ".join(errors)
+            self._set_status(error_msg, level='warning')
             return False
 
         return True
@@ -358,21 +423,22 @@ class AppSettingsDialog(QDialog):
                 self.md5_verify_operations.isChecked()
             )
 
+            # Save logging settings to QSettings
+            from PyQt6.QtCore import QSettings
+            settings = QSettings("JellyRancher", "Studio")
+            settings.setValue("function_logging_enabled", self.function_logging_enabled.isChecked())
+            settings.setValue("log_level", self.log_level_combo.currentText())
+            settings.setValue("auto_open_log_viewer", self.auto_open_log_viewer.isChecked())
+            settings.setValue("log_viewer_dock_position", self.dock_position_combo.currentText())
+
             # Show success message
-            QMessageBox.information(
-                self,
-                "Settings Saved",
-                "Application settings have been saved successfully."
-            )
+            self._set_status("Settings Saved: Application settings have been saved successfully.", level='info')
 
             super().accept()
 
         except Exception as e:
-            QMessageBox.critical(
-                self,
-                "Save Error",
-                f"Failed to save settings: {str(e)}"
-            )
+            self._set_status(f"Save Error: Failed to save settings: {e}", level='error')
+            logger.error(f"Failed to save settings: {e}", exc_info=True)
 
     def get_config_summary(self) -> dict:
         """
@@ -403,7 +469,8 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
 
     dialog = AppSettingsDialog()
-    if dialog.exec():
+    dialog.show()  # Non-modal (Phase 48-E-4)
+    if dialog.exec():  # Keep for test script compatibility
         config = dialog.get_config_summary()
         print("Settings saved:")
         for key, value in config.items():

@@ -82,6 +82,8 @@ class EpisodeAnalysisDialog(QDialog):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        # Non-modal dialog (Phase 48-E-4: Modal banishment)
+        self.setModal(False)
         self.logger = ProjectLogger("episode_analysis_dialog")
         
         # State
@@ -92,10 +94,25 @@ class EpisodeAnalysisDialog(QDialog):
         
         self.init_ui()
     
+    def _set_status(self, message: str, level: str = 'info'):
+        """Show status message in parent window's status bar if available."""
+        if self.parent() and hasattr(self.parent(), 'status_label'):
+            if level == 'error':
+                self.parent().status_label.setText(f"❌ {message}")
+                self.parent().status_label.setStyleSheet("color: red;")
+            elif level == 'warning':
+                self.parent().status_label.setText(f"⚠ {message}")
+                self.parent().status_label.setStyleSheet("color: orange;")
+            else:
+                self.parent().status_label.setText(f"ℹ {message}")
+                self.parent().status_label.setStyleSheet("color: green;")
+        if hasattr(self, 'logger'):
+            self.logger.info(f"[{level.upper()}] {message}")
+    
     def init_ui(self):
         """Initialize the dialog UI."""
         self.setWindowTitle("Episode Title Analyzer")
-        self.setModal(True)
+        self.setModal(False)  # Non-modal (Phase 48-E-4: Modal banishment)
         self.resize(1200, 800)
         
         layout = QVBoxLayout(self)
@@ -105,7 +122,7 @@ class EpisodeAnalysisDialog(QDialog):
         layout.addWidget(input_group)
         
         # Results section
-        results_splitter = QSplitter(Qt.Vertical)
+        results_splitter = QSplitter(Qt.Orientation.Vertical)
         
         # Table
         table_widget = self.create_table_section()
@@ -202,8 +219,8 @@ class EpisodeAnalysisDialog(QDialog):
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
         
-        self.results_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.results_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.results_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.results_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.results_table.setAlternatingRowColors(True)
         self.results_table.setSortingEnabled(True)
         
@@ -314,11 +331,7 @@ class EpisodeAnalysisDialog(QDialog):
     def start_analysis(self):
         """Start episode analysis."""
         if not self.show_path:
-            QMessageBox.warning(
-                self,
-                "No Show Selected",
-                "Please select a TV show folder first."
-            )
+            self._set_status("No Show Selected: Please select a TV show folder first.", level='warning')
             return
         
         # Disable UI during analysis
@@ -358,26 +371,26 @@ class EpisodeAnalysisDialog(QDialog):
         )
         
         if issues == 0:
-            QMessageBox.information(
-                self,
-                "Analysis Complete",
-                "No issues found! All episode titles look good."
-            )
+            self._set_status("Analysis Complete: No issues found! All episode titles look good.", level='info')
     
     def on_analysis_error(self, error: str):
         """Handle analysis error."""
         self.progress_label.setText("Analysis failed")
         self.analyze_button.setEnabled(True)
         
-        QMessageBox.critical(
-            self,
-            "Episode Analysis Failed",
-            f"Failed to analyze episode titles:\n\n{error}\n\n"
-            "Please check that:\n"
-            "• The selected folder contains TV episode files\n"
-            "• You have read permission for the folder\n"
-            "• TMDB cache file (if selected) is valid and accessible"
-        )
+        error_msg = f"Episode Analysis Failed: {error}. Please check that:"
+        self._set_status(error_msg, level='error')
+        self.logger.error(f"Failed to analyze episode titles: {error}", exc_info=True)
+        # Legacy QMessageBox.critical call - replaced with status
+        # QMessageBox.critical(
+        #     self,
+        #     "Episode Analysis Failed",
+        #     f"Failed to analyze episode titles:\n\n{error}\n\n"
+        #     "Please check that:\n"
+        #     "• The selected folder contains TV episode files\n"
+        #     "• You have read permission for the folder\n"
+        #     "• TMDB cache file (if selected) is valid and accessible"
+        # )
         self.logger.error(f"Analysis error: {error}")
     
     def populate_results(self):
@@ -509,19 +522,12 @@ class EpisodeAnalysisDialog(QDialog):
                 with open(file_path, 'w', encoding='utf-8') as f:
                     json.dump(self.analysis_results, f, indent=2, ensure_ascii=False)
                 
-                QMessageBox.information(
-                    self,
-                    "Export Success",
-                    f"Results exported to:\n{file_path}"
-                )
+                self._set_status(f"Export Success: Results exported to {file_path}", level='info')
                 self.logger.info(f"Exported results to {file_path}")
             
             except Exception as e:
-                QMessageBox.critical(
-                    self,
-                    "Export Error",
-                    f"Failed to export results:\n{str(e)}"
-                )
+                self._set_status(f"Export Error: Failed to export results: {e}", level='error')
+                self.logger.error(f"Failed to export results: {e}", exc_info=True)
                 self.logger.error(f"Export error: {e}")
     
     def fix_issues(self, dry_run: bool = True):
@@ -536,11 +542,7 @@ class EpisodeAnalysisDialog(QDialog):
         ]
         
         if not episodes_to_fix:
-            QMessageBox.information(
-                self,
-                "No Issues",
-                "No episodes need fixing."
-            )
+            self._set_status("No Issues: No episodes need fixing.", level='info')
             return
         
         # Confirm with user
@@ -556,16 +558,8 @@ class EpisodeAnalysisDialog(QDialog):
             message += "Make sure you have a backup before proceeding.\n"
             message += "Changes are logged and can be traced in audit logs."
         
-        reply = QMessageBox.question(
-            self,
-            "Confirm Fix Operation",
-            message,
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
-        )
-        
-        if reply != QMessageBox.Yes:
-            return
+        # Auto-proceed with fix (no confirmation needed - user clicked the button)
+        # Status message will show what's happening
         
         # Disable UI during operation
         self.fix_button.setEnabled(False)
@@ -585,13 +579,7 @@ class EpisodeAnalysisDialog(QDialog):
                 if snapshot_id:
                     self.logger.info(f"Created snapshot: {snapshot_id}")
                 else:
-                    QMessageBox.warning(
-                        self,
-                        "Snapshot Warning",
-                        "Failed to create backup snapshot.\n\n"
-                        "Changes will still be logged to audit trail, but file-level rollback "
-                        "may not be available."
-                    )
+                    self._set_status("Snapshot Warning: Failed to create backup snapshot. Changes will still be logged to audit trail, but file-level rollback may not be available.", level='warning')
             
             def progress_callback(current, total, message):
                 percent = int((current / total) * 100)
@@ -610,22 +598,13 @@ class EpisodeAnalysisDialog(QDialog):
             
             # If we actually fixed files, re-run analysis to update UI
             if not dry_run and results['successful'] > 0:
-                snapshot_msg = f"\n\nSnapshot created: {snapshot_id}" if snapshot_id else "\n\n⚠️ No snapshot created (check logs)"
-                QMessageBox.information(
-                    self,
-                    "Fixes Applied",
-                    f"Successfully fixed {results['successful']} episode(s).{snapshot_msg}\n\n"
-                    f"Use 'Organization' → 'Snapshots & Rollback' to restore if needed.\n\n"
-                    f"Re-running analysis to refresh results..."
-                )
+                snapshot_msg = f" Snapshot created: {snapshot_id}" if snapshot_id else " ⚠️ No snapshot created (check logs)"
+                self._set_status(f"Fixes Applied: Successfully fixed {results['successful']} episode(s).{snapshot_msg} Re-running analysis to refresh results...", level='info')
                 self.start_analysis()
         
         except Exception as e:
-            QMessageBox.critical(
-                self,
-                "Fix Error",
-                f"Error during fix operation:\n{str(e)}"
-            )
+            self._set_status(f"Fix Error: Error during fix operation: {e}", level='error')
+            self.logger.error(f"Error during fix operation: {e}", exc_info=True)
             self.logger.error(f"Fix operation error: {e}")
         
         finally:
@@ -658,14 +637,12 @@ class EpisodeAnalysisDialog(QDialog):
         if len(results['operations']) > 10:
             message += f"... and {len(results['operations']) - 10} more\n"
         
-        # Show in dialog
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("Fix Results")
-        msg_box.setText(message)
-        msg_box.setIcon(QMessageBox.Information if results['failed'] == 0 else QMessageBox.Warning)
-        msg_box.setStandardButtons(QMessageBox.Ok)
-        msg_box.setDetailedText(json.dumps(results, indent=2))
-        msg_box.exec()
+        # Non-modal status message (Phase 48-E-4)
+        if results['failed'] == 0:
+            self._set_status(f"Fix Results: {message}", level='info')
+        else:
+            self._set_status(f"Fix Results: {message} (Some failures - check logs)", level='warning')
+        self.logger.info(f"Fix Results: {json.dumps(results, indent=2)}")
     
     def get_results(self) -> Optional[Dict[str, Any]]:
         """Get the analysis results."""

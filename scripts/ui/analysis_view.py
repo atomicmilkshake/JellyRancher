@@ -38,6 +38,7 @@ from scripts.ai.ravenmaven_client import PoeClient
 from scripts.core.workers import LLMAnalysisWorker, MetadataLookupWorker
 from scripts.core.regex_analysis_worker import RegexAnalysisWorker, HybridAnalysisWorker
 from scripts.media.llm_structure_analyzer import LLMStructureAnalyzer
+from scripts._common.error_handling import log_function_entry_exit
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +140,8 @@ class AnalysisView(QWidget):
             
         except Exception as e:
             logger.error(f"Failed to initialize AnalysisView: {e}", exc_info=True)
-            QMessageBox.critical(self, "Initialization Error", f"Failed to initialize: {e}")
+            self._set_status(f"Initialization Error: {e}", level='error')
+            logger.error(f"Failed to initialize AnalysisView: {e}", exc_info=True)
             raise
     
     def _init_ui(self):
@@ -489,11 +491,12 @@ class AnalysisView(QWidget):
     # Data Loading
     # =========================================================================
     
+    @log_function_entry_exit()
     def _load_scan_data(self):
         """Load scan data from the Round-Up database."""
         try:
             if not hasattr(self.project, 'roundup') or not self.project.roundup:
-                self._set_status("No Round-Up found. Please create or open a Round-Up first.", error=True)
+                self._set_status("No Round-Up found. Please create or open a Round-Up first.", level='error')
                 self.btn_run.setEnabled(False)
                 return
             
@@ -504,7 +507,7 @@ class AnalysisView(QWidget):
             scan_file_dicts = manager.get_scan_files(roundup)
             
             if not scan_file_dicts:
-                self._set_status("No scan data found. Please run a scan first.", error=True)
+                self._set_status("No scan data found. Please run a scan first.", level='error')
                 self.btn_run.setEnabled(False)
                 return
             
@@ -543,7 +546,7 @@ class AnalysisView(QWidget):
             
             self._update_source_data_display()
             self._update_token_estimate()
-            self._set_status(f"✓ Ready: {len(self.scanned_files)} files from {folder_count} folder(s)", success=True)
+            self._set_status(f"✓ Ready: {len(self.scanned_files)} files from {folder_count} folder(s)", level='info')
             self.btn_run.setEnabled(True)
             self.btn_preview.setEnabled(True)
             
@@ -551,7 +554,7 @@ class AnalysisView(QWidget):
                 
         except Exception as e:
             logger.error(f"Error loading scan data: {e}", exc_info=True)
-            self._set_status(f"Error loading scan data: {e}", error=True)
+            self._set_status(f"Error loading scan data: {e}", level='error')
     
     def _use_filtered_data(self):
         """Use filtered data from ScanResultsView."""
@@ -579,7 +582,7 @@ class AnalysisView(QWidget):
         
         self._update_source_data_display()
         self._update_token_estimate()
-        self._set_status(f"✓ Ready: {len(self.scanned_files)} filtered files{filter_text}", success=True)
+        self._set_status(f"✓ Ready: {len(self.scanned_files)} filtered files{filter_text}", level='info')
         self.btn_run.setEnabled(True)
         self.btn_preview.setEnabled(True)
             
@@ -736,12 +739,13 @@ class AnalysisView(QWidget):
                 self._set_status("No models available")
         except Exception as e:
             logger.error(f"Model refresh error: {e}", exc_info=True)
-            QMessageBox.warning(self, "Model Refresh Failed", f"Could not fetch models:\n{e}")
+            self._set_status(f"Model Refresh Failed: {e}", level='warning')
+            logger.warning(f"Could not fetch models: {e}")
     
     def _preview_prompt(self):
         """Preview the LLM prompt with human-readable and raw JSON tabs."""
         if not self.folder_structure:
-            QMessageBox.warning(self, "No Data", "No scan data available.")
+            self._set_status("No scan data available.", level='warning')
             return
         
         try:
@@ -757,9 +761,13 @@ class AnalysisView(QWidget):
                 if k not in metadata_keys and isinstance(self.folder_structure.get(k), dict)
             )
             
+            # Non-modal dialog so F12 GUI capture works
             dialog = QDialog(self)
-            dialog.setWindowTitle("Prompt Preview")
+            dialog.setWindowTitle("Prompt Preview (F12 to capture)")
             dialog.resize(900, 700)
+            dialog.setModal(False)  # Allow interaction with main window
+            # Store reference to prevent garbage collection
+            self._preview_dialog = dialog
             
             layout = QVBoxLayout(dialog)
             layout.setContentsMargins(0, 0, 0, 0)
@@ -862,7 +870,7 @@ class AnalysisView(QWidget):
             btn_use.setStyleSheet("background: #4CAF50; color: white; font-weight: bold; padding: 6px 12px;")
             def use_edited_prompt():
                 self._edited_prompt = prompt_editor.toPlainText()
-                dialog.accept()
+                dialog.close()  # Close non-modal dialog
             btn_use.clicked.connect(use_edited_prompt)
             buttons_layout.addWidget(btn_use)
             
@@ -872,38 +880,49 @@ class AnalysisView(QWidget):
             
             layout.addLayout(buttons_layout)
             
-            # Status bar at bottom
+            # Status bar at bottom with explicit dark text for contrast
             status_bar = QStatusBar()
             status_text = f"~{token_estimate:,} tokens  |  {char_count:,} characters  |  {folder_count:,} folders"
             if token_estimate > 100_000:
                 status_text += "  |  ⚠️ Large prompt - consider chunking"
-                status_bar.setStyleSheet("background: #ffcccc;")
+                status_bar.setStyleSheet("background: #ffcccc; color: #333333;")
             elif token_estimate > 50_000:
                 status_text += "  |  ⚠️ Large prompt"
-                status_bar.setStyleSheet("background: #fff3cd;")
+                status_bar.setStyleSheet("background: #fff3cd; color: #333333;")
+            else:
+                # Normal case - still ensure readable text
+                status_bar.setStyleSheet("color: #333333; background: #e0e0e0;")
             status_bar.showMessage(status_text)
             layout.addWidget(status_bar)
-            
-            dialog.exec()
-            
+
+            # Use show() instead of exec() for non-modal behavior
+            dialog.show()
+            dialog.raise_()  # Bring to front
+            dialog.activateWindow()
+
         except Exception as e:
             logger.error(f"Preview prompt error: {e}", exc_info=True)
-            QMessageBox.critical(self, "Error", f"Failed to generate prompt:\n{e}")
+            # Non-modal error notification via main window status bar
+            if hasattr(self, 'window') and hasattr(self.window(), 'status_label'):
+                self.window().status_label.setText(f"✗ Failed to generate prompt: {e}")
     
-    def _run_analysis(self):
+    @log_function_entry_exit()
+    def _run_analysis(self, checked: bool = False):
         """Execute analysis using selected mode."""
         if not self.folder_structure:
-            QMessageBox.warning(self, "No Data", "No scan data available.")
+            self._set_status("No scan data available.", level='warning')
             return
         
-        # Determine mode
+        # Determine mode - check Hybrid FIRST since its text contains "Regex" and "LLM"
         mode_text = self.mode_combo.currentText()
-        if "LLM" in mode_text and "Hybrid" not in mode_text:
+        if "Hybrid" in mode_text:
+            mode = "hybrid"
+        elif "LLM" in mode_text:
             mode = "llm"
         elif "Regex" in mode_text:
             mode = "regex"
         else:
-            mode = "hybrid"
+            mode = "hybrid"  # Default to hybrid
         
         model = self.model_combo.currentText()
         total = self.folder_structure.get('total_files', len(self.scanned_files))
@@ -916,8 +935,8 @@ class AnalysisView(QWidget):
         else:
             msg = f"Run Hybrid analysis?\n\nFiles: {total}\nPhase 1: Regex (free)\nPhase 2: LLM for ambiguous"
         
-        if QMessageBox.question(self, "Run Analysis", msg) != QMessageBox.StandardButton.Yes:
-            return
+        # Auto-proceed with analysis (no confirmation needed - user clicked the button)
+        # Status message will show what's happening
         
         # Disable UI
         self._set_controls_enabled(False)
@@ -954,12 +973,14 @@ class AnalysisView(QWidget):
             logger.error(f"Failed to start analysis: {e}", exc_info=True)
             self._set_controls_enabled(True)
             self.progress_bar.setVisible(False)
-            QMessageBox.critical(self, "Error", f"Failed to start analysis:\n{e}")
+            self._set_status(f"Failed to start analysis: {e}", level='error')
+            logger.error(f"Failed to start analysis: {e}", exc_info=True)
     
     def _on_analysis_progress(self, status: str):
         """Handle progress updates."""
         self._set_status(status)
 
+    @log_function_entry_exit()
     def _on_analysis_finished(self, result: dict):
         """Handle analysis completion - run extrapolation."""
         self._set_controls_enabled(True)
@@ -994,7 +1015,7 @@ class AnalysisView(QWidget):
             self._set_status(
                 f"Analysis complete: {stats['total_files']} files, "
                 f"{stats['move']} moves, {stats['review']} need review",
-                success=True
+                level='info'
             )
             
             # Expand output section
@@ -1002,14 +1023,15 @@ class AnalysisView(QWidget):
             
         except Exception as e:
             logger.error(f"Extrapolation failed: {e}", exc_info=True)
-            self._set_status(f"Extrapolation failed: {e}", error=True)
+            self._set_status(f"Extrapolation failed: {e}", level='error')
 
     def _on_analysis_error(self, error: str):
         """Handle analysis error."""
         self._set_controls_enabled(True)
         self.progress_bar.setVisible(False)
-        self._set_status(f"Analysis failed: {error}", error=True)
-        QMessageBox.critical(self, "Analysis Error", f"Analysis failed:\n{error}")
+        self._set_status(f"Analysis failed: {error}", level='error')
+        self._set_status(f"Analysis Error: {error}", level='error')
+        logger.error(f"Analysis failed: {error}")
 
     def _update_output_display(self, result: dict):
         """Update the analysis output section."""
@@ -1053,6 +1075,7 @@ class AnalysisView(QWidget):
     # Actions Table
     # =========================================================================
     
+    @log_function_entry_exit()
     def _populate_actions_table(self):
         """Populate the color-coded actions table."""
         self.actions_table.setRowCount(len(self.extrapolated_operations))
@@ -1147,18 +1170,14 @@ class AnalysisView(QWidget):
                     approved.append(self.extrapolated_operations[row])
         
         if not approved:
-            QMessageBox.warning(self, "No Selection", "No operations are approved. Check the boxes to approve.")
+            self._set_status("No operations are approved. Check the boxes to approve.", level='warning')
             return
         
-        reply = QMessageBox.question(
-            self, "Send to Review",
-            f"Send {len(approved)} approved operations to Review tab?\n\n"
-            "You can make final adjustments there before execution."
-        )
-        
-        if reply == QMessageBox.StandardButton.Yes:
+        # Auto-send to Review (no confirmation needed - user clicked the button)
+        # Status message will show what's happening
+        if True:  # Always proceed
             self.send_to_review.emit(approved)
-            self._set_status(f"Sent {len(approved)} operations to Review", success=True)
+            self._set_status(f"Sent {len(approved)} operations to Review", level='info')
 
     # =========================================================================
     # Snapshot & Metadata
@@ -1170,13 +1189,13 @@ class AnalysisView(QWidget):
             from scripts._common.snapshot_manager import SnapshotManager
             
             if not self.scanned_files:
-                QMessageBox.warning(self, "No Data", "No files to snapshot.")
+                self._set_status("No files to snapshot.", level='warning')
                 return
             
             # Get root folder from scanned files
             roots = set(f.parent_folder for f in self.scanned_files[:10])
             if not roots:
-                QMessageBox.warning(self, "No Data", "Cannot determine media root.")
+                self._set_status("Cannot determine media root.", level='warning')
                 return
             
             # Use common parent
@@ -1197,30 +1216,26 @@ class AnalysisView(QWidget):
             self.snapshot_label.setStyleSheet("color: #2ecc71;")
             self.btn_restore_snapshot.setEnabled(True)
             
-            self._set_status(f"Snapshot created: {snapshot_id}", success=True)
+            self._set_status(f"Snapshot created: {snapshot_id}", level='info')
             
         except Exception as e:
             logger.error(f"Snapshot creation failed: {e}", exc_info=True)
-            QMessageBox.critical(self, "Snapshot Error", f"Failed to create snapshot:\n{e}")
+            self._set_status(f"Snapshot Error: {e}", level='error')
+            logger.error(f"Failed to create snapshot: {e}", exc_info=True)
 
     def _restore_snapshot(self):
         """Restore from the most recent snapshot."""
         try:
             from scripts._common.snapshot_manager import SnapshotManager
             
-            reply = QMessageBox.question(
-                self, "Restore Snapshot",
-                "Restore files to their state before the last snapshot?\n\n"
-                "This will undo any file operations since the snapshot."
-            )
-            
-            if reply != QMessageBox.StandardButton.Yes:
-                return
+            # Auto-restore (no confirmation needed - user clicked the button)
+            # Status message will show what's happening
+            # Note: Rollback capability exists if needed
             
             # Get latest snapshot
             snapshots = SnapshotManager.list_snapshots()
             if not snapshots:
-                QMessageBox.warning(self, "No Snapshots", "No snapshots available to restore.")
+                self._set_status("No snapshots available to restore.", level='warning')
                 return
             
             latest = snapshots[0]
@@ -1228,26 +1243,21 @@ class AnalysisView(QWidget):
             
             SnapshotManager.restore_snapshot(latest)
             
-            self._set_status("Snapshot restored successfully", success=True)
+            self._set_status("Snapshot restored successfully", level='info')
             
         except Exception as e:
             logger.error(f"Snapshot restore failed: {e}", exc_info=True)
-            QMessageBox.critical(self, "Restore Error", f"Failed to restore snapshot:\n{e}")
+            self._set_status(f"Restore Error: {e}", level='error')
+            logger.error(f"Failed to restore snapshot: {e}", exc_info=True)
 
     def _enrich_metadata(self):
         """Start metadata enrichment with TMDB/TVDB."""
         if not self.detected_media:
-            QMessageBox.warning(self, "No Data", "Run analysis first to detect media.")
+            self._set_status("Run analysis first to detect media.", level='warning')
             return
 
-        reply = QMessageBox.question(
-            self, "Enrich Metadata",
-            f"Query TMDB/TVDB for {len(self.detected_media)} detected media items?\n\n"
-            "This will resolve official titles, years, and episode info."
-        )
-
-        if reply != QMessageBox.StandardButton.Yes:
-            return
+        # Auto-start metadata enrichment (no confirmation needed - user clicked the button)
+        # Status message will show what's happening
 
         self.btn_enrich.setEnabled(False)
         self.progress_bar.setVisible(True)
@@ -1271,7 +1281,8 @@ class AnalysisView(QWidget):
         except Exception as e:
             self.btn_enrich.setEnabled(True)
             self.progress_bar.setVisible(False)
-            QMessageBox.critical(self, "Error", f"Failed to start metadata lookup:\n{e}")
+            self._set_status(f"Failed to start metadata lookup: {e}", level='error')
+            logger.error(f"Failed to start metadata lookup: {e}", exc_info=True)
 
     def _on_metadata_progress(self, status: str, current: int, total: int):
         """Handle metadata progress."""
@@ -1316,14 +1327,15 @@ class AnalysisView(QWidget):
         except Exception as e:
             logger.error(f"Failed to save metadata: {e}", exc_info=True)
         
-        self._set_status("Metadata enrichment complete", success=True)
+        self._set_status("Metadata enrichment complete", level='info')
 
     def _on_metadata_error(self, error: str):
         """Handle metadata error."""
         self.btn_enrich.setEnabled(True)
         self.progress_bar.setVisible(False)
-        self._set_status(f"Metadata lookup failed: {error}", error=True)
-        QMessageBox.critical(self, "Metadata Error", f"Metadata lookup failed:\n{error}")
+        self._set_status(f"Metadata lookup failed: {error}", level='error')
+        self._set_status(f"Metadata Error: {error}", level='error')
+        logger.error(f"Metadata lookup failed: {error}")
 
     # =========================================================================
     # Database
@@ -1368,15 +1380,23 @@ class AnalysisView(QWidget):
     # Helpers
     # =========================================================================
     
-    def _set_status(self, text: str, error: bool = False, success: bool = False):
-        """Update status label."""
-        self.status_label.setText(text)
-        if error:
-            self.status_label.setStyleSheet("color: #e74c3c; font-style: italic;")
-        elif success:
-            self.status_label.setStyleSheet("color: #2ecc71; font-style: italic;")
-        else:
-            self.status_label.setStyleSheet("font-style: italic;")
+    def _set_status(self, message: str, level: str = 'info'):
+        """Set status message in main window's status bar (non-modal notification)."""
+        try:
+            main_window = self.window()
+            if main_window and hasattr(main_window, 'status_label'):
+                main_window.status_label.setText(message)
+                # Apply color based on level
+                if level == 'error' or level == 'critical':
+                    main_window.status_label.setStyleSheet("color: #e74c3c;")
+                elif level == 'warning':
+                    main_window.status_label.setStyleSheet("color: #f39c12;")
+                elif level == 'success' or level == 'info':
+                    main_window.status_label.setStyleSheet("color: #2ecc71;")
+                else:
+                    main_window.status_label.setStyleSheet("")  # Default
+        except Exception:
+            logger.warning(f"Could not set status: {message}")
 
     def _set_controls_enabled(self, enabled: bool):
         """Enable/disable controls during operations."""

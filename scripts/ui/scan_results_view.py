@@ -129,12 +129,27 @@ class ScanResultsView(QWidget):
             logger.info(f"ScanResultsView initialized for session ID: {scan_session_id}")
         except Exception as e:
             logger.error(f"Failed to initialize ScanResultsView: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "Initialization Error",
-                f"Failed to initialize scan results view:\n\n{str(e)}\n\nPlease check the logs for details.",
-            )
+            self._set_status(f"Initialization Error: {e}", level='error')
+            logger.error(f"Failed to initialize ScanResultsView: {e}", exc_info=True)
             raise
+    
+    def _set_status(self, message: str, level: str = 'info'):
+        """Set status message in main window's status bar (non-modal notification)."""
+        try:
+            main_window = self.window()
+            if main_window and hasattr(main_window, 'status_label'):
+                main_window.status_label.setText(message)
+                # Apply color based on level
+                if level == 'error' or level == 'critical':
+                    main_window.status_label.setStyleSheet("color: #e74c3c;")
+                elif level == 'warning':
+                    main_window.status_label.setStyleSheet("color: #f39c12;")
+                elif level == 'success' or level == 'info':
+                    main_window.status_label.setStyleSheet("color: #2ecc71;")
+                else:
+                    main_window.status_label.setStyleSheet("")  # Default
+        except Exception:
+            logger.warning(f"Could not set status: {message}")
     
     def _init_ui(self):
         """
@@ -221,11 +236,9 @@ class ScanResultsView(QWidget):
 
         except Exception as e:
             logger.error(f"Failed to initialize tabbed UI: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "UI Initialization Error",
-                f"Failed to initialize scan results interface:\n\n{str(e)}\n\nPlease restart the application.",
-            )
+            self._set_status(f"UI Initialization Error: {e}", level='error')
+            logger.error(f"Failed to initialize tabbed UI: {e}", exc_info=True)
+            # Status already set above
             raise
     
     def _create_filter_section(self) -> QGroupBox:
@@ -775,9 +788,8 @@ class ScanResultsView(QWidget):
             logger.error(f"Failed to start async load: {e}", exc_info=True)
             self.progress_container.setVisible(False)
             self.lbl_summary.setText(f"Error: {str(e)}")
-            QMessageBox.critical(
-                self, "Load Error", f"Failed to start loading:\n\n{str(e)}"
-            )
+            self._set_status(f"Load Error: {e}", level='error')
+            logger.error(f"Failed to start loading: {e}", exc_info=True)
 
     def _on_load_progress(self, message: str, current: int, total: int):
         """
@@ -852,9 +864,8 @@ class ScanResultsView(QWidget):
         except Exception as e:
             logger.error(f"Error handling load completion: {e}", exc_info=True)
             self.lbl_summary.setText(f"Error displaying results: {str(e)}")
-            QMessageBox.warning(
-                self, "Display Error", f"Failed to display loaded results:\n\n{str(e)}"
-            )
+            self._set_status(f"Display Error: {e}", level='warning')
+            logger.warning(f"Failed to display loaded results: {e}")
 
     def _on_load_error(self, error_message: str):
         """
@@ -869,11 +880,9 @@ class ScanResultsView(QWidget):
 
             # Show error
             self.lbl_summary.setText(f"Load error: {error_message}")
-            QMessageBox.critical(
-                self,
-                "Load Error",
-                f"Failed to load scan results:\n\n{error_message}",
-            )
+            self._set_status(f"Load Error: {error_message}", level='error')
+            logger.error(f"Load error: {error_message}")
+            # Status already set above
             logger.error(f"Async load failed: {error_message}")
 
         except Exception as e:
@@ -936,7 +945,8 @@ class ScanResultsView(QWidget):
         except Exception as e:
             logger.error(f"Failed to compute folder structure: {e}", exc_info=True)
             self.folder_structure = {}
-            QMessageBox.warning(self, "Structure Error", f"Failed to compute folder structure:\n\n{str(e)}")
+            self._set_status(f"Structure Error: {e}", level='warning')
+            logger.warning(f"Failed to compute folder structure: {e}")
     
     def _apply_filters(self):
         """
@@ -1025,7 +1035,8 @@ class ScanResultsView(QWidget):
             
         except Exception as e:
             logger.error(f"Failed to apply filters: {e}", exc_info=True)
-            QMessageBox.warning(self, "Filter Error", f"Failed to apply filters:\n\n{str(e)}")
+            self._set_status(f"Filter Error: {e}", level='warning')
+            logger.warning(f"Failed to apply filters: {e}")
     
     def _reset_filters(self):
         """
@@ -1052,7 +1063,8 @@ class ScanResultsView(QWidget):
             
         except Exception as e:
             logger.error(f"Failed to reset filters: {e}", exc_info=True)
-            QMessageBox.warning(self, "Reset Error", f"Failed to reset filters:\n\n{str(e)}")
+            self._set_status(f"Reset Error: {e}", level='warning')
+            logger.warning(f"Failed to reset filters: {e}")
     
     def _update_filter_summary(self):
         """
@@ -1096,12 +1108,7 @@ class ScanResultsView(QWidget):
         """
         try:
             if not self.filtered_files:
-                QMessageBox.warning(
-                    self,
-                    "No Files",
-                    "No files match the current filters.\n\n"
-                    "Please adjust your filters and try again."
-                )
+                self._set_status("No files match the current filters. Please adjust your filters and try again.", level='warning')
                 return
             
             # Build filter configuration
@@ -1122,35 +1129,36 @@ class ScanResultsView(QWidget):
             }
             
             # Confirm with user
-            reply = QMessageBox.question(
-                self,
-                "Send to Analysis",
-                f"Send {len(self.filtered_files)} filtered files to Analysis?\n\n"
-                f"Original: {len(self.scanned_files)} files\n"
-                f"Filtered: {len(self.filtered_files)} files\n\n"
-                f"This will reduce LLM token costs and improve analysis quality.",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            
-            if reply == QMessageBox.StandardButton.Yes:
+            # Auto-send to Analysis (no confirmation needed - user clicked the button)
+            # Status message will show what's happening
+            if True:  # Always proceed
+                # Legacy QMessageBox.question call - replaced with auto-action
+                # reply = QMessageBox.question(
+                #     self,
+                #     "Send to Analysis",
+                #     f"Send {len(self.filtered_files)} filtered files to Analysis?\n\n"
+                #     f"Original: {len(self.scanned_files)} files\n"
+                # f"Filtered: {len(self.filtered_files)} files\n\n"
+                # f"This will reduce LLM token costs and improve analysis quality.",
+                # QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                # )
+                
+                # if reply == QMessageBox.StandardButton.Yes:
                 # Emit signal with filtered data
                 self.send_to_analysis.emit(self.filtered_files, filter_config)
                 logger.info(f"Sent {len(self.filtered_files)} filtered files to analysis")
                 
-                QMessageBox.information(
-                    self,
-                    "Sent to Analysis",
-                    f"Successfully sent {len(self.filtered_files)} files to Analysis view.\n\n"
-                    f"The Analysis tab will now use your filtered data."
+                self._set_status(
+                    f"Sent {len(self.filtered_files)} filtered files to analysis",
+                    level='success'
                 )
+                # Status already set above
             
         except Exception as e:
             logger.error(f"Failed to send to analysis: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "Send Error",
-                f"Failed to send files to analysis:\n\n{str(e)}"
-            )
+            self._set_status(f"Send Error: {e}", level='error')
+            logger.error(f"Failed to send to analysis: {e}", exc_info=True)
+            # Status already set above
     
     def _populate_results_table(self, files: List[FileRecord]):
         """
@@ -1256,7 +1264,8 @@ class ScanResultsView(QWidget):
             
         except Exception as e:
             logger.error(f"Failed to populate results table: {e}", exc_info=True)
-            QMessageBox.warning(self, "Table Error", f"Failed to populate results table:\n\n{str(e)}")
+            self._set_status(f"Table Error: {e}", level='warning')
+            logger.warning(f"Failed to populate results table: {e}")
         finally:
             # Re-enable updates after bulk insert (always runs)
             self.results_table.setSortingEnabled(True)
@@ -1315,7 +1324,8 @@ class ScanResultsView(QWidget):
             
         except Exception as e:
             logger.error(f"Failed to filter results: {e}", exc_info=True)
-            QMessageBox.warning(self, "Filter Error", f"Failed to apply search filter:\n\n{str(e)}")
+            self._set_status(f"Filter Error: {e}", level='warning')
+            logger.warning(f"Failed to apply search filter: {e}")
     
     def _export_results(self):
         """
@@ -1356,7 +1366,7 @@ class ScanResultsView(QWidget):
         """
         try:
             if not self.scanned_files:
-                QMessageBox.information(self, "No Data", "No scan results to export.")
+                self._set_status("No scan results to export.", level='warning')
                 return
             
             filename, _ = QFileDialog.getSaveFileName(
@@ -1396,29 +1406,29 @@ class ScanResultsView(QWidget):
                 
                 total = len(self.scanned_files)
                 filtered = len(self.filtered_files)
-                QMessageBox.information(
-                    self,
-                    "Export Complete",
-                    f"Results exported to:\n{filename}\n\n"
-                    f"Total files: {total}\n"
-                    f"Included (filtered): {filtered}\n"
-                    f"Excluded: {total - filtered}"
+                self._set_status(
+                    f"Export complete: {filtered}/{total} files exported to {filename}",
+                    level='success'
                 )
                 logger.info(f"Exported scan results to: {filename}")
                 
             except PermissionError as e:
-                QMessageBox.critical(self, "Permission Error", f"Cannot write to file:\n{filename}\n\n{e}")
+                self._set_status(f"Permission Error: Cannot write to {filename}: {e}", level='error')
+                logger.error(f"Export permission error: {e}")
                 logger.error(f"Export permission error: {e}")
             except OSError as e:
-                QMessageBox.critical(self, "File Error", f"File system error:\n{e}")
+                self._set_status(f"File Error: {e}", level='error')
+                logger.error(f"Export file system error: {e}")
                 logger.error(f"Export file system error: {e}")
             except Exception as e:
-                QMessageBox.critical(self, "Export Error", f"Failed to export:\n{e}")
+                self._set_status(f"Export Error: {e}", level='error')
+                logger.error(f"Export error: {e}")
                 logger.error(f"Export error: {e}", exc_info=True)
                 
         except Exception as e:
             logger.error(f"Failed to initiate export: {e}", exc_info=True)
-            QMessageBox.critical(self, "Export Error", f"Failed to start export:\n\n{str(e)}")
+            self._set_status(f"Export Error: {e}", level='error')
+            logger.error(f"Failed to start export: {e}", exc_info=True)
     
     def _update_overview(self):
         """
@@ -1545,4 +1555,5 @@ class ScanResultsView(QWidget):
                 
         except Exception as e:
             logger.error(f"Failed to update overview: {e}", exc_info=True)
-            QMessageBox.warning(self, "Overview Error", f"Failed to update overview:\n\n{str(e)}")
+            self._set_status(f"Overview Error: {e}", level='warning')
+            logger.warning(f"Failed to update overview: {e}")

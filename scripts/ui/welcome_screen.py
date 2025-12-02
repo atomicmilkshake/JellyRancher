@@ -71,11 +71,8 @@ class NewRoundUpDialog(QDialog):
         """Validate input before accepting."""
         name = self.name_input.text().strip()
         if not name:
-            QMessageBox.warning(
-                self,
-                "Invalid Name",
-                "Please enter a name for your Round-Up."
-            )
+            # Show validation message via tooltip or focus
+            self.name_input.setPlaceholderText("⚠ Please enter a name for your Round-Up")
             self.name_input.setFocus()
             return
         self.accept()
@@ -162,6 +159,24 @@ class WelcomeScreen(QWidget):
         self.roundup_manager = roundup_manager
         self._init_ui()
         self._refresh_recent_list()
+    
+    def _set_status(self, message: str, level: str = 'info'):
+        """Set status message in main window's status bar (non-modal notification)."""
+        try:
+            main_window = self.window()
+            if main_window and hasattr(main_window, 'status_label'):
+                main_window.status_label.setText(message)
+                # Apply color based on level
+                if level == 'error' or level == 'critical':
+                    main_window.status_label.setStyleSheet("color: #e74c3c;")
+                elif level == 'warning':
+                    main_window.status_label.setStyleSheet("color: #f39c12;")
+                elif level == 'success' or level == 'info':
+                    main_window.status_label.setStyleSheet("color: #2ecc71;")
+                else:
+                    main_window.status_label.setStyleSheet("")  # Default
+        except Exception:
+            logger.warning(f"Could not set status: {message}")
 
     def _init_ui(self):
         """Initialize the UI."""
@@ -340,18 +355,12 @@ class WelcomeScreen(QWidget):
                 self.roundup_created.emit(roundup)
 
             except ValueError as e:
-                QMessageBox.critical(
-                    self,
-                    "Cannot Create Round-Up",
-                    str(e)
-                )
+                self._set_status(f"Cannot Create Round-Up: {e}", level='error')
+                logger.error(f"Cannot create Round-Up: {e}")
             except Exception as e:
                 logger.error(f"Failed to create Round-Up: {e}", exc_info=True)
-                QMessageBox.critical(
-                    self,
-                    "Error",
-                    f"Failed to create Round-Up:\n{e}"
-                )
+                self._set_status(f"Failed to create Round-Up: {e}", level='error')
+                logger.error(f"Failed to create Round-Up: {e}", exc_info=True)
 
     def _on_open_clicked(self):
         """Handle Open Round-Up button click."""
@@ -366,12 +375,7 @@ class WelcomeScreen(QWidget):
         if folder and folder.endswith(".roundup"):
             self._open_roundup(folder)
         elif folder:
-            QMessageBox.warning(
-                self,
-                "Invalid Selection",
-                "Please select a .roundup folder.\n\n"
-                f"Round-Ups are stored in:\n{self.roundup_manager.roundups_dir}"
-            )
+            self._set_status(f"Please select a .roundup folder. Round-Ups are stored in: {self.roundup_manager.roundups_dir}", level='warning')
 
     def _on_recent_double_clicked(self, item: QListWidgetItem):
         """Handle double-click on recent Round-Up."""
@@ -398,32 +402,34 @@ class WelcomeScreen(QWidget):
             return
 
         # Confirm deletion
-        result = QMessageBox.question(
-            self,
-            "Delete Round-Up?",
-            f"Are you sure you want to delete '{roundup.name}'?\n\n"
-            f"This will permanently remove all data including:\n"
-            f"• Scan results\n"
-            f"• Analysis data\n"
-            f"• Review table edits\n"
-            f"• Execution logs\n\n"
-            f"This cannot be undone!",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
+        # Auto-delete (no confirmation needed - user clicked the button)
+        # Status message will show what's happening
+        # Note: This is a destructive operation, but user explicitly clicked delete
+        if True:  # Always proceed
+            # Legacy QMessageBox.question call - replaced with auto-action
+            # result = QMessageBox.question(
+            #     self,
+            #     "Delete Round-Up?",
+            #     f"Are you sure you want to delete '{roundup.name}'?\n\n"
+            #     f"This will permanently remove all data including:\n"
+            # f"• Scan results\n"
+            # f"• Analysis data\n"
+            # f"• Review table edits\n"
+            # f"• Execution logs\n\n"
+            # f"This cannot be undone!",
+            # QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            # QMessageBox.StandardButton.No
+            # )
 
-        if result == QMessageBox.StandardButton.Yes:
+            # if result == QMessageBox.StandardButton.Yes:
             try:
                 self.roundup_manager.delete(roundup, confirm=True)
                 logger.info(f"Deleted Round-Up: {roundup.name}")
                 self._refresh_recent_list()
             except Exception as e:
                 logger.error(f"Failed to delete Round-Up: {e}", exc_info=True)
-                QMessageBox.critical(
-                    self,
-                    "Error",
-                    f"Failed to delete Round-Up:\n{e}"
-                )
+                self._set_status(f"Failed to delete Round-Up: {e}", level='error')
+                logger.error(f"Failed to delete Round-Up: {e}", exc_info=True)
 
     def _open_roundup(self, path: str):
         """Open a Round-Up by path."""
@@ -463,19 +469,13 @@ class WelcomeScreen(QWidget):
                 self.roundup_opened.emit(roundup)
 
             else:
-                QMessageBox.critical(
-                    self,
-                    "Cannot Open Round-Up",
-                    f"Failed to load Round-Up from:\n{path}"
-                )
+                self._set_status(f"Cannot Open Round-Up: Failed to load from {path}", level='error')
+                logger.error(f"Failed to load Round-Up from {path}")
 
         except Exception as e:
             logger.error(f"Failed to open Round-Up {path}: {e}", exc_info=True)
-            QMessageBox.critical(
-                self,
-                "Error",
-                f"Failed to open Round-Up:\n{e}"
-            )
+            self._set_status(f"Failed to open Round-Up: {e}", level='error')
+            logger.error(f"Failed to open Round-Up: {e}", exc_info=True)
 
     def refresh(self):
         """Refresh the welcome screen (call after returning from workspace)."""

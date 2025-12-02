@@ -109,6 +109,8 @@ class WikipediaCacheDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        # Non-modal dialog (Phase 48-E-4: Modal banishment)
+        self.setModal(False)
         self.logger = ProjectLogger("wikipedia_cache_dialog")
         self.cache = TVEpisodeCache()
 
@@ -118,11 +120,26 @@ class WikipediaCacheDialog(QDialog):
         self.cache_worker: Optional[WikipediaCacheWorker] = None
 
         self.init_ui()
+    
+    def _set_status(self, message: str, level: str = 'info'):
+        """Show status message in parent window's status bar if available."""
+        if self.parent() and hasattr(self.parent(), 'status_label'):
+            if level == 'error':
+                self.parent().status_label.setText(f"❌ {message}")
+                self.parent().status_label.setStyleSheet("color: red;")
+            elif level == 'warning':
+                self.parent().status_label.setText(f"⚠ {message}")
+                self.parent().status_label.setStyleSheet("color: orange;")
+            else:
+                self.parent().status_label.setText(f"ℹ {message}")
+                self.parent().status_label.setStyleSheet("color: green;")
+        if hasattr(self, 'logger'):
+            self.logger.info(f"[{level.upper()}] {message}")
 
     def init_ui(self):
         """Initialize the dialog UI."""
         self.setWindowTitle("Wikipedia Episode Cache Generator")
-        self.setModal(True)
+        self.setModal(False)  # Non-modal (Phase 48-E-4: Modal banishment)
         self.resize(900, 700)
 
         layout = QVBoxLayout(self)
@@ -132,7 +149,7 @@ class WikipediaCacheDialog(QDialog):
         layout.addWidget(search_group)
 
         # Splitter for results and preview
-        splitter = QSplitter(Qt.Horizontal)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
 
         # Results section
         results_widget = self.create_results_section()
@@ -253,11 +270,7 @@ class WikipediaCacheDialog(QDialog):
         query = self.show_name_input.text().strip()
 
         if not query:
-            QMessageBox.warning(
-                self,
-                "No Query",
-                "Please enter a TV show name to search."
-            )
+            self._set_status("No Query: Please enter a TV show name to search.", level='warning')
             return
 
         # Disable UI during search
@@ -298,11 +311,8 @@ class WikipediaCacheDialog(QDialog):
         self.progress_label.setText("Search failed")
         self.search_button.setEnabled(True)
 
-        QMessageBox.critical(
-            self,
-            "Search Error",
-            f"Error searching Wikipedia:\n{error}"
-        )
+        self._set_status(f"Search Error: Error searching Wikipedia: {error}", level='error')
+        self.logger.error(f"Error searching Wikipedia: {error}", exc_info=True)
         self.logger.error(f"Wikipedia search error: {error}")
 
     def populate_results(self):
@@ -385,18 +395,9 @@ class WikipediaCacheDialog(QDialog):
         # Ask for output location (optional - will use default cache location)
         from PyQt6.QtWidgets import QFileDialog, QMessageBox
 
-        reply = QMessageBox.question(
-            self,
-            "Cache Location",
-            "Save episode cache to default location?\n\n"
-            "Yes: Save to standard cache directory\n"
-            "No: Choose custom location",
-            QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
-        )
-
-        if reply == QMessageBox.Cancel:
-            return
-        elif reply == QMessageBox.Yes:
+        # Auto-use default location (no confirmation needed - user clicked the button)
+        # Status message will show what's happening
+        if True:  # Always use default
             # Use default cache location
             show_id = self.cache.get_show_id(show_name)
             output_path = self.cache.get_cache_path(show_id)
@@ -437,11 +438,7 @@ class WikipediaCacheDialog(QDialog):
         self.progress_bar.setValue(100)
         self.progress_label.setText(f"Cache generated: {cache_path}")
 
-        QMessageBox.information(
-            self,
-            "Success",
-            f"Wikipedia episode cache generated successfully!\n\n{cache_path}"
-        )
+        self._set_status(f"Success: Wikipedia episode cache generated successfully! {cache_path}", level='info')
 
         self.logger.info(f"Wikipedia cache generated: {cache_path}")
         self.accept()  # Close dialog with success
@@ -452,11 +449,8 @@ class WikipediaCacheDialog(QDialog):
         self.search_button.setEnabled(True)
         self.generate_button.setEnabled(True)
 
-        QMessageBox.critical(
-            self,
-            "Generation Error",
-            f"Error generating cache:\n{error}"
-        )
+        self._set_status(f"Generation Error: Error generating cache: {error}", level='error')
+        self.logger.error(f"Error generating cache: {error}", exc_info=True)
         self.logger.error(f"Wikipedia cache generation error: {error}")
 
     def closeEvent(self, event):

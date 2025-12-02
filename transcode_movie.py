@@ -4,7 +4,7 @@ Transcode Movie - Convert video to 1080p HEVC MP4 with AAC audio
 
 Usage:
     python transcode_movie.py "movie search term" [--output-dir OUTPUT_DIR]
-    python transcode_movie.py "barbie mermaid" --output-dir "L:\#MEDIA\Movies\Barbie in A Mermaid Tale (2010)"
+    python transcode_movie.py "barbie mermaid" --output-dir "L:\\#MEDIA\\Movies\\Barbie in A Mermaid Tale (2010)"
 """
 
 import sys
@@ -28,8 +28,9 @@ def find_video_file(source_path: Path) -> tuple[Optional[Path], bool]:
         source_path: Path from Jellyfin (may be folder or file)
     
     Returns:
-        Tuple of (Path to video file or IFO file, is_dvd_structure)
-        For DVD structures, returns the IFO file path which ffmpeg can use
+        Tuple of (Path to video file or DVD root directory, is_dvd_structure)
+        For DVD structures, returns the root DVD directory (parent of VIDEO_TS)
+        For regular files, returns the video file path
     """
     if source_path.is_file():
         # Check if it's a video file
@@ -43,24 +44,12 @@ def find_video_file(source_path: Path) -> tuple[Optional[Path], bool]:
         # Check for DVD structure (VIDEO_TS folder with IFO files)
         video_ts_dir = source_path / 'VIDEO_TS'
         if video_ts_dir.exists():
-            # Look for main title IFO (usually VTS_01_0.IFO or VTS_02_0.IFO)
-            # Find the largest VTS set (main movie)
+            # Check if there are IFO files (confirms DVD structure)
             ifo_files = list(video_ts_dir.glob('VTS_*_0.IFO'))
             if ifo_files:
-                # Get corresponding VOB files to determine size
-                largest_size = 0
-                largest_ifo = None
-                for ifo in ifo_files:
-                    vts_num = ifo.stem.split('_')[1]  # Extract VTS number
-                    vob_files = list(video_ts_dir.glob(f'VTS_{vts_num}_*.VOB'))
-                    total_size = sum(vob.stat().st_size for vob in vob_files if vob.exists())
-                    if total_size > largest_size:
-                        largest_size = total_size
-                        largest_ifo = ifo
-                
-                if largest_ifo:
-                    print(f"Found DVD structure, using IFO: {largest_ifo.name}")
-                    return largest_ifo, True
+                print(f"Found DVD structure at: {source_path}")
+                # Return the root DVD directory (HandBrakeCLI can read from here)
+                return source_path, True
         
         # Look for regular video files
         video_extensions = {'.mkv', '.mp4', '.avi', '.m4v', '.mov', '.wmv', '.flv', 
@@ -87,16 +76,150 @@ def check_ffmpeg() -> bool:
         return False
 
 
+def check_handbrake() -> bool:
+    """Check if HandBrakeCLI is available."""
+    try:
+        # Try HandBrakeCLI first (Windows)
+        result = subprocess.run(
+            ['HandBrakeCLI', '--version'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            return True
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    
+    try:
+        # Try lowercase variant (Linux/Mac)
+        result = subprocess.run(
+            ['handbrakecli', '--version'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
+
+def transcode_dvd_with_handbrake(
+    dvd_path: Path,
+    output_file: Path,
+    target_resolution: str = "1080p",
+    crf: int = 23,
+    preset: str = "medium"
+) -> bool:
+    """
+    Transcode DVD to HEVC (H.265) MP4 with AAC audio using HandBrakeCLI.
+    
+    Args:
+        dvd_path: Root DVD directory (contains VIDEO_TS folder)
+        output_file: Output MP4 file path
+        target_resolution: Target resolution (720p, 1080p, 2160p)
+        crf: Quality setting (RF 18-28, equivalent to CRF, 23 is default)
+        preset: Encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow)
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    # Resolution mapping
+    resolution_map = {
+        "720p": (1280, 720),
+        "1080p": (1920, 1080),
+        "2160p": (3840, 2160)
+    }
+    
+    width, height = resolution_map.get(target_resolution.lower(), (1920, 1080))
+    
+    # Ensure output directory exists
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Build HandBrakeCLI command
+    # Try HandBrakeCLI first (Windows), then handbrakecli (Linux/Mac)
+    cmd = None
+    for cmd_name in ['HandBrakeCLI', 'handbrakecli']:
+        try:
+            result = subprocess.run(
+                [cmd_name, '--version'],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            if result.returncode == 0:
+                cmd = [cmd_name]
+                break
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            continue
+    
+    if cmd is None:
+        print("[ERROR] HandBrakeCLI not found. Please install HandBrake.")
+        return False
+    
+    cmd.extend([
+        '-i', str(dvd_path),           # Input DVD directory
+        '-o', str(output_file),        # Output file
+        '--title', '0',                # Auto-select largest title
+        '--encoder', 'x265',           # HEVC video codec
+        '--quality', f'RF={crf}',      # Quality (RF 18-28, similar to CRF)
+        '--encoder-preset', preset,    # Encoding speed/quality tradeoff
+        '--width', str(width),         # Target width
+        '--height', str(height),       # Target height
+        '--audio', '1',                # First audio track
+        '--aencoder', 'aac',           # AAC audio codec
+        '--ab', '192',                 # Audio bitrate (192kbps)
+        '--format', 'mp4'              # MP4 container
+    ])
+    
+    print(f"\nTranscoding command:")
+    print(f"  Input:  {dvd_path}")
+    print(f"  Output: {output_file}")
+    print(f"  Resolution: {target_resolution} ({width}x{height})")
+    print(f"  Quality: RF {crf} (preset: {preset})")
+    print(f"\nRunning HandBrakeCLI (this may take a while)...\n")
+    
+    try:
+        # Run HandBrakeCLI with real-time output
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            bufsize=1
+        )
+        
+        # Print output in real-time
+        for line in process.stdout:
+            print(line, end='')
+        
+        process.wait()
+        
+        if process.returncode == 0:
+            print(f"\n[SUCCESS] Transcoding completed successfully!")
+            print(f"  Output file: {output_file}")
+            if output_file.exists():
+                size_mb = output_file.stat().st_size / (1024 * 1024)
+                print(f"  Output size: {size_mb:.2f} MB")
+            return True
+        else:
+            print(f"\n[ERROR] Transcoding failed with return code {process.returncode}")
+            return False
+            
+    except Exception as e:
+        print(f"\n[ERROR] Error during transcoding: {e}")
+        return False
+
+
 def transcode_to_hevc(
     input_file: Path,
     output_file: Path,
     target_resolution: str = "1080p",
     crf: int = 23,
-    preset: str = "medium",
-    is_dvd: bool = False
+    preset: str = "medium"
 ) -> bool:
     """
-    Transcode video to HEVC (H.265) MP4 with AAC audio.
+    Transcode video to HEVC (H.265) MP4 with AAC audio using ffmpeg.
     
     Args:
         input_file: Source video file
@@ -124,11 +247,7 @@ def transcode_to_hevc(
     # Video: HEVC (libx265), scale to target resolution, maintain aspect ratio
     # Audio: AAC, 192kbps, stereo (or keep original channels if 2ch)
     # Container: MP4
-    cmd = ['ffmpeg']
-    
-    # For DVD IFO files, ffmpeg can read them directly
-    # Just pass the IFO file - ffmpeg will handle the DVD structure
-    cmd.extend(['-i', str(input_file)])
+    cmd = ['ffmpeg', '-i', str(input_file)]
     
     cmd.extend([
         '-c:v', 'libx265',           # HEVC video codec
@@ -225,11 +344,8 @@ Examples:
     
     args = parser.parse_args()
     
-    # Check ffmpeg availability
-    if not check_ffmpeg():
-        print("[ERROR] ffmpeg not found in PATH")
-        print("Please install ffmpeg and ensure it's in your system PATH")
-        sys.exit(1)
+    # Check tool availability (will check specific tool based on file type)
+    # We'll check ffmpeg and HandBrakeCLI as needed
     
     # Query Jellyfin for movie
     config = JellyfinConfigManager()
@@ -282,7 +398,21 @@ Examples:
     
     print(f"Video file: {video_file}")
     if is_dvd:
-        print("DVD structure detected - will use IFO file for proper decoding")
+        print("DVD structure detected - will use HandBrakeCLI for transcoding")
+        # Check HandBrakeCLI availability for DVD
+        if not check_handbrake():
+            print("[ERROR] HandBrakeCLI not found in PATH")
+            print("HandBrakeCLI is required for DVD transcoding.")
+            print("Install HandBrake using one of these methods:")
+            print("  winget install HandBrake")
+            print("  choco install handbrake")
+            sys.exit(1)
+    else:
+        # Check ffmpeg availability for regular files
+        if not check_ffmpeg():
+            print("[ERROR] ffmpeg not found in PATH")
+            print("Please install ffmpeg and ensure it's in your system PATH")
+            sys.exit(1)
     
     # Determine output path
     if args.output_dir:
@@ -317,14 +447,22 @@ Examples:
             sys.exit(0)
     
     # Transcode
-    success = transcode_to_hevc(
-        video_file,
-        output_file,
-        target_resolution=args.resolution,
-        crf=args.crf,
-        preset=args.preset,
-        is_dvd=is_dvd
-    )
+    if is_dvd:
+        success = transcode_dvd_with_handbrake(
+            video_file,  # This is the DVD root directory for DVDs
+            output_file,
+            target_resolution=args.resolution,
+            crf=args.crf,
+            preset=args.preset
+        )
+    else:
+        success = transcode_to_hevc(
+            video_file,
+            output_file,
+            target_resolution=args.resolution,
+            crf=args.crf,
+            preset=args.preset
+        )
     
     if success:
         print(f"\n[SUCCESS] Transcoded movie saved to:")

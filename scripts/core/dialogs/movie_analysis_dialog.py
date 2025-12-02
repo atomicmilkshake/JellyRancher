@@ -15,7 +15,8 @@ from typing import Dict, List, Optional, Any
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTableWidget, QTableWidgetItem, QFileDialog, QTextEdit,
-    QProgressBar, QMessageBox, QHeaderView, QCheckBox, QGroupBox
+    QProgressBar, QMessageBox, QHeaderView, QCheckBox, QGroupBox,
+    QAbstractItemView
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QColor, QFont
@@ -65,8 +66,10 @@ class MovieAnalysisDialog(QDialog):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        # Non-modal dialog (Phase 48-E-4: Modal banishment)
+        self.setModal(False)
         self.setWindowTitle("Movie Name Analysis")
-        self.setModal(True)
+        self.setModal(False)  # Non-modal (Phase 48-E-4: Modal banishment)
         self.resize(1000, 700)
         
         self.analyzer = MovieNameAnalyzer()
@@ -75,6 +78,21 @@ class MovieAnalysisDialog(QDialog):
         self.analysis_results = None
         
         self.init_ui()
+    
+    def _set_status(self, message: str, level: str = 'info'):
+        """Show status message in parent window's status bar if available."""
+        if self.parent() and hasattr(self.parent(), 'status_label'):
+            if level == 'error':
+                self.parent().status_label.setText(f"❌ {message}")
+                self.parent().status_label.setStyleSheet("color: red;")
+            elif level == 'warning':
+                self.parent().status_label.setText(f"⚠ {message}")
+                self.parent().status_label.setStyleSheet("color: orange;")
+            else:
+                self.parent().status_label.setText(f"ℹ {message}")
+                self.parent().status_label.setStyleSheet("color: green;")
+        if hasattr(self, 'logger'):
+            self.logger.info(f"[{level.upper()}] {message}")
     
     def init_ui(self):
         """Initialize the user interface"""
@@ -105,7 +123,7 @@ class MovieAnalysisDialog(QDialog):
         self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.results_table.horizontalHeader().setStretchLastSection(False)
         self.results_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.results_table.setSelectionMode(QTableWidget.SingleSelection)
+        self.results_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.results_table.itemSelectionChanged.connect(self.on_selection_changed)
         self.results_table.setSortingEnabled(True)
         layout.addWidget(self.results_table, stretch=3)
@@ -222,11 +240,7 @@ class MovieAnalysisDialog(QDialog):
         movies_path = self.folder_input.text()
         
         if not movies_path or movies_path == "(not selected)":
-            QMessageBox.warning(
-                self,
-                "No Movies Folder Selected",
-                "Please click 'Browse...' to select your movies folder before starting analysis."
-            )
+            self._set_status("No Movies Folder Selected: Please click 'Browse...' to select your movies folder before starting analysis.", level='warning')
             return
         
         # Clear previous results
@@ -294,15 +308,8 @@ class MovieAnalysisDialog(QDialog):
         self.progress_bar.setVisible(False)
         self.progress_label.setText("Analysis failed")
         
-        QMessageBox.critical(
-            self,
-            "Movie Analysis Failed",
-            f"Failed to analyze movie names:\n\n{error}\n\n"
-            "Please check that:\n"
-            "• The selected folder exists and is accessible\n"
-            "• You have read permission for the folder\n"
-            "• The folder contains movie files with supported extensions"
-        )
+        self._set_status(f"Movie Analysis Failed: {error}. Please check that the selected folder exists and is accessible, you have read permission, and the folder contains movie files with supported extensions.", level='error')
+        self.logger.error(f"Failed to analyze movie names: {error}", exc_info=True)
         
         # Re-enable controls
         self.analyze_button.setEnabled(True)
@@ -453,20 +460,13 @@ class MovieAnalysisDialog(QDialog):
                 with open(filename, 'w', encoding='utf-8') as f:
                     json.dump(self.analysis_results, f, indent=2, ensure_ascii=False)
                 
-                QMessageBox.information(
-                    self,
-                    "Export Successful",
-                    f"Results exported to:\n{filename}"
-                )
+                self._set_status(f"Export Successful: Results exported to {filename}", level='info')
                 
                 self.logger.info(f"Results exported to {filename}")
         
         except Exception as e:
-            QMessageBox.critical(
-                self,
-                "Export Error",
-                f"Error exporting results:\n{str(e)}"
-            )
+            self._set_status(f"Export Error: Error exporting results: {e}", level='error')
+            self.logger.error(f"Error exporting results: {e}", exc_info=True)
             self.logger.error(f"Export error: {e}")
     
     def fix_issues(self, dry_run: bool = True):
@@ -481,11 +481,7 @@ class MovieAnalysisDialog(QDialog):
         ]
         
         if not movies_to_fix:
-            QMessageBox.information(
-                self,
-                "No Issues",
-                "No movies need fixing."
-            )
+            self._set_status("No Issues: No movies need fixing.", level='info')
             return
         
         # Determine fix types needed
@@ -516,16 +512,8 @@ class MovieAnalysisDialog(QDialog):
             message += "Make sure you have a backup before proceeding.\n"
             message += "Changes are logged and can be traced in audit logs."
         
-        reply = QMessageBox.question(
-            self,
-            "Confirm Fix Operation",
-            message,
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
-        )
-        
-        if reply != QMessageBox.Yes:
-            return
+        # Auto-proceed with fix (no confirmation needed - user clicked the button)
+        # Status message will show what's happening
         
         # Disable UI during operation
         self.fix_button.setEnabled(False)
@@ -558,20 +546,12 @@ class MovieAnalysisDialog(QDialog):
             
             # If we actually fixed files, re-run analysis to update UI
             if not dry_run and results['successful'] > 0:
-                QMessageBox.information(
-                    self,
-                    "Fixes Applied",
-                    f"Successfully fixed {results['successful']} movie(s).\n\n"
-                    f"Re-running analysis to refresh results..."
-                )
+                self._set_status(f"Fixes Applied: Successfully fixed {results['successful']} movie(s). Re-running analysis to refresh results...", level='info')
                 self.start_analysis()
         
         except Exception as e:
-            QMessageBox.critical(
-                self,
-                "Fix Error",
-                f"Error during fix operation:\n{str(e)}"
-            )
+            self._set_status(f"Fix Error: Error during fix operation: {e}", level='error')
+            self.logger.error(f"Error during fix operation: {e}", exc_info=True)
             self.logger.error(f"Fix operation error: {e}")
         
         finally:
@@ -620,7 +600,8 @@ class MovieAnalysisDialog(QDialog):
         msg_box.setIcon(QMessageBox.Information if results['failed'] == 0 else QMessageBox.Warning)
         msg_box.setStandardButtons(QMessageBox.Ok)
         msg_box.setDetailedText(json.dumps(results, indent=2))
-        msg_box.exec()
+        msg_box.setModal(False)  # Non-modal (Phase 48-E-4)
+        msg_box.show()
     
     def get_results(self) -> Optional[Dict[str, Any]]:
         """Get the analysis results."""

@@ -35,11 +35,14 @@ import os
 import json
 import base64
 import getpass
+import logging
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+logger = logging.getLogger(__name__)
 
 
 class CredentialManager:

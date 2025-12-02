@@ -20,6 +20,7 @@ import requests
 from pathlib import Path
 from typing import Dict, List, Optional
 from dataclasses import dataclass
+from collections import defaultdict
 
 
 @dataclass
@@ -647,6 +648,283 @@ class JellyfinClient:
         except Exception as e:
             self.logger.error(f"Unexpected error refreshing library by path {library_path}: {e}", exc_info=True)
             return False
+
+    def delete_item(self, item_id: str) -> bool:
+        """
+        Delete an item from Jellyfin library.
+        
+        Args:
+            item_id: Jellyfin item ID to delete
+            
+        Returns:
+            True if deletion successful, False otherwise
+            
+        Note:
+            This removes the item from Jellyfin's library but does NOT delete
+            the physical file from disk. The file remains on the filesystem.
+        """
+        try:
+            response = self.session.delete(
+                f"{self.server_url}/Items/{item_id}",
+                timeout=10
+            )
+            response.raise_for_status()
+            
+            self.logger.info(f"Deleted item {item_id} from Jellyfin library")
+            return True
+        except requests.exceptions.Timeout:
+            self.logger.error(f"Timeout deleting item {item_id}")
+            return False
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection error deleting item {item_id}: {e}")
+            return False
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                self.logger.warning(f"Item {item_id} not found (may already be deleted)")
+                return True  # Consider already deleted as success
+            self.logger.error(f"HTTP error deleting item {item_id}: {e}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Unexpected error deleting item {item_id}: {e}", exc_info=True)
+            return False
+
+    def add_item_by_path(self, path: str) -> bool:
+        """
+        Trigger scan of new path to add items to Jellyfin library.
+        
+        Args:
+            path: Filesystem path to scan for new items
+            
+        Returns:
+            True if scan triggered successfully, False otherwise
+        """
+        try:
+            # Use refresh_library_by_path which triggers a scan
+            result = self.refresh_library_by_path(path)
+            if result:
+                self.logger.info(f"Triggered library scan for path: {path}")
+            return result
+        except Exception as e:
+            self.logger.error(f"Error triggering scan for path {path}: {e}", exc_info=True)
+            return False
+
+    def remove_from_collection(self, collection_id: str, item_ids: List[str]) -> bool:
+        """
+        Remove items from an existing collection.
+        
+        Args:
+            collection_id: Jellyfin collection ID
+            item_ids: List of item IDs to remove from collection
+            
+        Returns:
+            True if removal successful, False otherwise
+        """
+        try:
+            # Jellyfin API: DELETE /Collections/{id}/Items with item IDs
+            response = self.session.delete(
+                f"{self.server_url}/Collections/{collection_id}/Items",
+                params={'Ids': ','.join(item_ids)},
+                timeout=10
+            )
+            response.raise_for_status()
+            self.logger.info(f"Removed {len(item_ids)} items from collection {collection_id}")
+            return True
+        except requests.exceptions.Timeout:
+            self.logger.error(f"Timeout removing items from collection {collection_id}")
+            return False
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection error removing items from collection {collection_id}: {e}")
+            return False
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"HTTP error removing items from collection {collection_id}: {e}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Unexpected error removing items from collection {collection_id}: {e}", exc_info=True)
+            return False
+
+    def update_item_metadata(self, item_id: str, metadata: Dict) -> bool:
+        """
+        Update item metadata (title, year, description, tags, etc.).
+        
+        Args:
+            item_id: Jellyfin item ID
+            metadata: Dictionary of metadata fields to update
+                     (e.g., {'Name': 'New Title', 'ProductionYear': 2024})
+            
+        Returns:
+            True if update successful, False otherwise
+        """
+        try:
+            # Get current item data
+            item = self.get_item_by_id(item_id)
+            if not item:
+                self.logger.warning(f"Item {item_id} not found for metadata update")
+                return False
+            
+            # Merge metadata updates
+            updated_item = item.copy()
+            updated_item.update(metadata)
+            updated_item['Id'] = item_id  # Ensure ID is preserved
+            
+            # Update via POST
+            response = self.session.post(
+                f"{self.server_url}/Items/{item_id}",
+                json=updated_item,
+                timeout=10
+            )
+            response.raise_for_status()
+            self.logger.info(f"Updated metadata for item {item_id}: {list(metadata.keys())}")
+            return True
+        except requests.exceptions.Timeout:
+            self.logger.error(f"Timeout updating metadata for item {item_id}")
+            return False
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection error updating metadata for item {item_id}: {e}")
+            return False
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"HTTP error updating metadata for item {item_id}: {e}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Unexpected error updating metadata for item {item_id}: {e}", exc_info=True)
+            return False
+
+    def get_item_statistics(self) -> Dict:
+        """
+        Get library statistics (counts, sizes, etc.).
+        
+        Returns:
+            Dictionary with statistics:
+            - total_items: Total number of items
+            - by_type: Count by item type (Movie, Episode, etc.)
+            - by_library: Count by library
+            - total_size: Total size in bytes (if available)
+        """
+        try:
+            items = self.get_all_items()
+            
+            stats = {
+                'total_items': len(items),
+                'by_type': defaultdict(int),
+                'by_library': defaultdict(int),
+                'total_size': 0
+            }
+            
+            libraries = self.get_libraries()
+            library_map = {lib['Id']: lib['Name'] for lib in libraries}
+            
+            for item in items:
+                # Count by type
+                item_type = item.get('Type', 'Unknown')
+                stats['by_type'][item_type] += 1
+                
+                # Count by library (if available)
+                library_id = item.get('ParentId')
+                if library_id and library_id in library_map:
+                    stats['by_library'][library_map[library_id]] += 1
+                
+                # Sum sizes (if available)
+                media_sources = item.get('MediaSources', [])
+                for source in media_sources:
+                    size = source.get('Size')
+                    if size:
+                        stats['total_size'] += size
+            
+            # Convert defaultdicts to regular dicts
+            stats['by_type'] = dict(stats['by_type'])
+            stats['by_library'] = dict(stats['by_library'])
+            
+            self.logger.info(f"Retrieved statistics: {stats['total_items']} items")
+            return stats
+        except Exception as e:
+            self.logger.error(f"Error getting statistics: {e}", exc_info=True)
+            return {
+                'total_items': 0,
+                'by_type': {},
+                'by_library': {},
+                'total_size': 0
+            }
+
+    def search_items(self, query: str, filters: Optional[Dict] = None) -> List[Dict]:
+        """
+        Advanced search with filters.
+        
+        Args:
+            query: Search query string
+            filters: Optional filters dictionary:
+                    - item_types: List of types (e.g., ['Movie', 'Episode'])
+                    - genres: List of genres
+                    - years: List of years
+                    - libraries: List of library IDs
+                    
+        Returns:
+            List of matching Jellyfin items
+        """
+        try:
+            user_id = self.get_user_id()
+            
+            params = {
+                'SearchTerm': query,
+                'Recursive': 'true',
+                'Fields': 'Path,ProviderIds,MediaSources'
+            }
+            
+            if filters:
+                if 'item_types' in filters:
+                    params['IncludeItemTypes'] = ','.join(filters['item_types'])
+            
+            response = self.session.get(
+                f"{self.server_url}/Users/{user_id}/Items",
+                params=params,
+                timeout=30
+            )
+            response.raise_for_status()
+            
+            data = response.json()
+            items = data.get('Items', [])
+            
+            # Apply additional filters
+            if filters:
+                filtered_items = []
+                for item in items:
+                    # Filter by genre
+                    if 'genres' in filters:
+                        item_genres = [g.lower() for g in item.get('Genres', [])]
+                        filter_genres = [g.lower() for g in filters['genres']]
+                        if not any(g in item_genres for g in filter_genres):
+                            continue
+                    
+                    # Filter by year
+                    if 'years' in filters:
+                        year = item.get('ProductionYear')
+                        if year and year not in filters['years']:
+                            continue
+                    
+                    # Filter by library
+                    if 'libraries' in filters:
+                        parent_id = item.get('ParentId')
+                        if parent_id and parent_id not in filters['libraries']:
+                            continue
+                    
+                    filtered_items.append(item)
+                items = filtered_items
+            
+            self.logger.info(f"Search found {len(items)} items for query: {query}")
+            return items
+        except RuntimeError:
+            # Re-raise errors from get_user_id
+            raise
+        except requests.exceptions.Timeout:
+            self.logger.error(f"Timeout searching items with query: {query}")
+            return []
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection error searching items: {e}")
+            return []
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"HTTP error searching items: {e}")
+            return []
+        except Exception as e:
+            self.logger.error(f"Unexpected error searching items: {e}", exc_info=True)
+            return []
 
 
 if __name__ == "__main__":

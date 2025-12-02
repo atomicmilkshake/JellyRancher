@@ -166,8 +166,27 @@ class SubtitlesView(QWidget):
             
         except Exception as e:
             logger.error(f"Failed to initialize SubtitlesView: {e}", exc_info=True)
-            QMessageBox.critical(self, "Initialization Error", f"Failed to initialize:\n\n{str(e)}")
+            self._set_status(f"Initialization Error: {e}", level='error')
+            logger.error(f"Failed to initialize SubtitlesView: {e}", exc_info=True)
             raise
+    
+    def _set_status(self, message: str, level: str = 'info'):
+        """Set status message in main window's status bar (non-modal notification)."""
+        try:
+            main_window = self.window()
+            if main_window and hasattr(main_window, 'status_label'):
+                main_window.status_label.setText(message)
+                # Apply color based on level
+                if level == 'error' or level == 'critical':
+                    main_window.status_label.setStyleSheet("color: #e74c3c;")
+                elif level == 'warning':
+                    main_window.status_label.setStyleSheet("color: #f39c12;")
+                elif level == 'success' or level == 'info':
+                    main_window.status_label.setStyleSheet("color: #2ecc71;")
+                else:
+                    main_window.status_label.setStyleSheet("")  # Default
+        except Exception:
+            logger.warning(f"Could not set status: {message}")
 
     def _init_ui(self):
         """Build the full UI with coverage and download sections."""
@@ -332,11 +351,11 @@ class SubtitlesView(QWidget):
         """Run subtitle coverage analysis."""
         folder = self.folder_input.text().strip()
         if not folder:
-            QMessageBox.warning(self, "No Folder", "Please select a folder first.")
+            self._set_status("Please select a folder first.", level='warning')
             return
         
         if not Path(folder).exists():
-            QMessageBox.warning(self, "Invalid Folder", f"Folder not found:\n{folder}")
+            self._set_status(f"Folder not found: {folder}", level='warning')
             return
         
         # Get language filter
@@ -421,29 +440,22 @@ class SubtitlesView(QWidget):
         self.progress_bar.setVisible(False)
         
         self.coverage_stats_label.setText(f"<span style='color:red'>Error: {error}</span>")
-        QMessageBox.critical(self, "Coverage Error", f"Coverage analysis failed:\n\n{error}")
+        self._set_status(f"Coverage Error: {error}", level='error')
+        logger.error(f"Coverage analysis failed: {error}")
 
     def _download_subtitles(self):
         """Download subtitles for missing files."""
         if not self.missing_files:
-            QMessageBox.warning(self, "No Files", "No files need subtitles. Run coverage check first.")
+            self._set_status("No files need subtitles. Run coverage check first.", level='warning')
             return
         
         # Confirmation
         dry_run = self.dry_run_check.isChecked()
         mode_text = "PREVIEW mode (no files modified)" if dry_run else "LIVE mode (files will be downloaded)"
         
-        reply = QMessageBox.question(
-            self, "Download Subtitles",
-            f"Download subtitles for {len(self.missing_files)} files?\n\n"
-            f"Language: {self.download_lang.currentText()}\n"
-            f"Mode: {mode_text}\n"
-            f"Batch: {self.batch_size.value()} files, {self.batch_delay.value()}s delay",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        
-        if reply != QMessageBox.StandardButton.Yes:
-            return
+        # Auto-start download (no confirmation needed - user clicked the button)
+        # Status message will show what's happening
+        # Note: Dry-run mode available for safety
         
         # Disable UI during download
         self.btn_download.setEnabled(False)
@@ -506,14 +518,11 @@ class SubtitlesView(QWidget):
                     error = result.get('error', 'Unknown error')
                     self._log(f"  - {file_name}: {error}")
         
-        # Show summary dialog
-        QMessageBox.information(
-            self, "Download Complete",
-            f"Subtitle download finished!\n\n"
-            f"Success: {success}/{total} ({success_rate:.1f}%)\n"
-            f"Failed: {failed}\n"
-            f"Skipped: {skipped}\n\n"
-            f"{'Files were not modified (dry-run mode)' if self.dry_run_check.isChecked() else 'Subtitles saved alongside video files'}"
+        # Show summary in status bar
+        dry_run_text = " (dry-run mode)" if self.dry_run_check.isChecked() else ""
+        self._set_status(
+            f"Download complete: {success}/{total} successful ({success_rate:.1f}%), {failed} failed, {skipped} skipped{dry_run_text}.",
+            level='success'
         )
         
         logger.info(f"Subtitle download complete: {success}/{total} successful")
@@ -526,7 +535,8 @@ class SubtitlesView(QWidget):
         self.progress_bar.setVisible(False)
         
         self._log(f"\n❌ ERROR: {error}")
-        QMessageBox.critical(self, "Download Error", f"Subtitle download failed:\n\n{error}")
+        self._set_status(f"Download Error: {error}", level='error')
+        logger.error(f"Subtitle download failed: {error}")
 
     def _log(self, message: str):
         """Append message to download log."""

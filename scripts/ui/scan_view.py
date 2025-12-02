@@ -125,7 +125,8 @@ class FolderContentSelectionDialog(QDialog):
             self.init_ui()
         except Exception as e:
             logger.error(f"Failed to initialize folder content selection dialog for {folder_path}: {e}", exc_info=True)
-            QMessageBox.critical(parent, "Initialization Error", f"Failed to open folder selection dialog: {str(e)}")
+            self._set_status(f"Failed to open folder selection dialog: {e}", level='error')
+            logger.error(f"Failed to open folder selection dialog: {e}", exc_info=True)
             raise
     
     def init_ui(self):
@@ -221,7 +222,8 @@ class FolderContentSelectionDialog(QDialog):
             layout.addLayout(dialog_buttons)
         except Exception as e:
             logger.error(f"Failed to initialize UI for folder content selection dialog: {e}", exc_info=True)
-            QMessageBox.critical(self, "UI Error", f"Failed to initialize dialog interface: {str(e)}")
+            self._set_status(f"UI Error: {e}", level='error')
+            logger.error(f"Failed to initialize dialog interface: {e}", exc_info=True)
             raise
     
     def _select_all(self):
@@ -296,8 +298,27 @@ class ScanView(QWidget):
             logger.info(f"ScanView initialized for project: {project.name}")
         except Exception as e:
             logger.error(f"Failed to initialize ScanView for project {project.name}: {e}", exc_info=True)
-            QMessageBox.critical(parent, "Initialization Error", f"Failed to initialize scan view: {str(e)}")
+            self._set_status(f"Initialization Error: {e}", level='error')
+            logger.error(f"Failed to initialize scan view: {e}", exc_info=True)
             raise
+    
+    def _set_status(self, message: str, level: str = 'info'):
+        """Set status message in main window's status bar (non-modal notification)."""
+        try:
+            main_window = self.window()
+            if main_window and hasattr(main_window, 'status_label'):
+                main_window.status_label.setText(message)
+                # Apply color based on level
+                if level == 'error' or level == 'critical':
+                    main_window.status_label.setStyleSheet("color: #e74c3c;")
+                elif level == 'warning':
+                    main_window.status_label.setStyleSheet("color: #f39c12;")
+                elif level == 'success' or level == 'info':
+                    main_window.status_label.setStyleSheet("color: #2ecc71;")
+                else:
+                    main_window.status_label.setStyleSheet("")  # Default
+        except Exception:
+            logger.warning(f"Could not set status: {message}")
     
     def _create_jellyfin_client(self) -> Optional[JellyfinClient]:
         """Create a Jellyfin client if configuration is available."""
@@ -354,7 +375,8 @@ class ScanView(QWidget):
             self.setLayout(layout)
         except Exception as e:
             logger.error(f"Failed to initialize ScanView UI: {e}", exc_info=True)
-            QMessageBox.critical(self, "UI Error", f"Failed to initialize scan interface: {str(e)}")
+            self._set_status(f"UI Error: {e}", level='error')
+            logger.error(f"Failed to initialize scan interface: {e}", exc_info=True)
             raise
     
     def _create_folder_selection_section(self) -> QGroupBox:
@@ -471,11 +493,7 @@ class ScanView(QWidget):
         """Generate hierarchical overview and duplicate summary."""
         try:
             if not self.folder_structure:
-                QMessageBox.information(
-                    self,
-                    "No Data",
-                    "No folder structure available. Run a scan before generating the overview.",
-                )
+                self._set_status("No folder structure available. Run a scan before generating the overview.", level='warning')
                 return
 
             folder_to_files = defaultdict(list)
@@ -538,7 +556,8 @@ class ScanView(QWidget):
                 )
         except Exception as e:
             logger.error(f"Failed to update overview: {e}", exc_info=True)
-            QMessageBox.critical(self, "Overview Error", f"Failed to generate overview: {str(e)}")
+            self._set_status(f"Overview Error: {e}", level='error')
+            logger.error(f"Failed to generate overview: {e}", exc_info=True)
 
             for md5_value, records in sorted(
                 self.duplicate_groups.items(), key=lambda x: len(x[1]), reverse=True
@@ -579,7 +598,8 @@ class ScanView(QWidget):
                 logger.info(f"Added folder: {folder_path} ({len(excluded)} items excluded)")
         except Exception as e:
             logger.error(f"Failed to add folder: {e}", exc_info=True)
-            QMessageBox.critical(self, "Add Folder Error", f"Failed to add folder: {str(e)}")
+            self._set_status(f"Add Folder Error: {e}", level='error')
+            logger.error(f"Failed to add folder: {e}", exc_info=True)
     
     def _remove_folder(self):
         """Remove selected folder from scan list."""
@@ -595,7 +615,8 @@ class ScanView(QWidget):
                 logger.info(f"Removed folder: {folder_path}")
         except Exception as e:
             logger.error(f"Failed to remove folder: {e}", exc_info=True)
-            QMessageBox.critical(self, "Remove Folder Error", f"Failed to remove folder: {str(e)}")
+            self._set_status(f"Remove Folder Error: {e}", level='error')
+            logger.error(f"Failed to remove folder: {e}", exc_info=True)
 
     def _clear_folders(self):
         """Clear all selected folders and exclusions."""
@@ -603,15 +624,8 @@ class ScanView(QWidget):
             if not self.selected_folders:
                 return
 
-            reply = QMessageBox.question(
-                self,
-                "Clear All Folders",
-                f"Remove all {len(self.selected_folders)} folder(s) from the list?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
-
-            if reply != QMessageBox.StandardButton.Yes:
-                return
+            # Auto-clear folders (no confirmation needed - user clicked the button)
+            # Status message will show what's happening
 
             self.selected_folders.clear()
             self.excluded_paths.clear()
@@ -619,7 +633,8 @@ class ScanView(QWidget):
             logger.info("Cleared all selected folders")
         except Exception as e:
             logger.error(f"Failed to clear folders: {e}", exc_info=True)
-            QMessageBox.critical(self, "Clear Folders Error", f"Failed to clear folders: {str(e)}")
+            self._set_status(f"Clear Folders Error: {e}", level='error')
+            logger.error(f"Failed to clear folders: {e}", exc_info=True)
     
     def _append_folder_row(self, folder_path: Path, excluded: List[Path]):
         """Append folder information to the table."""
@@ -642,13 +657,14 @@ class ScanView(QWidget):
             self.folder_table.setItem(row, 2, QTableWidgetItem(str(excluded_count)))
         except Exception as e:
             logger.error(f"Failed to append folder row for {folder_path}: {e}", exc_info=True)
-            QMessageBox.critical(self, "Table Error", f"Failed to add folder to table: {str(e)}")
+            self._set_status(f"Table Error: {e}", level='error')
+            logger.error(f"Failed to add folder to table: {e}", exc_info=True)
     
     def _start_scan(self):
         """Start the scan process."""
         try:
             if not self.selected_folders:
-                QMessageBox.warning(self, "No Folders", "Please add at least one folder to scan.")
+                self._set_status("Please add at least one folder to scan.", level='warning')
                 return
             
             self.scan_start_time = datetime.now()
@@ -657,6 +673,10 @@ class ScanView(QWidget):
             self.btn_scan.setEnabled(False)
             self.btn_add_folder.setEnabled(False)
             self.btn_remove_folder.setEnabled(False)
+            
+            # Show progress bar
+            self.progress_bar.setVisible(True)
+            self.progress_bar.setValue(0)
             
             # Clear previous results
             self.scanned_files = []
@@ -678,7 +698,8 @@ class ScanView(QWidget):
             logger.info(f"Started scan of {len(self.selected_folders)} folders")
         except Exception as e:
             logger.error(f"Failed to start scan: {e}", exc_info=True)
-            QMessageBox.critical(self, "Scan Error", f"Failed to start scan: {str(e)}")
+            self._set_status(f"Scan Error: {e}", level='error')
+            logger.error(f"Failed to start scan: {e}", exc_info=True)
             # Re-enable UI on error
             self.btn_scan.setEnabled(True)
             self.btn_add_folder.setEnabled(True)
@@ -687,6 +708,10 @@ class ScanView(QWidget):
     def _on_scan_progress(self, message: str, current: int, total: int):
         """Handle scan progress updates from MultiScanWorker."""
         try:
+            # Ensure progress bar is visible
+            if not self.progress_bar.isVisible():
+                self.progress_bar.setVisible(True)
+            
             elapsed = 0.0
             if self.scan_start_time:
                 elapsed = (datetime.now() - self.scan_start_time).total_seconds()
@@ -759,17 +784,15 @@ class ScanView(QWidget):
                 jellyfin_matches,
             )
 
-            QMessageBox.information(
-                self,
-                "Scan Complete",
-                f"Successfully scanned {stats.total_files} files!\n\n"
-                f"Total size: {total_size_gb:.2f} GB\n"
-                f"Jellyfin matches: {jellyfin_matches}\n"
-                f"Elapsed: {elapsed_str}",
+            self._set_status(
+                f"Scan complete: {stats.total_files} files scanned successfully.",
+                level='success'
             )
+            # Status already set above
         except Exception as e:
             logger.error(f"Failed to handle scan completion: {e}", exc_info=True)
-            QMessageBox.critical(self, "Scan Completion Error", f"Scan completed but failed to process results: {str(e)}")
+            self._set_status(f"Scan Completion Error: {e}", level='error')
+            logger.error(f"Scan completed but failed to process results: {e}", exc_info=True)
             # Still re-enable UI
             self.btn_scan.setEnabled(True)
             self.btn_add_folder.setEnabled(True)
@@ -786,7 +809,8 @@ class ScanView(QWidget):
             
             self.lbl_status.setText(f"Scan failed: {error_msg}")
             
-            QMessageBox.critical(self, "Scan Error", f"Scan failed:\n\n{error_msg}")
+            self._set_status(f"Scan Error: {error_msg}", level='error')
+            logger.error(f"Scan failed: {error_msg}")
             logger.error(f"Scan error: {error_msg}")
         except Exception as e:
             logger.error(f"Failed to handle scan error: {e}", exc_info=True)
@@ -888,5 +912,6 @@ class ScanView(QWidget):
                 event.ignore()
         except Exception as e:
             logger.error(f"Failed to handle drop event: {e}", exc_info=True)
-            QMessageBox.critical(self, "Drop Error", f"Failed to add dropped folders: {str(e)}")
+            self._set_status(f"Drop Error: {e}", level='error')
+            logger.error(f"Failed to add dropped folders: {e}", exc_info=True)
             event.ignore()

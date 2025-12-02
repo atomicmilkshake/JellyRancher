@@ -29,6 +29,7 @@ from scripts.media.media_metadata_lookup import MediaMetadataLookup
 from scripts.core.action_plan import ProposedOperation
 from scripts.core.action_plan_generator import ActionPlanGenerator
 from scripts.core.app_config import AppConfigManager
+from scripts._common.error_handling import log_function_entry_exit
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,7 @@ class MultiScanWorker(QThread):
         self.jellyfin_client = jellyfin_client
         self.excluded_subfolders = [p.resolve() for p in (excluded_subfolders or [])]
 
+    @log_function_entry_exit()
     def run(self):
         """Execute multi-folder scan and Jellyfin cross-reference."""
         try:
@@ -254,6 +256,7 @@ class LLMAnalysisWorker(QThread):
         self.api_key = api_key
         self.model = model
 
+    @log_function_entry_exit()
     def run(self):
         """Execute LLM analysis in background thread."""
         try:
@@ -375,6 +378,7 @@ class MetadataLookupWorker(QThread):
         self.tmdb_api_key = tmdb_api_key
         self.omdb_api_key = omdb_api_key
 
+    @log_function_entry_exit()
     def run(self):
         """Execute metadata lookup in background thread."""
         try:
@@ -431,6 +435,7 @@ class ActionPlanWorker(QThread):
         self.canonical_database = canonical_database
         self.app_config = app_config
 
+    @log_function_entry_exit()
     def run(self):
         """Execute action plan generation in background thread."""
         try:
@@ -486,6 +491,7 @@ class ScanResultsLoadWorker(QThread):
         self.roundup_manager = roundup_manager
         self.roundup = roundup
 
+    @log_function_entry_exit()
     def run(self):
         """Load scan results and compute statistics in background thread."""
         import sqlite3

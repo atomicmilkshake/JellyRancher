@@ -385,6 +385,33 @@ def reset_sys_path():
     sys.path = original_path
 
 
+@pytest.fixture(autouse=True)
+def mock_file_dialogs(monkeypatch):
+    """
+    Automatically mock all QFileDialog calls to prevent blocking dialogs during tests.
+    
+    This prevents real file dialogs from appearing and blocking test execution.
+    """
+    from unittest.mock import MagicMock
+    from PyQt6.QtWidgets import QFileDialog
+    
+    # Mock getExistingDirectory to return empty string (user cancelled)
+    def mock_get_existing_directory(*args, **kwargs):
+        return ""
+    
+    # Mock getOpenFileName to return empty tuple (user cancelled)
+    def mock_get_open_filename(*args, **kwargs):
+        return ("", "")
+    
+    # Mock getSaveFileName to return empty tuple (user cancelled)
+    def mock_get_save_filename(*args, **kwargs):
+        return ("", "")
+    
+    monkeypatch.setattr(QFileDialog, "getExistingDirectory", mock_get_existing_directory)
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", mock_get_open_filename)
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", mock_get_save_filename)
+
+
 def pytest_configure(config):
     """Configure custom markers."""
     config.addinivalue_line("markers", "unit: Unit tests (fast, no external I/O)")
