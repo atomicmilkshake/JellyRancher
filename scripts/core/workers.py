@@ -292,7 +292,11 @@ class LLMAnalysisWorker(QThread):
         file_record_map = {str(f.absolute_path): f for f in self.scanned_files}
 
         folders = []
+        # Filter out metadata keys (project_name, scan_id, total_files) - only process folder dicts
+        metadata_keys = {'project_name', 'scan_id', 'total_files'}
         for folder_path, data in self.folder_structure.items():
+            if folder_path in metadata_keys or not isinstance(data, dict):
+                continue
             folder_info = {
                 "path": str(folder_path),
                 "file_count": data["file_count"],
