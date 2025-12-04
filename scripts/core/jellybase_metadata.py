@@ -62,17 +62,24 @@ def bulk_metadata_refresh(client: JellyfinClient, item_ids: List[str]) -> Dict:
 
 def fix_missing_provider_ids(client: JellyfinClient, item_ids: List[str]) -> Dict:
     """
-    Fix missing ProviderIds by looking them up.
+    Attempt to fix missing ProviderIds by refreshing metadata.
     
-    Note: This would require integration with TMDb/TVDB APIs.
-    For now, this is a placeholder that triggers metadata refresh.
+    ⚠️ IMPORTANT LIMITATION: This function triggers Jellyfin's built-in metadata
+    refresh, which MAY populate ProviderIds IF Jellyfin's metadata providers
+    are configured correctly. It does NOT directly query TMDB/TVDB APIs.
+    
+    Success depends on Jellyfin server configuration. For guaranteed ProviderID
+    population, integrate with TMDB/TVDB APIs directly.
     
     Args:
         client: JellyfinClient instance
         item_ids: List of item IDs to fix
         
     Returns:
-        Dictionary with fixed_count and failed_ids
+        Dictionary with:
+        - fixed_count: Number of items refreshed (NOT necessarily fixed)
+        - failed_ids: List of IDs that failed to refresh
+        - total: Total items attempted
     """
     try:
         logger.info(f"Fixing missing ProviderIds for {len(item_ids)} items...")

@@ -682,6 +682,34 @@ class JellyBaseView(QWidget):
         except Exception:
             logger.warning(f"Could not set status: {message}")
 
+    def closeEvent(self, event):
+        """
+        Clean up resources on close (Commandment #7: Resource Safety).
+        
+        Disconnects ValidationWorker signals and stops worker thread gracefully
+        to prevent memory leaks.
+        """
+        if self.validation_worker and self.validation_worker.isRunning():
+            # Disconnect signals to prevent memory leaks
+            try:
+                self.validation_worker.progress.disconnect()
+                self.validation_worker.finished.disconnect()
+                self.validation_worker.error.disconnect()
+            except TypeError:
+                # Signals already disconnected or never connected
+                pass
+
+            # Stop worker gracefully
+            self.validation_worker.quit()
+            if not self.validation_worker.wait(timeout=5000):  # 5 second timeout
+                logger.warning("ValidationWorker did not stop within timeout, terminating")
+                self.validation_worker.terminate()
+                self.validation_worker.wait()
+
+            logger.info("ValidationWorker cleaned up")
+
+        super().closeEvent(event)
+
     def _test_jellyfin_connection(self):
         """Test connection to Jellyfin server."""
         try:
@@ -1111,14 +1139,25 @@ class JellyBaseView(QWidget):
 
     # Validation tab methods
     def _start_validation(self):
-        """Start validation scan."""
+        """Start validation scan with proper cleanup of previous worker."""
         if not self.jellyfin_client or not self.validator:
             self._set_status("✗ Not connected to Jellyfin")
             return
 
-        if self.validation_worker and self.validation_worker.isRunning():
-            self._set_status("⚠ Validation already running")
-            return
+        # Cleanup old worker before creating new one (Commandment #7: Resource Safety)
+        if self.validation_worker:
+            if self.validation_worker.isRunning():
+                self._set_status("⚠ Validation already running")
+                return
+            
+            # Disconnect old signals to prevent memory leaks
+            try:
+                self.validation_worker.progress.disconnect()
+                self.validation_worker.finished.disconnect()
+                self.validation_worker.error.disconnect()
+            except TypeError:
+                # Signals already disconnected or never connected
+                pass
 
         # Get selected media types
         media_types = []

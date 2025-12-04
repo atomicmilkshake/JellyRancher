@@ -154,6 +154,10 @@ def merge_collections(client: JellyfinClient, collection_ids: List[str],
     """
     Merge multiple collections into one.
     
+    STATUS: NOT IMPLEMENTED (stub function)
+    TODO: Implement in future phase when collection children API is integrated.
+    Requires GET /Collections/{id}/Items endpoint support to retrieve items from collections.
+    
     Args:
         client: JellyfinClient instance
         collection_ids: List of collection IDs to merge
@@ -161,54 +165,25 @@ def merge_collections(client: JellyfinClient, collection_ids: List[str],
         
     Returns:
         True if merge successful, False otherwise
+        
+    Raises:
+        NotImplementedError: Function is stub pending API integration
     """
-    try:
-        logger.info(f"Merging {len(collection_ids)} collections...")
-        
-        # Get all items from source collections
-        all_item_ids = set()
-        collection_names = []
-        
-        for coll_id in collection_ids:
-            collection = client.get_item_by_id(coll_id)
-            if not collection:
-                logger.warning(f"Collection {coll_id} not found, skipping")
-                continue
-            
-            collection_names.append(collection.get('Name', 'Unknown'))
-            
-            # Get items in collection (via children)
-            # Note: This requires getting collection children
-            # For now, we'll need to track items when creating collections
-            # This is a limitation - we'd need to store item lists
-            
-            logger.warning("Merge collections: Need to implement collection item retrieval")
-            return False
-        
-        # Create merged collection
-        if not new_name:
-            new_name = "Merged Collection"
-        
-        merged_id = client.create_collection(name=new_name, item_ids=list(all_item_ids))
-        
-        if merged_id:
-            # Delete source collections
-            for coll_id in collection_ids:
-                client.delete_item(coll_id)
-            
-            logger.info(f"Merged collections into '{new_name}'")
-            return True
-        
-        return False
-    except Exception as e:
-        logger.error(f"Error merging collections: {e}", exc_info=True)
-        return False
+    logger.warning("merge_collections: Not implemented (stub function)")
+    raise NotImplementedError(
+        "Collection merging requires collection children API integration. "
+        "Track implementation: [Future GitHub Issue]"
+    )
 
 
 def split_collection(client: JellyfinClient, collection_id: str, 
                     criteria: Dict) -> bool:
     """
     Split collection by criteria.
+    
+    STATUS: NOT IMPLEMENTED (stub function)
+    TODO: Implement in future phase when collection children API is integrated.
+    Requires GET /Collections/{id}/Items endpoint support to retrieve items from collections.
     
     Args:
         client: JellyfinClient instance
@@ -219,20 +194,13 @@ def split_collection(client: JellyfinClient, collection_id: str,
                  
     Returns:
         True if split successful, False otherwise
+        
+    Raises:
+        NotImplementedError: Function is stub pending API integration
     """
-    try:
-        logger.info(f"Splitting collection {collection_id} by criteria: {criteria}")
-        
-        # Get collection
-        collection = client.get_item_by_id(collection_id)
-        if not collection:
-            logger.error(f"Collection {collection_id} not found")
-            return False
-        
-        # Get items in collection (would need collection children API)
-        logger.warning("Split collection: Need to implement collection item retrieval")
-        return False
-    except Exception as e:
-        logger.error(f"Error splitting collection: {e}", exc_info=True)
-        return False
+    logger.warning("split_collection: Not implemented (stub function)")
+    raise NotImplementedError(
+        "Collection splitting requires collection children API integration. "
+        "Track implementation: [Future GitHub Issue]"
+    )
 

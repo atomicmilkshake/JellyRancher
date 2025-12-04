@@ -71,7 +71,24 @@ def group_by_genre(client: JellyfinClient, genre: str, fuzzy: bool = True) -> Li
         
     Returns:
         List of collection definitions (name, item_ids)
+        
+    Raises:
+        TypeError: If client is not JellyfinClient or types are invalid
+        ValueError: If genre is empty or whitespace-only
     """
+    # Commandment #2: Paranoid Input Validation
+    if not isinstance(client, JellyfinClient):
+        raise TypeError(f"client must be JellyfinClient, got {type(client)}")
+    
+    if not isinstance(genre, str):
+        raise TypeError(f"genre must be str, got {type(genre)}")
+    
+    if not genre or not genre.strip():
+        raise ValueError("genre must be non-empty string")
+    
+    if not isinstance(fuzzy, bool):
+        raise TypeError(f"fuzzy must be bool, got {type(fuzzy)}")
+    
     try:
         logger.info(f"Grouping by genre: {genre} (fuzzy={fuzzy})")
         
@@ -118,7 +135,14 @@ def group_by_series(client: JellyfinClient) -> List[Dict]:
         
     Returns:
         List of collection definitions (name, item_ids) for each series
+        
+    Raises:
+        TypeError: If client is not JellyfinClient
     """
+    # Commandment #2: Paranoid Input Validation
+    if not isinstance(client, JellyfinClient):
+        raise TypeError(f"client must be JellyfinClient, got {type(client)}")
+    
     try:
         logger.info("Grouping TV series...")
         
@@ -160,7 +184,14 @@ def group_by_franchise(client: JellyfinClient) -> List[Dict]:
         
     Returns:
         List of collection definitions (name, item_ids) for each franchise
+        
+    Raises:
+        TypeError: If client is not JellyfinClient
     """
+    # Commandment #2: Paranoid Input Validation
+    if not isinstance(client, JellyfinClient):
+        raise TypeError(f"client must be JellyfinClient, got {type(client)}")
+    
     try:
         logger.info("Grouping by franchise...")
         
@@ -214,7 +245,14 @@ def group_by_director(client: JellyfinClient) -> List[Dict]:
         
     Returns:
         List of collection definitions (name, item_ids) for each director
+        
+    Raises:
+        TypeError: If client is not JellyfinClient
     """
+    # Commandment #2: Paranoid Input Validation
+    if not isinstance(client, JellyfinClient):
+        raise TypeError(f"client must be JellyfinClient, got {type(client)}")
+    
     try:
         logger.info("Grouping by director...")
         
@@ -267,7 +305,31 @@ def apply_custom_grouping_rules(client: JellyfinClient, rules: List[Dict]) -> Li
                
     Returns:
         List of collection definitions (name, item_ids)
+        
+    Raises:
+        TypeError: If client is not JellyfinClient or rules is not a list
+        ValueError: If rules is empty or contains invalid rule dictionaries
     """
+    # Commandment #2: Paranoid Input Validation
+    if not isinstance(client, JellyfinClient):
+        raise TypeError(f"client must be JellyfinClient, got {type(client)}")
+    
+    if not isinstance(rules, list):
+        raise TypeError(f"rules must be list, got {type(rules)}")
+    
+    if not rules:
+        raise ValueError("rules must be non-empty list")
+    
+    # Validate each rule has required fields
+    required_fields = ['name', 'field', 'operator', 'value']
+    for i, rule in enumerate(rules):
+        if not isinstance(rule, dict):
+            raise TypeError(f"rules[{i}] must be dict, got {type(rule)}")
+        
+        for field in required_fields:
+            if field not in rule:
+                raise ValueError(f"rules[{i}] missing required field: {field}")
+    
     try:
         logger.info(f"Applying {len(rules)} custom grouping rules...")
         

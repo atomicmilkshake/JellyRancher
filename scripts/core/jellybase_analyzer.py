@@ -23,6 +23,10 @@ def detect_content_duplicates(client: JellyfinClient, items: List[Dict]) -> List
     """
     Detect duplicate content using hash-based comparison.
     
+    ⚠️ WARNING: This function performs BLOCKING file I/O operations.
+    MUST be called from a background thread (e.g., ValidationWorker).
+    DO NOT call directly from UI thread - will freeze application.
+    
     Args:
         client: JellyfinClient instance
         items: List of Jellyfin items

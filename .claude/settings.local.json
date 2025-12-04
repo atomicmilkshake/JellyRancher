@@ -12,7 +12,16 @@
       "Bash(.venv/Scripts/python.exe -m pytest tests/ -v --tb=line)",
       "Bash(git commit:*)",
       "Bash(.venv/Scripts/python.exe -m pytest:*)",
-      "Bash(.venv/Scripts/python.exe:*)"
+      "Bash(.venv/Scripts/python.exe:*)",
+      "Bash(.venvScriptspython.exe -m pytest tests/ -v --tb=no)",
+      "Bash(\".\\.venv\\Scripts\\python.exe\" -m pytest tests/ -v --tb=no)",
+      "Bash(v:JellyRancher.venvScriptspython.exe -m pytest tests/ -v --co -q)",
+      "Bash(.venvScriptspython.exe -m pytest tests/ -v --co -q)",
+      "Bash(./.venv/Scripts/python.exe -m pytest --version)",
+      "Bash(./.venv/Scripts/python.exe -m pytest tests/ --co -q)",
+      "Bash(.venvScriptspython.exe -m pytest tests/test_jellyfin_validator.py -v --tb=short)",
+      "Bash(\".\\.venv\\Scripts\\python.exe\" -m pytest tests/test_jellyfin_validator.py -v --tb=short)",
+      "Bash(\".\\.venv\\Scripts\\python.exe\" -m pytest tests/ -v --tb=no -x)"
     ],
     "deny": [],
     "ask": []

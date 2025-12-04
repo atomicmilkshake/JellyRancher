@@ -14,9 +14,44 @@ import tempfile
 import shutil
 import sqlite3
 import json
+import time
 from pathlib import Path
 from typing import Dict, Any, List
 from datetime import datetime
+
+# Try to import Rich for beautiful progress reporting
+try:
+    from rich.console import Console
+    from rich.progress import (
+        Progress,
+        SpinnerColumn,
+        BarColumn,
+        TextColumn,
+        TimeElapsedColumn,
+        TimeRemainingColumn,
+        MofNCompleteColumn,
+    )
+    from rich.live import Live
+    from rich.table import Table
+    RICH_AVAILABLE = True
+except ImportError:
+    RICH_AVAILABLE = False
+
+# Global state for beautiful progress tracking
+_progress_state = {
+    'total': 0,
+    'passed': 0,
+    'failed': 0,
+    'skipped': 0,
+    'start_time': None,
+    'progress': None,
+    'live': None,
+    'task_id': None,
+}
+
+if RICH_AVAILABLE:
+    # Configure console for Windows compatibility
+    _console = Console(force_terminal=True, legacy_windows=False)
 
 # Add project root and all module directories to path
 project_root = Path(__file__).parent.parent
@@ -422,7 +457,7 @@ def pytest_configure(config):
 
 
 def pytest_collection_modifyitems(config, items):
-    """Automatically skip certain tests based on environment."""
+    """Automatically skip certain tests based on environment and initialize beautiful progress."""
     skip_gui = pytest.mark.skip(reason="PyQt6 not available or headless environment")
     skip_network = pytest.mark.skip(reason="Network access not available")
     skip_slow = pytest.mark.skip(reason="Slow test (use --run-slow to run)")
@@ -444,6 +479,36 @@ def pytest_collection_modifyitems(config, items):
         if "slow" in item.keywords:
             if not config.getoption("--run-slow", default=False):
                 item.add_marker(skip_slow)
+    
+    # Initialize beautiful Rich progress tracking
+    if RICH_AVAILABLE and not config.getoption('quiet', False):
+        _progress_state['total'] = len(items)
+        _progress_state['start_time'] = time.time()
+        
+        # Create beautiful Rich progress bar
+        _progress_state['progress'] = Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(bar_width=None, style="bright_blue", complete_style="green", finished_style="green"),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%", style="bold cyan"),
+            MofNCompleteColumn(),
+            TimeElapsedColumn(),
+            TimeRemainingColumn(),
+            console=_console,
+            transient=False,
+        )
+        
+        _progress_state['task_id'] = _progress_state['progress'].add_task(
+            f"[cyan]✨ Running {len(items)} tests[/]",
+            total=len(items)
+        )
+        
+        _progress_state['live'] = Live(
+            _progress_state['progress'],
+            console=_console,
+            refresh_per_second=10
+        )
+        _progress_state['live'].start()
 
 
 def pytest_addoption(parser):
@@ -460,11 +525,122 @@ def pytest_addoption(parser):
         default=False,
         help="Run slow tests (skipped by default)"
     )
+    parser.addoption(
+        "--granular-progress",
+        action="store_true",
+        default=False,
+        help="Show granular progress bar with percentage, time, and ETA (Rich library)"
+    )
+
+
+# Beautiful progress reporting hooks (Rich library)
+if RICH_AVAILABLE:
+    @pytest.hookimpl(tryfirst=True, hookwrapper=True)
+    def pytest_runtest_makereport(item, call):
+        """Called after each test - update beautiful progress with colors."""
+        outcome = yield
+        result = outcome.get_result()
+        
+        if result.when == "call":  # Only count on actual test execution
+            # Update counts
+            if result.outcome == "passed":
+                _progress_state['passed'] += 1
+                status_color = "[green]PASS"
+                status_text = "PASSED"
+            elif result.outcome == "failed":
+                _progress_state['failed'] += 1
+                status_color = "[red]FAIL"
+                status_text = "FAILED"
+            elif result.outcome == "skipped":
+                _progress_state['skipped'] += 1
+                status_color = "[yellow]SKIP"
+                status_text = "SKIPPED"
+            else:
+                status_color = "[white]?"
+                status_text = result.outcome.upper()
+            
+            # Update progress bar
+            if _progress_state['progress'] and _progress_state['task_id'] is not None:
+                completed = _progress_state['passed'] + _progress_state['failed'] + _progress_state['skipped']
+                
+                # Create detailed description with colors
+                test_name = item.nodeid.split("::")[-1]  # Just the test function name
+                description = (
+                    f"{status_color} {status_text}[/] "
+                    f"[dim white]{test_name}[/] | "
+                    f"[green]Pass: {_progress_state['passed']}[/] "
+                    f"[red]Fail: {_progress_state['failed']}[/] "
+                    f"[yellow]Skip: {_progress_state['skipped']}[/]"
+                )
+                
+                _progress_state['progress'].update(
+                    _progress_state['task_id'],
+                    completed=completed,
+                    description=description
+                )
+    
+    def pytest_sessionfinish(session, exitstatus):
+        """Called at end of test session - print beautiful colorful summary."""
+        if _progress_state['live']:
+            _progress_state['live'].stop()
+        
+        if _progress_state['progress']:
+            _progress_state['progress'].stop()
+        
+        if _progress_state['start_time']:
+            elapsed = time.time() - _progress_state['start_time']
+            
+            # Create beautiful summary table
+            table = Table(title="[bold cyan]Test Session Summary[/]", show_header=True, header_style="bold magenta")
+            table.add_column("Metric", style="cyan", no_wrap=True)
+            table.add_column("Value", style="bold")
+            
+            table.add_row("Total Tests", f"[white]{_progress_state['total']}[/]")
+            table.add_row("[green]PASSED[/]", f"[green]{_progress_state['passed']}[/]")
+            table.add_row("[red]FAILED[/]", f"[red]{_progress_state['failed']}[/]")
+            table.add_row("[yellow]SKIPPED[/]", f"[yellow]{_progress_state['skipped']}[/]")
+            table.add_row("Time Elapsed", f"[blue]{elapsed:.2f}s[/]")
+            
+            if _progress_state['total'] > 0:
+                pass_rate = (_progress_state['passed'] / _progress_state['total']) * 100
+                if pass_rate == 100:
+                    table.add_row("Pass Rate", f"[bold green]{pass_rate:.1f}%[/]")
+                elif pass_rate >= 90:
+                    table.add_row("Pass Rate", f"[bold yellow]{pass_rate:.1f}%[/]")
+                else:
+                    table.add_row("Pass Rate", f"[bold red]{pass_rate:.1f}%[/]")
+            
+            _console.print()
+            _console.print(table)
+            _console.print()
 
 
 # =============================================================================
 # GUI TEST FIXTURES (pytest-qt)
 # =============================================================================
+
+# NOTE: pytest-qt automatically reuses QApplication across all tests in a session
+# The qtbot fixture is session-scoped, so QApplication is created once and reused.
+# The slowness comes from widget creation, not QApplication initialization.
+
+@pytest.fixture(scope="session")
+def shared_qapplication():
+    """
+    Session-scoped QApplication fixture for potential future optimizations.
+    
+    Currently, pytest-qt's qtbot fixture already handles this automatically,
+    but this fixture can be used if we need explicit control.
+    """
+    from PyQt6.QtWidgets import QApplication
+    import sys
+    
+    # Check if QApplication already exists (pytest-qt creates it)
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication(sys.argv)
+    
+    yield app
+    # Don't quit - pytest-qt manages the lifecycle
 
 @pytest.fixture
 def mock_project():

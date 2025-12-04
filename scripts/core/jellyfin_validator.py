@@ -56,6 +56,23 @@ class ValidationResult:
     def __post_init__(self):
         if self.subtitle_languages is None:
             self.subtitle_languages = []
+    
+    def to_dict(self) -> Dict:
+        """Convert to dictionary for JSON output."""
+        return {
+            'jellyfin_id': self.jellyfin_id,
+            'title': self.title,
+            'jellyfin_path': self.jellyfin_path,
+            'valid': self.valid,
+            'issues': [{'severity': issue.severity, 'category': issue.category, 'message': issue.message} 
+                       for issue in self.issues],
+            'file_size': self.file_size,
+            'actual_path': self.actual_path,
+            'resolution': self.resolution,
+            'codec': self.codec,
+            'has_subtitles': self.has_subtitles,
+            'subtitle_languages': self.subtitle_languages
+        }
 
 
 class JellyfinValidator:

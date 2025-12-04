@@ -32,124 +32,10 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from scripts.core.jellyfin_client import JellyfinClient
 from scripts.core.jellyfin_config import JellyfinConfigManager
-from scripts.core.file_scanner import FileScanner
-from scripts.core.jellyfin_validator import JellyfinValidator
+from scripts.core.jellyfin_validator import JellyfinValidator, ValidationResult
 
 # Setup logging
 logger = logging.getLogger(__name__)
-
-# Valid video extensions from FileScanner
-VIDEO_EXTENSIONS = FileScanner.DEFAULT_VIDEO_EXTENSIONS
-
-
-class ValidationResult:
-    """Result of validating a single Jellyfin item."""
-    
-    def __init__(self, item: Dict):
-        self.item = item
-        self.jellyfin_id = item.get('Id', 'N/A')
-        self.title = item.get('Name', 'N/A')
-        self.jellyfin_path = item.get('Path', '')
-        self.valid = False
-        self.issues = []
-        self.file_size = None
-        self.actual_path = None
-    
-    def add_issue(self, issue: str):
-        """Add a validation issue."""
-        self.issues.append(issue)
-        self.valid = False
-    
-    def to_dict(self) -> Dict:
-        """Convert to dictionary for JSON output."""
-        return {
-            'jellyfin_id': self.jellyfin_id,
-            'title': self.title,
-            'jellyfin_path': self.jellyfin_path,
-            'valid': self.valid,
-            'issues': self.issues,
-            'file_size': self.file_size,
-            'actual_path': self.actual_path
-        }
-
-
-def validate_file(item: Dict) -> ValidationResult:
-    """
-    Validate a single Jellyfin item.
-    
-    Checks:
-    1. File exists on filesystem
-    2. Path points to a file (not directory)
-    3. File has valid video extension
-    4. File is readable
-    
-    Returns:
-        ValidationResult with validation status and issues
-    """
-    result = ValidationResult(item)
-    
-    jellyfin_path = item.get('Path', '')
-    if not jellyfin_path:
-        result.add_issue('No path in Jellyfin metadata')
-        logger.debug(f"Item {result.jellyfin_id} ({result.title}): No path in metadata")
-        return result
-    
-    # Check if path exists
-    try:
-        path = Path(jellyfin_path)
-        if not path.exists():
-            result.add_issue('File does not exist on filesystem')
-            logger.warning(f"Item {result.jellyfin_id} ({result.title}): File not found: {jellyfin_path}")
-            return result
-        
-        # Get resolved path (actual filesystem path)
-        resolved = path.resolve()
-        result.actual_path = str(resolved)
-        
-        # Check if it's a file (not directory)
-        if resolved.is_dir():
-            result.add_issue('Path is a directory, not a file')
-            logger.warning(f"Item {result.jellyfin_id} ({result.title}): Path is directory: {jellyfin_path}")
-            return result
-        
-        if not resolved.is_file():
-            result.add_issue('Path exists but is not a file or directory')
-            logger.warning(f"Item {result.jellyfin_id} ({result.title}): Path is not a file: {jellyfin_path}")
-            return result
-        
-        # Check file extension
-        extension = resolved.suffix.lower()
-        if extension not in VIDEO_EXTENSIONS:
-            valid_exts = ", ".join(sorted(VIDEO_EXTENSIONS))
-            result.add_issue(f'Invalid video extension: {extension} (valid: {valid_exts})')
-            logger.warning(f"Item {result.jellyfin_id} ({result.title}): Invalid extension {extension}")
-            return result
-        
-        # Check if file is readable
-        try:
-            stat = resolved.stat()
-            result.file_size = stat.st_size
-            # Try to open file to verify readability
-            with open(resolved, 'rb') as f:
-                f.read(1)  # Read first byte
-            logger.debug(f"Item {result.jellyfin_id} ({result.title}): Valid file")
-        except PermissionError as e:
-            result.add_issue('File exists but is not readable (permission denied)')
-            logger.error(f"Item {result.jellyfin_id} ({result.title}): Permission denied: {jellyfin_path}", exc_info=True)
-            return result
-        except Exception as e:
-            result.add_issue(f'File exists but cannot be read: {str(e)}')
-            logger.error(f"Item {result.jellyfin_id} ({result.title}): Cannot read file: {jellyfin_path}", exc_info=True)
-            return result
-        
-        # All checks passed
-        result.valid = True
-        return result
-        
-    except Exception as e:
-        result.add_issue(f'Error validating file: {str(e)}')
-        logger.error(f"Item {result.jellyfin_id} ({result.title}): Validation error: {jellyfin_path}", exc_info=True)
-        return result
 
 
 def validate_library(
@@ -157,7 +43,7 @@ def validate_library(
     media_types: Optional[List[str]] = None
 ) -> List[ValidationResult]:
     """
-    Validate all items in Jellyfin library.
+    Validate all items in Jellyfin library using JellyfinValidator.
     
     Args:
         client: JellyfinClient instance
@@ -167,63 +53,9 @@ def validate_library(
     Returns:
         List of ValidationResult objects
     """
-    logger.info("Fetching items from Jellyfin library...")
-    if media_types:
-        logger.info(f"Filtering by media types: {', '.join(media_types)}")
-    else:
-        logger.info("Checking all media types")
-    
-    # Get all items with error handling
-    try:
-        items = client.get_all_items(
-            item_types=media_types,
-            fields=['Name', 'Path', 'MediaSources', 'Id', 'ProviderIds', 'Type']
-        )
-        logger.info(f"Found {len(items)} items to validate")
-    except Exception as e:
-        logger.error(f"Failed to fetch items from Jellyfin: {e}", exc_info=True)
-        raise RuntimeError(f"Cannot fetch items from Jellyfin: {e}") from e
-    
-    if len(items) == 0:
-        logger.warning("No items found in Jellyfin library")
-        return []
-    
-    logger.info("Validating files...")
-    
-    results = []
-    start_time = time.time()
-    last_update_time = start_time
-    
-    for i, item in enumerate(items, 1):
-        # Update progress every 10 items or every 1 second
-        current_time = time.time()
-        should_update = (i % 10 == 0) or (current_time - last_update_time >= 1.0)
-        
-        if should_update:
-            elapsed = current_time - start_time
-            rate = i / elapsed if elapsed > 0 else 0
-            remaining = (len(items) - i) / rate if rate > 0 else 0
-            percent = (i / len(items)) * 100
-            
-            # Format time
-            elapsed_str = f"{elapsed:.1f}s"
-            remaining_str = f"{remaining:.1f}s" if remaining > 0 else "calculating..."
-            
-            sys.stdout.write(f"\r  Progress: {i}/{len(items)} ({percent:.1f}%) - Elapsed: {elapsed_str} - Remaining: {remaining_str}")
-            sys.stdout.flush()
-            last_update_time = current_time
-        
-        result = validate_file(item)
-        results.append(result)
-    
-    # Final progress update
-    elapsed = time.time() - start_time
-    sys.stdout.write(f"\r  Progress: {len(items)}/{len(items)} (100.0%) - Completed in {elapsed:.1f}s\n")
-    sys.stdout.flush()
-    
-    logger.info(f"Validation complete: {len(results)} items processed in {elapsed:.1f}s")
-    
-    return results
+    # Use JellyfinValidator for validation
+    validator = JellyfinValidator(client)
+    return validator.validate_library(media_types=media_types)
 
 
 def format_report(results: List[ValidationResult], missing_only: bool = False, invalid_only: bool = False) -> str:
@@ -238,7 +70,7 @@ def format_report(results: List[ValidationResult], missing_only: bool = False, i
     # Filter results based on flags
     display_results = results
     if missing_only:
-        display_results = [r for r in results if 'does not exist' in ' '.join(r.issues)]
+        display_results = [r for r in results if any('does not exist' in (issue.message if hasattr(issue, 'message') else str(issue)) for issue in r.issues)]
     elif invalid_only:
         display_results = [r for r in results if not r.valid]
     
@@ -259,8 +91,9 @@ def format_report(results: List[ValidationResult], missing_only: bool = False, i
     issue_groups = defaultdict(list)
     for result in display_results:
         if result.issues:
-            # Use first issue as category
-            category = result.issues[0]
+            # Use first issue message as category
+            first_issue = result.issues[0]
+            category = first_issue.message if hasattr(first_issue, 'message') else str(first_issue)
             issue_groups[category].append(result)
     
     # Report by issue category
@@ -282,7 +115,8 @@ def format_report(results: List[ValidationResult], missing_only: bool = False, i
             if len(result.issues) > 1:
                 lines.append(f"  Additional Issues:")
                 for issue in result.issues[1:]:
-                    lines.append(f"    - {issue}")
+                    issue_str = issue.message if hasattr(issue, 'message') else str(issue)
+                    lines.append(f"    - {issue_str}")
             lines.append("")
     
     lines.append("=" * 70)
@@ -412,28 +246,7 @@ Examples:
     
     # Validate library using enhanced validator
     try:
-        validator = JellyfinValidator(client)
-        validation_results = validator.validate_library(
-            media_types=args.media_types,
-            check_metadata=True,
-            check_quality=True,
-            check_subtitles=True
-        )
-        
-        # Convert ValidationResult objects to ValidationResult format expected by reporting
-        results = []
-        for vr in validation_results:
-            result = ValidationResult(vr.item)
-            result.jellyfin_id = vr.jellyfin_id
-            result.title = vr.title
-            result.jellyfin_path = vr.jellyfin_path
-            result.valid = vr.valid
-            result.file_size = vr.file_size
-            result.actual_path = vr.actual_path
-            # Convert issues to strings for compatibility
-            for issue in vr.issues:
-                result.add_issue(issue.message)
-            results.append(result)
+        results = validate_library(client, media_types=args.media_types)
     except RuntimeError as e:
         logger.error(f"Validation failed: {e}", exc_info=True)
         print(f"ERROR: {e}")
