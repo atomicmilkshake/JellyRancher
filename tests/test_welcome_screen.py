@@ -142,23 +142,22 @@ class TestNewRoundUp:
     def test_new_roundup_creates_roundup(self, mock_create, welcome_screen, qtbot):
         """Creating new Round-Up should call RoundUpManager.create()."""
         from scripts.core.roundup_manager import RoundUp
-        
+
         mock_roundup = MagicMock(spec=RoundUp)
         mock_roundup.name = "Test Round-Up"
         mock_create.return_value = mock_roundup
-        
-        # Simulate creating roundup
-        with patch('scripts.ui.welcome_screen.NewRoundUpDialog') as mock_dialog_class:
-            mock_dialog = MagicMock()
-            mock_dialog.exec.return_value = True
-            mock_dialog.get_data.return_value = {'name': 'Test Round-Up', 'source_folders': []}
-            mock_dialog_class.return_value = mock_dialog
-            
-            welcome_screen._on_new_clicked()
-            qtbot.wait(100)
-            
-            # RoundUpManager.create() should be called
-            mock_create.assert_called()
+
+        # Phase 60-E: Dialog now uses show() + signals instead of blocking exec()
+        # Simulate the dialog accepted callback directly
+        mock_dialog = MagicMock()
+        mock_dialog.get_data.return_value = {'name': 'Test Round-Up', 'source_folders': []}
+
+        # Call the callback that fires when dialog is accepted
+        welcome_screen._on_new_dialog_accepted(mock_dialog)
+        qtbot.wait(100)
+
+        # RoundUpManager.create() should be called
+        mock_create.assert_called()
 
 
 # =============================================================================

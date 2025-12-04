@@ -33,8 +33,9 @@ class NewRoundUpDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setObjectName("new_roundup_dialog")  # For AT-AT automated testing
         self.setWindowTitle("Create New Round-Up")
-        self.setModal(True)
+        self.setModal(False)  # Phase 48-E: Great Modal Banishment
         self.resize(500, 250)
 
         layout = QVBoxLayout()
@@ -46,6 +47,7 @@ class NewRoundUpDialog(QDialog):
         layout.addWidget(name_label)
 
         self.name_input = QLineEdit()
+        self.name_input.setObjectName("roundup_name_input")  # For AT-AT automated testing
         self.name_input.setPlaceholderText("e.g., My TV Library, Movie Collection 2024")
         self.name_input.setFont(QFont("Segoe UI", 11))
         self.name_input.setMinimumHeight(35)
@@ -55,12 +57,13 @@ class NewRoundUpDialog(QDialog):
         layout.addStretch()
 
         # Buttons
-        buttons = QDialogButtonBox(
+        self.button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
-        buttons.accepted.connect(self._validate_and_accept)
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
+        self.button_box.setObjectName("roundup_dialog_buttons")  # For AT-AT automated testing
+        self.button_box.accepted.connect(self._validate_and_accept)
+        self.button_box.rejected.connect(self.reject)
+        layout.addWidget(self.button_box)
 
         self.setLayout(layout)
 
@@ -343,24 +346,29 @@ class WelcomeScreen(QWidget):
     def _on_new_clicked(self):
         """Handle New Round-Up button click."""
         dialog = NewRoundUpDialog(self)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            data = dialog.get_data()
+        # Use show() + signal instead of blocking exec() - Phase 60-E non-blocking dialogs
+        dialog.accepted.connect(lambda: self._on_new_dialog_accepted(dialog))
+        dialog.show()
 
-            try:
-                roundup = self.roundup_manager.create(
-                    name=data['name'],
-                    source_folders=data['source_folders']
-                )
-                logger.info(f"Created new Round-Up: {roundup.name}")
-                self.roundup_created.emit(roundup)
+    def _on_new_dialog_accepted(self, dialog: NewRoundUpDialog):
+        """Handle accepted signal from NewRoundUpDialog (non-blocking)."""
+        data = dialog.get_data()
 
-            except ValueError as e:
-                self._set_status(f"Cannot Create Round-Up: {e}", level='error')
-                logger.error(f"Cannot create Round-Up: {e}")
-            except Exception as e:
-                logger.error(f"Failed to create Round-Up: {e}", exc_info=True)
-                self._set_status(f"Failed to create Round-Up: {e}", level='error')
-                logger.error(f"Failed to create Round-Up: {e}", exc_info=True)
+        try:
+            roundup = self.roundup_manager.create(
+                name=data['name'],
+                source_folders=data['source_folders']
+            )
+            logger.info(f"Created new Round-Up: {roundup.name}")
+            self.roundup_created.emit(roundup)
+
+        except ValueError as e:
+            self._set_status(f"Cannot Create Round-Up: {e}", level='error')
+            logger.error(f"Cannot create Round-Up: {e}")
+        except Exception as e:
+            logger.error(f"Failed to create Round-Up: {e}", exc_info=True)
+            self._set_status(f"Failed to create Round-Up: {e}", level='error')
+            logger.error(f"Failed to create Round-Up: {e}", exc_info=True)
 
     def _on_open_clicked(self):
         """Handle Open Round-Up button click."""
