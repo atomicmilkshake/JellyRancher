@@ -10,12 +10,12 @@ Provides functions for automated collection creation and management:
 
 import logging
 from typing import List, Dict, Optional
-from scripts.core.jellyfin_client import JellyfinClient
+from scripts.core.jellyfin_client import JellyfinClient, JellyfinAPIError
 
 logger = logging.getLogger(__name__)
 
 
-def create_collection_by_genre(client: JellyfinClient, genre: str) -> Optional[str]:
+def create_collection_by_genre(client: JellyfinClient, genre: str) -> str:
     """
     Auto-group items by genre.
     
@@ -24,7 +24,11 @@ def create_collection_by_genre(client: JellyfinClient, genre: str) -> Optional[s
         genre: Genre name to group by
         
     Returns:
-        Collection ID if successful, None otherwise
+        Collection ID (always returns or raises)
+        
+    Raises:
+        ValueError: If no items found for genre
+        JellyfinAPIError: If API operation fails
     """
     try:
         logger.info(f"Creating collection for genre: {genre}")
@@ -40,8 +44,7 @@ def create_collection_by_genre(client: JellyfinClient, genre: str) -> Optional[s
                 matching_items.append(item.get('Id'))
         
         if not matching_items:
-            logger.warning(f"No items found for genre: {genre}")
-            return None
+            raise ValueError(f"No items found for genre: {genre}")
         
         # Create collection
         collection_id = client.create_collection(
@@ -49,16 +52,20 @@ def create_collection_by_genre(client: JellyfinClient, genre: str) -> Optional[s
             item_ids=matching_items
         )
         
-        if collection_id:
-            logger.info(f"Created collection '{genre} Collection' with {len(matching_items)} items")
+        if not collection_id:
+            raise JellyfinAPIError(f"Failed to create collection for genre: {genre}")
         
+        logger.info(f"Created collection '{genre} Collection' with {len(matching_items)} items")
         return collection_id
+    except (ValueError, JellyfinAPIError):
+        # Re-raise our specific exceptions
+        raise
     except Exception as e:
         logger.error(f"Error creating collection by genre {genre}: {e}", exc_info=True)
-        return None
+        raise JellyfinAPIError(f"Failed to create collection by genre {genre}: {e}") from e
 
 
-def create_collection_by_year(client: JellyfinClient, year: int) -> Optional[str]:
+def create_collection_by_year(client: JellyfinClient, year: int) -> str:
     """
     Group by release year.
     
@@ -67,7 +74,11 @@ def create_collection_by_year(client: JellyfinClient, year: int) -> Optional[str
         year: Release year to group by
         
     Returns:
-        Collection ID if successful, None otherwise
+        Collection ID (always returns or raises)
+        
+    Raises:
+        ValueError: If no items found for year
+        JellyfinAPIError: If API operation fails
     """
     try:
         logger.info(f"Creating collection for year: {year}")
@@ -83,8 +94,7 @@ def create_collection_by_year(client: JellyfinClient, year: int) -> Optional[str
                 matching_items.append(item.get('Id'))
         
         if not matching_items:
-            logger.warning(f"No items found for year: {year}")
-            return None
+            raise ValueError(f"No items found for year: {year}")
         
         # Create collection
         collection_id = client.create_collection(
@@ -92,16 +102,20 @@ def create_collection_by_year(client: JellyfinClient, year: int) -> Optional[str
             item_ids=matching_items
         )
         
-        if collection_id:
-            logger.info(f"Created collection '{year} Collection' with {len(matching_items)} items")
+        if not collection_id:
+            raise JellyfinAPIError(f"Failed to create collection for year: {year}")
         
+        logger.info(f"Created collection '{year} Collection' with {len(matching_items)} items")
         return collection_id
+    except (ValueError, JellyfinAPIError):
+        # Re-raise our specific exceptions
+        raise
     except Exception as e:
         logger.error(f"Error creating collection by year {year}: {e}", exc_info=True)
-        return None
+        raise JellyfinAPIError(f"Failed to create collection by year {year}: {e}") from e
 
 
-def create_collection_by_series(client: JellyfinClient, series_name: str) -> Optional[str]:
+def create_collection_by_series(client: JellyfinClient, series_name: str) -> str:
     """
     Group TV series episodes.
     
@@ -110,7 +124,11 @@ def create_collection_by_series(client: JellyfinClient, series_name: str) -> Opt
         series_name: Series name to group
         
     Returns:
-        Collection ID if successful, None otherwise
+        Collection ID (always returns or raises)
+        
+    Raises:
+        ValueError: If no episodes found for series
+        JellyfinAPIError: If API operation fails
     """
     try:
         logger.info(f"Creating collection for series: {series_name}")
@@ -131,8 +149,7 @@ def create_collection_by_series(client: JellyfinClient, series_name: str) -> Opt
                 matching_items.append(item.get('Id'))
         
         if not matching_items:
-            logger.warning(f"No episodes found for series: {series_name}")
-            return None
+            raise ValueError(f"No episodes found for series: {series_name}")
         
         # Create collection
         collection_id = client.create_collection(
@@ -140,13 +157,17 @@ def create_collection_by_series(client: JellyfinClient, series_name: str) -> Opt
             item_ids=matching_items
         )
         
-        if collection_id:
-            logger.info(f"Created collection '{series_name} Collection' with {len(matching_items)} items")
+        if not collection_id:
+            raise JellyfinAPIError(f"Failed to create collection for series: {series_name}")
         
+        logger.info(f"Created collection '{series_name} Collection' with {len(matching_items)} items")
         return collection_id
+    except (ValueError, JellyfinAPIError):
+        # Re-raise our specific exceptions
+        raise
     except Exception as e:
         logger.error(f"Error creating collection by series {series_name}: {e}", exc_info=True)
-        return None
+        raise JellyfinAPIError(f"Failed to create collection by series {series_name}: {e}") from e
 
 
 def merge_collections(client: JellyfinClient, collection_ids: List[str], 

@@ -168,7 +168,7 @@ class CanonicalDBDialog(QDialog):
     def init_ui(self):
         """Initialize the dialog UI."""
         self.setWindowTitle("Canonical Database Builder")
-        self.setModal(True)
+        self.setModal(False)  # Phase 48-E: Great Modal Banishment
         self.resize(800, 600)
 
         layout = QVBoxLayout(self)

@@ -15,7 +15,7 @@ class JellyRancherHelpDialog(QDialog):
         super().__init__(parent)
         self.topic = topic
         self.setWindowTitle("JellyRancher Help")
-        self.setModal(True)
+        self.setModal(False)  # Phase 48-E: Great Modal Banishment
         self.resize(700, 500)
         self.init_ui()
 

@@ -347,11 +347,28 @@ class WelcomeScreen(QWidget):
         """Handle New Round-Up button click."""
         dialog = NewRoundUpDialog(self)
         # Use show() + signal instead of blocking exec() - Phase 60-E non-blocking dialogs
+        # Connect accepted signal for handling dialog data
         dialog.accepted.connect(lambda: self._on_new_dialog_accepted(dialog))
+        # Connect finished signal to ensure cleanup regardless of how dialog closes
+        # This prevents resource leak if dialog is rejected or closed without accepting
+        dialog.finished.connect(dialog.deleteLater)
         dialog.show()
 
     def _on_new_dialog_accepted(self, dialog: NewRoundUpDialog):
-        """Handle accepted signal from NewRoundUpDialog (non-blocking)."""
+        """
+        Handle accepted signal from NewRoundUpDialog (non-blocking).
+        
+        Commandment #7: Resource Safety - Disconnect signal and schedule dialog deletion
+        to prevent memory leaks from lambda capturing dialog reference.
+        """
+        # Disconnect signal first to break circular reference
+        try:
+            dialog.accepted.disconnect()
+        except TypeError:
+            # Signal already disconnected or never connected
+            pass
+        
+        # Get data before deleting dialog
         data = dialog.get_data()
 
         try:
@@ -368,7 +385,8 @@ class WelcomeScreen(QWidget):
         except Exception as e:
             logger.error(f"Failed to create Round-Up: {e}", exc_info=True)
             self._set_status(f"Failed to create Round-Up: {e}", level='error')
-            logger.error(f"Failed to create Round-Up: {e}", exc_info=True)
+        # Note: Dialog deletion is handled by finished signal connection in _on_new_clicked()
+        # This ensures cleanup regardless of how dialog closes (accepted, rejected, or closed)
 
     def _on_open_clicked(self):
         """Handle Open Round-Up button click."""

@@ -60,12 +60,16 @@ def fuzzy_match(str1: str, str2: str, threshold: float = 0.8) -> bool:
     return similarity >= threshold
 
 
-def group_by_genre(client: JellyfinClient, genre: str, fuzzy: bool = True) -> List[Dict]:
+def group_by_genre(items: List[Dict], genre: str, fuzzy: bool = True) -> List[Dict]:
     """
     Group items by genre with optional fuzzy matching.
     
+    NOTE: This is a pure function (Commandment #3). Caller must provide items list.
+    Use client.get_all_items() to fetch items once, then pass to multiple grouping functions
+    to avoid redundant API calls.
+    
     Args:
-        client: JellyfinClient instance
+        items: List of Jellyfin item dictionaries (from client.get_all_items())
         genre: Genre name to group by
         fuzzy: Whether to use fuzzy matching for genre variations
         
@@ -73,12 +77,12 @@ def group_by_genre(client: JellyfinClient, genre: str, fuzzy: bool = True) -> Li
         List of collection definitions (name, item_ids)
         
     Raises:
-        TypeError: If client is not JellyfinClient or types are invalid
+        TypeError: If items is not a list or types are invalid
         ValueError: If genre is empty or whitespace-only
     """
     # Commandment #2: Paranoid Input Validation
-    if not isinstance(client, JellyfinClient):
-        raise TypeError(f"client must be JellyfinClient, got {type(client)}")
+    if not isinstance(items, list):
+        raise TypeError(f"items must be list, got {type(items)}")
     
     if not isinstance(genre, str):
         raise TypeError(f"genre must be str, got {type(genre)}")
@@ -91,8 +95,6 @@ def group_by_genre(client: JellyfinClient, genre: str, fuzzy: bool = True) -> Li
     
     try:
         logger.info(f"Grouping by genre: {genre} (fuzzy={fuzzy})")
-        
-        items = client.get_all_items()
         
         matching_items = []
         genre_lower = genre.lower()
@@ -126,27 +128,28 @@ def group_by_genre(client: JellyfinClient, genre: str, fuzzy: bool = True) -> Li
         return []
 
 
-def group_by_series(client: JellyfinClient) -> List[Dict]:
+def group_by_series(items: List[Dict]) -> List[Dict]:
     """
     Group TV series episodes.
     
+    NOTE: This is a pure function (Commandment #3). Caller must provide items list.
+    Filter items to Episode type before calling: [item for item in items if item.get('Type') == 'Episode']
+    
     Args:
-        client: JellyfinClient instance
+        items: List of Jellyfin item dictionaries (filtered to Episode type)
         
     Returns:
         List of collection definitions (name, item_ids) for each series
         
     Raises:
-        TypeError: If client is not JellyfinClient
+        TypeError: If items is not a list
     """
     # Commandment #2: Paranoid Input Validation
-    if not isinstance(client, JellyfinClient):
-        raise TypeError(f"client must be JellyfinClient, got {type(client)}")
+    if not isinstance(items, list):
+        raise TypeError(f"items must be list, got {type(items)}")
     
     try:
         logger.info("Grouping TV series...")
-        
-        items = client.get_all_items(item_types=['Episode'])
         
         # Group by SeriesName
         series_groups = {}
@@ -175,27 +178,29 @@ def group_by_series(client: JellyfinClient) -> List[Dict]:
         return []
 
 
-def group_by_franchise(client: JellyfinClient) -> List[Dict]:
+def group_by_franchise(items: List[Dict]) -> List[Dict]:
     """
     Group items by franchise (Marvel, Star Wars, etc.).
     
+    NOTE: This is a pure function (Commandment #3). Caller must provide items list.
+    Use client.get_all_items() to fetch items once, then pass to multiple grouping functions
+    to avoid redundant API calls.
+    
     Args:
-        client: JellyfinClient instance
+        items: List of Jellyfin item dictionaries (from client.get_all_items())
         
     Returns:
         List of collection definitions (name, item_ids) for each franchise
         
     Raises:
-        TypeError: If client is not JellyfinClient
+        TypeError: If items is not a list
     """
     # Commandment #2: Paranoid Input Validation
-    if not isinstance(client, JellyfinClient):
-        raise TypeError(f"client must be JellyfinClient, got {type(client)}")
+    if not isinstance(items, list):
+        raise TypeError(f"items must be list, got {type(items)}")
     
     try:
         logger.info("Grouping by franchise...")
-        
-        items = client.get_all_items()
         
         franchise_groups = {franchise: [] for franchise in FRANCHISES.keys()}
         
@@ -236,27 +241,28 @@ def group_by_franchise(client: JellyfinClient) -> List[Dict]:
         return []
 
 
-def group_by_director(client: JellyfinClient) -> List[Dict]:
+def group_by_director(items: List[Dict]) -> List[Dict]:
     """
     Group movies by director.
     
+    NOTE: This is a pure function (Commandment #3). Caller must provide items list.
+    Filter items to Movie type before calling: [item for item in items if item.get('Type') == 'Movie']
+    
     Args:
-        client: JellyfinClient instance
+        items: List of Jellyfin item dictionaries (filtered to Movie type)
         
     Returns:
         List of collection definitions (name, item_ids) for each director
         
     Raises:
-        TypeError: If client is not JellyfinClient
+        TypeError: If items is not a list
     """
     # Commandment #2: Paranoid Input Validation
-    if not isinstance(client, JellyfinClient):
-        raise TypeError(f"client must be JellyfinClient, got {type(client)}")
+    if not isinstance(items, list):
+        raise TypeError(f"items must be list, got {type(items)}")
     
     try:
         logger.info("Grouping by director...")
-        
-        items = client.get_all_items(item_types=['Movie'])
         
         # Group by director (from People metadata)
         director_groups = {}
@@ -291,12 +297,16 @@ def group_by_director(client: JellyfinClient) -> List[Dict]:
         return []
 
 
-def apply_custom_grouping_rules(client: JellyfinClient, rules: List[Dict]) -> List[Dict]:
+def apply_custom_grouping_rules(items: List[Dict], rules: List[Dict]) -> List[Dict]:
     """
     Apply custom grouping rules.
     
+    NOTE: This is a pure function (Commandment #3). Caller must provide items list.
+    Use client.get_all_items() to fetch items once, then pass to multiple grouping functions
+    to avoid redundant API calls.
+    
     Args:
-        client: JellyfinClient instance
+        items: List of Jellyfin item dictionaries (from client.get_all_items())
         rules: List of rule dictionaries, each with:
                - 'name': Collection name
                - 'field': Field to filter on ('genre', 'year', 'type', etc.)
@@ -307,12 +317,12 @@ def apply_custom_grouping_rules(client: JellyfinClient, rules: List[Dict]) -> Li
         List of collection definitions (name, item_ids)
         
     Raises:
-        TypeError: If client is not JellyfinClient or rules is not a list
+        TypeError: If items is not a list or rules is not a list
         ValueError: If rules is empty or contains invalid rule dictionaries
     """
     # Commandment #2: Paranoid Input Validation
-    if not isinstance(client, JellyfinClient):
-        raise TypeError(f"client must be JellyfinClient, got {type(client)}")
+    if not isinstance(items, list):
+        raise TypeError(f"items must be list, got {type(items)}")
     
     if not isinstance(rules, list):
         raise TypeError(f"rules must be list, got {type(rules)}")
@@ -333,7 +343,6 @@ def apply_custom_grouping_rules(client: JellyfinClient, rules: List[Dict]) -> Li
     try:
         logger.info(f"Applying {len(rules)} custom grouping rules...")
         
-        items = client.get_all_items()
         collections = []
         
         for rule in rules:

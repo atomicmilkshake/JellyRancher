@@ -123,26 +123,36 @@ class MasterLogger:
 
         # Detailed file format with module categorization
         file_formatter = logging.Formatter(
-            '[%(asctime)s] [%(levelname)s] [%(module)s] %(message)s',
+            '[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S'
         )
         file_handler.setFormatter(file_formatter)
 
-        # Console handler with colored output for development
+        # Console handler for development
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(logging.INFO)
         console_formatter = logging.Formatter(
-            '[%(levelname)s] [%(module)s] %(message)s'
+            '[%(levelname)s] [%(name)s] %(message)s'
         )
         console_handler.setFormatter(console_formatter)
 
         self.logger.addHandler(file_handler)
         self.logger.addHandler(console_handler)
 
+        # CRITICAL FIX: Configure root logger so logging.getLogger(__name__) works
+        # This ensures ALL loggers (not just ProjectLogger children) write to master log
+        root_logger = logging.getLogger()
+        root_logger.setLevel(logging.DEBUG)
+        # Only add handlers if root doesn't have them (prevent duplicates)
+        if not root_logger.handlers:
+            root_logger.addHandler(file_handler)
+            root_logger.addHandler(console_handler)
+
         # Log initialization
         self.logger.info("=" * 80)
         self.logger.info("JellyRancher Master Logger Initialized")
         self.logger.info(f"Log file: {self.log_file}")
+        self.logger.info("Root logger configured - all logging.getLogger(__name__) calls will now log")
         self.logger.info("=" * 80)
 
     def get_child_logger(self, module_name: str) -> logging.Logger:

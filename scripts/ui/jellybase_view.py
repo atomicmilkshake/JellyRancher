@@ -45,6 +45,12 @@ logger = logging.getLogger(__name__)
 # Valid video extensions
 VIDEO_EXTENSIONS = FileScanner.DEFAULT_VIDEO_EXTENSIONS
 
+# Validation status constants (Issue #12: Replace magic strings)
+STATUS_VALID = 'VALID'
+STATUS_INVALID = 'INVALID'
+STATUS_MISSING = 'MISSING'
+STATUS_DUPLICATE = 'DUPLICATE'
+
 
 class ValidationWorker(QThread):
     """Background worker for validating Jellyfin library entries using enhanced validator."""
@@ -89,7 +95,7 @@ class ValidationWorker(QThread):
                     'title': result.title,
                     'path': result.jellyfin_path,
                     'type': result.item.get('Type', 'Unknown'),
-                    'status': 'VALID' if result.valid else 'INVALID',
+                    'status': STATUS_VALID if result.valid else STATUS_INVALID,
                     'issue': '; '.join([issue.message for issue in result.issues]) if result.issues else '',
                     'file_size': result.file_size,
                     'resolution': result.resolution,
@@ -104,11 +110,11 @@ class ValidationWorker(QThread):
                     critical_issues = [i for i in result.issues if i.severity == 'critical']
                     if critical_issues:
                         if 'does not exist' in critical_issues[0].message.lower():
-                            result_dict['status'] = 'MISSING'
+                            result_dict['status'] = STATUS_MISSING
                         else:
-                            result_dict['status'] = 'INVALID'
+                            result_dict['status'] = STATUS_INVALID
                     elif any(i.category == 'duplicate' for i in result.issues):
-                        result_dict['status'] = 'DUPLICATE'
+                        result_dict['status'] = STATUS_DUPLICATE
                 
                 result_dicts.append(result_dict)
 
@@ -154,6 +160,8 @@ class JellyBaseView(QWidget):
         self.filtered_results = []
         self.all_items = []  # Cache of all items for Items tab
         self.statistics = {}  # Cache of statistics
+        self.connection_test_result = None  # Store connection test result (True/False/None)
+        self.connection_test_message = ""  # Store connection test message
 
         self._init_ui()
         self._test_jellyfin_connection()
@@ -701,7 +709,7 @@ class JellyBaseView(QWidget):
 
             # Stop worker gracefully
             self.validation_worker.quit()
-            if not self.validation_worker.wait(timeout=5000):  # 5 second timeout
+            if not self.validation_worker.wait(5000):  # 5 second timeout (positional arg for PyQt6)
                 logger.warning("ValidationWorker did not stop within timeout, terminating")
                 self.validation_worker.terminate()
                 self.validation_worker.wait()
@@ -711,13 +719,15 @@ class JellyBaseView(QWidget):
         super().closeEvent(event)
 
     def _test_jellyfin_connection(self):
-        """Test connection to Jellyfin server."""
+        """Test connection to Jellyfin server and store result."""
         try:
             config_mgr = JellyfinConfigManager()
             if not config_mgr.is_enabled():
                 self.conn_status_label.setText("● Status: Not configured")
                 self.conn_status_label.setStyleSheet("color: #e67e22;")
                 self._set_status("⚠ Jellyfin not configured. Click 'Configure Jellyfin' to set up.")
+                self.connection_test_result = False
+                self.connection_test_message = "Not configured"
                 return
 
             server_url = config_mgr.get_server_url()
@@ -727,6 +737,8 @@ class JellyBaseView(QWidget):
                 self.conn_status_label.setText("● Status: Missing URL or API key")
                 self.conn_status_label.setStyleSheet("color: #e74c3c;")
                 self._set_status("✗ Jellyfin: Missing server URL or API key")
+                self.connection_test_result = False
+                self.connection_test_message = "Missing URL or API key"
                 return
 
             self.jellyfin_client = JellyfinClient(server_url=server_url, api_key=api_key)
@@ -737,12 +749,16 @@ class JellyBaseView(QWidget):
                 self._set_status(f"✓ Connected to Jellyfin: {server_url}")
                 self.validator = JellyfinValidator(self.jellyfin_client)
                 self._populate_library_filter()
+                self.connection_test_result = True
+                self.connection_test_message = f"Connected to {server_url}"
                 logger.info(f"Connected to Jellyfin: {server_url}")
             else:
                 self.conn_status_label.setText("● Status: Connection failed")
                 self.conn_status_label.setStyleSheet("color: #e74c3c;")
                 self._set_status("✗ Jellyfin connection test failed")
                 self.jellyfin_client = None
+                self.connection_test_result = False
+                self.connection_test_message = "Connection test failed"
                 logger.warning("Jellyfin connection test failed")
 
         except Exception as e:
@@ -751,13 +767,21 @@ class JellyBaseView(QWidget):
             self.conn_status_label.setStyleSheet("color: #e74c3c;")
             self._set_status(f"✗ Jellyfin connection error: {e}")
             self.jellyfin_client = None
+            self.connection_test_result = False
+            self.connection_test_message = f"Error: {str(e)}"
 
     def _open_jellyfin_settings(self):
-        """Open Jellyfin settings dialog."""
+        """Open Jellyfin settings dialog and reload connection if settings were saved."""
         try:
             from scripts.core.dialogs.jellyfin_settings_dialog import JellyfinSettingsDialog
+            from PyQt6.QtWidgets import QDialog
             dialog = JellyfinSettingsDialog(self)
-            dialog.show()
+            # Check if dialog was accepted (settings were saved)
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                # Settings were saved - reload Jellyfin connection
+                logger.info("Jellyfin settings changed - reloading connection")
+                self._test_jellyfin_connection()
+                self._set_status("✓ Jellyfin settings updated - connection reloaded")
         except Exception as e:
             logger.error(f"Failed to open settings dialog: {e}", exc_info=True)
             self._set_status(f"✗ Failed to open settings: {e}")
@@ -766,14 +790,18 @@ class JellyBaseView(QWidget):
         """Populate library filter dropdown."""
         if not self.jellyfin_client:
             return
-        
+
         try:
             libraries = self.jellyfin_client.get_libraries()
+            # Block signals while populating to prevent filter cascade
+            self.items_library_filter.blockSignals(True)
             self.items_library_filter.clear()
             self.items_library_filter.addItem("All")
             for lib in libraries:
                 self.items_library_filter.addItem(lib.get('Name', 'Unknown'))
+            self.items_library_filter.blockSignals(False)
         except Exception as e:
+            self.items_library_filter.blockSignals(False)
             logger.warning(f"Could not populate library filter: {e}")
 
     # Dashboard methods
@@ -940,7 +968,15 @@ class JellyBaseView(QWidget):
         # Populate table
         self.items_table.setSortingEnabled(False)
         self.items_table.setRowCount(len(items_to_show))
-        
+
+        # Cache libraries lookup ONCE before the loop (not per-row!)
+        cached_libraries = []
+        if self.jellyfin_client:
+            try:
+                cached_libraries = self.jellyfin_client.get_libraries()
+            except Exception:
+                pass
+
         for row, item in enumerate(items_to_show):
             try:
                 # Checkbox
@@ -964,18 +1000,13 @@ class JellyBaseView(QWidget):
                 genre_item = QTableWidgetItem(genres)
                 self.items_table.setItem(row, 4, genre_item)
                 
-                # Library (look up from libraries)
+                # Library (look up from cached libraries - NOT per-row API call!)
                 library_name = 'N/A'
-                if self.jellyfin_client:
-                    try:
-                        libraries = self.jellyfin_client.get_libraries()
-                        parent_id = item.get('ParentId')
-                        for lib in libraries:
-                            if lib.get('Id') == parent_id:
-                                library_name = lib.get('Name', 'Unknown')
-                                break
-                    except Exception:
-                        pass
+                parent_id = item.get('ParentId')
+                for lib in cached_libraries:
+                    if lib.get('Id') == parent_id:
+                        library_name = lib.get('Name', 'Unknown')
+                        break
                 library_item = QTableWidgetItem(library_name)
                 self.items_table.setItem(row, 5, library_item)
                 
@@ -1227,13 +1258,13 @@ class JellyBaseView(QWidget):
         if filter_text == "All Items":
             self.filtered_results = self.all_results
         elif filter_text == "Issues Only (Missing/Invalid/Duplicate)":
-            self.filtered_results = [r for r in self.all_results if r['status'] != 'VALID']
+            self.filtered_results = [r for r in self.all_results if r['status'] != STATUS_VALID]
         elif filter_text == "Valid Only":
-            self.filtered_results = [r for r in self.all_results if r['status'] == 'VALID']
+            self.filtered_results = [r for r in self.all_results if r['status'] == STATUS_VALID]
         elif filter_text == "Missing Only":
-            self.filtered_results = [r for r in self.all_results if r['status'] == 'MISSING']
+            self.filtered_results = [r for r in self.all_results if r['status'] == STATUS_MISSING]
         elif filter_text == "Duplicates Only":
-            self.filtered_results = [r for r in self.all_results if r['status'] == 'DUPLICATE']
+            self.filtered_results = [r for r in self.all_results if r['status'] == STATUS_DUPLICATE]
         elif filter_text == "Metadata Issues":
             self.filtered_results = [r for r in self.all_results if 'metadata' in r.get('issue', '').lower()]
         elif filter_text == "Quality Issues":
@@ -1257,11 +1288,11 @@ class JellyBaseView(QWidget):
 
                 # Status
                 status_item = QTableWidgetItem(result['status'])
-                if result['status'] == 'VALID':
+                if result['status'] == STATUS_VALID:
                     status_item.setBackground(QColor(39, 174, 96, 50))  # Green
-                elif result['status'] == 'MISSING':
+                elif result['status'] == STATUS_MISSING:
                     status_item.setBackground(QColor(231, 76, 60, 50))  # Red
-                elif result['status'] == 'DUPLICATE':
+                elif result['status'] == STATUS_DUPLICATE:
                     status_item.setBackground(QColor(243, 156, 18, 50))  # Orange
                 else:  # INVALID
                     status_item.setBackground(QColor(255, 235, 59, 50))  # Yellow
@@ -1304,10 +1335,10 @@ class JellyBaseView(QWidget):
     def _update_validation_summary(self):
         """Update validation summary statistics."""
         total = len(self.all_results)
-        valid = sum(1 for r in self.all_results if r['status'] == 'VALID')
-        missing = sum(1 for r in self.all_results if r['status'] == 'MISSING')
-        invalid = sum(1 for r in self.all_results if r['status'] == 'INVALID')
-        duplicates = sum(1 for r in self.all_results if r['status'] == 'DUPLICATE')
+        valid = sum(1 for r in self.all_results if r['status'] == STATUS_VALID)
+        missing = sum(1 for r in self.all_results if r['status'] == STATUS_MISSING)
+        invalid = sum(1 for r in self.all_results if r['status'] == STATUS_INVALID)
+        duplicates = sum(1 for r in self.all_results if r['status'] == STATUS_DUPLICATE)
         issues = total - valid
 
         filtered_count = len(self.filtered_results)
@@ -1325,7 +1356,7 @@ class JellyBaseView(QWidget):
             checkbox = self.results_table.cellWidget(row, 0)
             if checkbox:
                 status_item = self.results_table.item(row, 1)
-                if status_item and status_item.text() != 'VALID':
+                if status_item and status_item.text() != STATUS_VALID:
                     checkbox.setChecked(True)
 
     def _deselect_all(self):

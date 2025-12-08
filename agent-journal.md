@@ -79,6 +79,30 @@ def _on_new_clicked(self):
 
 **Key Insight:** Claude Code should pilot GUI tests directly (multimodal capability, full codebase access, bash execution) - no need to delegate to another LLM.
 
+### 60-F: LLM Analysis Worker Bug Fix + Full Workflow Pass
+**Date:** 2025-12-04 15:38:00 | **Commit:** 5a2f45f
+
+**Bug:** `TypeError: string indices must be integers, not 'str'` in `workers.py:298`
+- `LLMAnalysisWorker._build_structure_summary()` iterated over ALL `folder_structure` keys
+- Dict contains metadata keys (`project_name`, `scan_id`, `total_files`) with string values
+- When code tried `data["file_count"]` on a string, it crashed
+
+**Fix:** Filter out metadata keys and non-dict values before iteration (matching `analysis_view.py` pattern):
+```python
+metadata_keys = {'project_name', 'scan_id', 'total_files'}
+for folder_path, data in self.folder_structure.items():
+    if folder_path in metadata_keys or not isinstance(data, dict):
+        continue
+```
+
+**Workflow Test Results:** ALL 6 STEPS PASS
+1. Launch - PASS
+2. Create Round-Up - PASS
+3. Add Folder - PASS (programmatic injection, bypasses QFileDialog)
+4. Scan - PASS (11 files found)
+5. Send to Analysis - PASS
+6. Run Analysis - PASS (LLM via Grok API, 1 media item detected)
+
 ---
 
 ## KEY TOOLS & FILES
@@ -92,5 +116,157 @@ def _on_new_clicked(self):
 ## CURRENT STATE
 - **Tests:** 546 passed, 1 skipped
 - **GUI:** All dialogs non-modal, status bar notifications, F12 capture works everywhere
-- **Workflow Test:** 4/4 steps passing, screenshots captured
+- **Workflow Test:** 6/6 steps passing (Launch, Round-Up, Folder, Scan, Send to Analysis, Run Analysis)
 - **JellyBase:** Complete library management tool (4 tabs)
+
+---
+
+## PHASE 60-G: Vision Documentation & Comprehensive Validation Setup
+**Date:** 2025-12-04 15:59:55
+**Status:** IN PROGRESS (Session Interrupted for Cursor Update)
+
+### COMPLETED THIS SESSION:
+
+1. **Vision Synthesis & Documentation**
+   - Read and synthesized the "JellyRancher Redux" documents from `F:\OneDrive\DOWNLOADS\#JellyRancher Redux\`:
+     - `README.md` - Overview of documentation package
+     - `02_MVP_PLAN.md` - MVP scope (6 phases, core loop)
+     - `03_MASTER_PLAN.md` - Full feature roadmap (Phases A-I)
+   - Created comprehensive standalone document: `docs/VISION_AND_COMPETITIVE_ANALYSIS.md`
+
+2. **Vision Summary (for next session to understand quickly):**
+   - **The Problem:** Chaotic media libraries with messy filenames
+   - **The Core Loop (MVP):** Scan → LLM → Preview → Execute → Rollback
+   - **The Full 10 Steps:** Select Folders → Scan → Exclude → Categorize (Sorting Canvas) → Diagnose → Configure LLM → Submit Per-Bucket → Review Proposal → Canonical Database → Execute
+   - **Key Concepts:** Round-Up (saved sessions), Human Gates (approval steps), Copy-Verify-Delete (BLAKE3 safety), Canonical Database (bulk corrections)
+   - **Ultimate Success Test:** "After running JellyRancher, the user never needs to manually fix metadata in Jellyfin"
+
+3. **Competitive Analysis Summary:**
+   - **FileBot:** Rule-based, no LLM, requires regex configuration
+   - **Sonarr/Radarr:** For new content via their pipeline, not existing chaos
+   - **tinyMediaManager:** Metadata management, rule-based
+   - **Plex/Jellyfin built-in:** Struggles with non-standard naming
+   - **CONCLUSION:** Nothing does ALL of what JellyRancher proposes (LLM identification + Sorting Canvas + Human Gates + Canonical DB + Copy-Verify-Delete + Full Rollback)
+
+### NEXT STEPS (FOR CONTINUATION):
+
+**IMMEDIATE TASK:** Create comprehensive validation test (`tools/comprehensive_validation.py`)
+
+The user's instruction was: **"proceed with the jesus take the wheel stuff"** - meaning create a comprehensive GUI validation test that:
+
+1. Validates ALL GUI functionality against the 10-step workflow
+2. Tests with real files in `v:/JellyRancher/test_media/unsorted/`
+3. Captures screenshots at each step
+4. Verifies the end state matches Jellyfin naming conventions
+5. Proves the Ultimate Success Test can be achieved
+
+**Specific Implementation Plan:**
+1. Extend `tools/workflow_test.py` pattern to cover full 10-step workflow
+2. Add steps 7-10: Review Proposal, Canonical Database, Execute, Rollback
+3. Create separate JellyBase validation (Library, Validation, Collections, Analysis tabs)
+4. Test Jellyfin integration features
+5. Document all results
+
+**Files to Reference:**
+- `tools/workflow_test.py` - Existing 6-step test (working, passing)
+- `docs/VISION_AND_COMPETITIVE_ANALYSIS.md` - Vision document just created
+- `docs/WORKFLOW_SPEC.md` - 9-point workflow specification
+- `JellyRancher-plan.md` - 8-step core workflow with DB schemas
+- `F:\OneDrive\DOWNLOADS\#JellyRancher Redux\02_MVP_PLAN.md` - MVP success criteria
+- `F:\OneDrive\DOWNLOADS\#JellyRancher Redux\03_MASTER_PLAN.md` - Full feature set
+
+**Test Media Location:** `v:/JellyRancher/test_media/unsorted/` (already exists with test files)
+
+---
+
+## PHASE 60-H: Comprehensive Validation Test Suite
+**Date:** 2025-12-08 10:16:57
+**Status:** COMPLETED
+**Tests:** 546 passed, 1 skipped (unchanged)
+
+### COMPLETED THIS SESSION:
+
+1. **Extended workflow_test.py with Steps 7-10**
+   - Step 7: Send to Review (click "Send to Review" button in Analysis view)
+   - Step 8: Load Action Plan & Approve (Load, Select All, Approve Selected)
+   - Step 9: Execute Dry Run (safe testing without file changes)
+   - Step 10: Verify Results (check logs, rollback button availability)
+
+2. **Created JellyBaseTest Class**
+   - `test_dashboard_tab()` - Tests Dashboard tab, refresh button
+   - `test_items_tab()` - Tests Items tab, search inputs, tables
+   - `test_collections_tab()` - Tests Collections tab, grouping buttons
+   - `test_validation_tab()` - Tests Validation tab, scan button, progress bars
+   - `test_tools_tab()` - Tests Tools tab, add/remove buttons
+
+3. **Created JellyfinIntegrationTest Class**
+   - `test_jellyfin_connection()` - Tests connection to Jellyfin server
+   - `test_get_libraries()` - Tests fetching library list
+   - `test_get_items()` - Tests fetching items (limit 10)
+   - `test_get_collections()` - Tests fetching collections
+   - `test_validator()` - Tests JellyfinValidator functionality
+   - All tests gracefully skip if Jellyfin not configured
+
+4. **Enhanced CLI Interface**
+   ```
+   python tools/workflow_test.py --help
+
+   Options:
+     --workflow    Run workflow tests (steps 1-10)
+     --jellybase   Run JellyBase UI tests (5 tabs)
+     --jellyfin    Run Jellyfin integration tests
+     --all         Run all tests
+     --no-gui      Exit after tests (no interactive GUI)
+   ```
+
+### FILE CHANGES:
+- `tools/workflow_test.py` - Extended from ~460 lines to ~1150 lines
+  - Added 4 new workflow steps (7-10)
+  - Added JellyfinIntegrationTest class (5 tests)
+  - Added JellyBaseTest class (5 tests)
+  - Added argparse CLI with --workflow, --jellybase, --jellyfin, --all, --no-gui
+  - Comprehensive summary output at end of test run
+
+### TEST COVERAGE SUMMARY:
+| Test Suite | Steps | Purpose |
+|------------|-------|---------|
+| Workflow | 10 | Full 8-step Round-Up workflow + verification |
+| JellyBase | 5 | UI tab validation (Dashboard, Items, Collections, Validation, Tools) |
+| Jellyfin | 5 | Integration testing (Connection, Libraries, Items, Collections, Validator) |
+
+### USAGE EXAMPLES:
+```bash
+# Run full workflow test (default)
+.venv\Scripts\python.exe tools/workflow_test.py
+
+# Run all tests with comprehensive output
+.venv\Scripts\python.exe tools/workflow_test.py --all
+
+# Run without GUI (CI/headless)
+.venv\Scripts\python.exe tools/workflow_test.py --all --no-gui
+
+# Run specific test suites
+.venv\Scripts\python.exe tools/workflow_test.py --jellybase
+.venv\Scripts\python.exe tools/workflow_test.py --jellyfin
+```
+
+### VERIFICATION & BUG FIXES:
+**"Always verify" best practice applied:**
+
+1. Ran Jellyfin integration tests standalone
+2. Found 2 bugs from verification:
+   - `get_items` → `get_all_items` (JellyfinClient method name)
+   - `get_all_collections` import error → `self.jellyfin_client.get_collections()`
+3. Fixed both bugs
+4. Re-ran tests: **4/4 Jellyfin tests PASS**
+5. Verified pytest: **546 passed, 1 skipped** (unchanged)
+
+**Jellyfin Test Results (live against local server):**
+```
+Test 1: Connection - PASS (Jellyfin 10.10.7 MEMORY-ALPHA)
+Test 2: Libraries - PASS (4 libraries: Collections, Folders, Movies, Shows)
+Test 3: Items - PASS (10 items retrieved)
+Test 4: Collections - PASS (27 collections found)
+```
+
+### READY FOR COMMIT

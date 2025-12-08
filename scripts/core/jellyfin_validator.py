@@ -217,7 +217,7 @@ class JellyfinValidator:
                     item_title=result.title
                 ))
                 result.valid = False
-            except Exception as e:
+            except (OSError, IOError) as e:
                 result.issues.append(ValidationIssue(
                     severity='critical',
                     category='file',
@@ -227,7 +227,7 @@ class JellyfinValidator:
                 ))
                 result.valid = False
                 
-        except Exception as e:
+        except (OSError, ValueError) as e:
             result.issues.append(ValidationIssue(
                 severity='critical',
                 category='file',
@@ -424,8 +424,13 @@ class JellyfinValidator:
                        'Type', 'ProductionYear', 'Genres', 'Overview']
             )
             logger.info(f"Found {len(items)} items to validate")
+        except RuntimeError:
+            # JellyfinClient.get_all_items() raises RuntimeError for API failures
+            # Re-raise to maintain error context
+            raise
         except Exception as e:
-            logger.error(f"Failed to fetch items from Jellyfin: {e}", exc_info=True)
+            # Catch any unexpected exceptions and wrap in RuntimeError
+            logger.error(f"Unexpected error fetching items from Jellyfin: {e}", exc_info=True)
             raise RuntimeError(f"Cannot fetch items from Jellyfin: {e}") from e
         
         if len(items) == 0:
@@ -489,7 +494,7 @@ class JellyfinValidator:
                 
                 hash_to_items[file_hash].append(item.get('Id'))
                 
-            except Exception as e:
+            except (OSError, IOError) as e:
                 logger.warning(f"Error hashing file {path}: {e}")
                 continue
         
@@ -522,7 +527,8 @@ class JellyfinValidator:
                 try:
                     normalized = str(Path(path).resolve())
                     jellyfin_paths.add(normalized)
-                except Exception:
+                except OSError:
+                    # Skip paths that cannot be resolved (e.g., network drives, invalid paths)
                     pass
         
         # Find filesystem paths not in Jellyfin
@@ -532,7 +538,8 @@ class JellyfinValidator:
                 normalized = str(fs_path.resolve())
                 if normalized not in jellyfin_paths:
                     orphans.append(fs_path)
-            except Exception:
+            except OSError:
+                # Skip paths that cannot be resolved (e.g., network drives, invalid paths)
                 pass
         
         logger.info(f"Found {len(orphans)} orphaned files")

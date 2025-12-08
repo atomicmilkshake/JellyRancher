@@ -31,6 +31,15 @@ class JellyfinConfig:
     user_id: Optional[str] = None  # Auto-detected if None
 
 
+class JellyfinAPIError(Exception):
+    """
+    Raised when Jellyfin API operations fail.
+    
+    Commandment #5: Fail Loudly - Use specific exceptions instead of returning None/False.
+    """
+    pass
+
+
 class JellyfinClient:
     """
     Client for Jellyfin API interactions.

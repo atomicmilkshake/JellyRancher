@@ -1,27 +1,18 @@
 {
   "permissions": {
     "allow": [
-      "Bash(.venvScriptspython.exe -m pytest tests/test_transaction_manager.py -v --tb=short)",
-      "Bash(git add:*)",
-      "Bash(git rm:*)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nrefactor: Phase 48 - BLAKE3 hashing unification and Commandment 12 compliance\n\n- 48-A: Migrate all hashing from MD5 to BLAKE3\n  - FileHasher class now uses blake3 (with backward-compat aliases)\n  - Updated file_scanner, jellyfin_safe_executor, execution_view\n  - Tests updated for 64-char hash length (was 32)\n\n- 48-B: Create print→logger migration automation\n  - tools/migrate_print_to_logger.py with pattern classification\n  - Migrated 205 prints in scripts/_common/ (8 files)\n\n- 48-C: Legacy cleanup\n  - Deleted tools/ingest_functions_to_chromadb.py (ChromaDB vestige)\n  - ProjectManager retained (still used as roundup adapter)\n\nAll 284 tests passing.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(.venvScriptspython.exe -m py_compile jelly_rancher_studio.py)",
+      "Bash(\".\\.venv\\Scripts\\python.exe\" tools/workflow_test.py)",
+      "Bash(ping:*)",
+      "Bash(taskkill:*)",
       "Bash(python:*)",
-      "Bash(.venvScriptspython.exe -m pytest tests/test_real_integration.py -v --tb=short)",
-      "Bash(.venv/Scripts/python.exe -m pytest tests/test_real_integration.py -v --tb=short)",
-      "Bash(.venv/Scripts/python.exe -m pytest tests/ -v --tb=line)",
-      "Bash(git commit:*)",
-      "Bash(.venv/Scripts/python.exe -m pytest:*)",
+      "Bash(.venvScriptspython.exe tools/workflow_test.py)",
+      "Bash(V:\\JellyRancher\\.venv\\Scripts\\python.exe:*)",
+      "Bash(cmd /c \"V:\\JellyRancher\\.venv\\Scripts\\python.exe V:\\JellyRancher\\tools\\workflow_test.py\")",
+      "Bash(cmd /c \"cd /d V:\\JellyRancher && .venv\\Scripts\\python.exe -m pytest tests/ -v --tb=short -q 2>&1 | head -100\")",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/ -v --tb=short -q)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/ --tb=short -q)",
       "Bash(.venv/Scripts/python.exe:*)",
-      "Bash(.venvScriptspython.exe -m pytest tests/ -v --tb=no)",
-      "Bash(\".\\.venv\\Scripts\\python.exe\" -m pytest tests/ -v --tb=no)",
-      "Bash(v:JellyRancher.venvScriptspython.exe -m pytest tests/ -v --co -q)",
-      "Bash(.venvScriptspython.exe -m pytest tests/ -v --co -q)",
-      "Bash(./.venv/Scripts/python.exe -m pytest --version)",
-      "Bash(./.venv/Scripts/python.exe -m pytest tests/ --co -q)",
-      "Bash(.venvScriptspython.exe -m pytest tests/test_jellyfin_validator.py -v --tb=short)",
-      "Bash(\".\\.venv\\Scripts\\python.exe\" -m pytest tests/test_jellyfin_validator.py -v --tb=short)",
-      "Bash(\".\\.venv\\Scripts\\python.exe\" -m pytest tests/ -v --tb=no -x)"
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

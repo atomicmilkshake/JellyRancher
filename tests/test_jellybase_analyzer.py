@@ -79,17 +79,22 @@ class TestDetectContentDuplicates:
         """detect_content_duplicates() should handle exceptions gracefully."""
         mock_client = MagicMock(spec=JellyfinClient)
         
-        # Mock FileHasher to raise exception
-        with patch('scripts.core.jellybase_analyzer.FileHasher') as mock_hasher:
-            mock_hasher.return_value.calculate_hash.side_effect = Exception("Hash error")
+        # Mock JellyfinValidator to raise exception (function now delegates to validator)
+        with patch('scripts.core.jellybase_analyzer.JellyfinValidator') as mock_validator_class:
+            mock_validator = MagicMock()
+            mock_validator.detect_content_duplicates.side_effect = Exception("Hash error")
+            mock_validator_class.return_value = mock_validator
             
             file1 = tmp_path / "test.mkv"
             file1.write_bytes(b"content")
             items = [{'Id': 'item-1', 'Path': str(file1)}]
             
+            # Should handle exception gracefully (function wraps in try-except)
             result = detect_content_duplicates(mock_client, items)
             
-            assert isinstance(result, list)  # Should return empty list, not crash
+            # Function returns empty list on exception
+            assert isinstance(result, list)
+            assert result == []
 
 
 class TestAnalyzeQualityDistribution:

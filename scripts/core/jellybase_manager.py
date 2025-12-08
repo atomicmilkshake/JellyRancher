@@ -10,6 +10,7 @@ Provides centralized management for all JellyBase operations:
 """
 
 import logging
+import threading
 from typing import Dict, List, Optional, Set
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -55,11 +56,12 @@ class JellyBaseManager:
         self.operation_history = deque(maxlen=100)  # Keep last 100 operations
         self.cache = {}  # Cache for library data
         self.cache_timestamp = None
+        self._cache_lock = threading.RLock()  # Thread-safe cache access
         logger.info("JellyBaseManager initialized")
     
     def load_library_data(self, jellyfin_client) -> Dict:
         """
-        Load library data (with caching).
+        Load library data (with thread-safe caching).
         
         Args:
             jellyfin_client: JellyfinClient instance
@@ -67,13 +69,14 @@ class JellyBaseManager:
         Returns:
             Dictionary with library data
         """
-        # Check cache
-        if self.cache and self.cache_timestamp:
-            # Cache valid for 5 minutes
-            from datetime import timedelta
-            if datetime.now() - self.cache_timestamp < timedelta(minutes=5):
-                logger.debug("Using cached library data")
-                return self.cache
+        # Check cache (thread-safe)
+        with self._cache_lock:
+            if self.cache and self.cache_timestamp:
+                # Cache valid for 5 minutes
+                from datetime import timedelta
+                if datetime.now() - self.cache_timestamp < timedelta(minutes=5):
+                    logger.debug("Using cached library data")
+                    return self.cache.copy()  # Return copy to prevent external modification
         
         try:
             # Load fresh data
@@ -88,19 +91,22 @@ class JellyBaseManager:
                 'timestamp': datetime.now()
             }
             
-            # Update cache
-            self.cache = data
-            self.cache_timestamp = datetime.now()
+            # Update cache (thread-safe)
+            with self._cache_lock:
+                self.cache = data
+                self.cache_timestamp = datetime.now()
+            
             self.state.last_refresh = datetime.now()
             
             logger.info(f"Loaded library data: {len(items)} items")
             return data
         except Exception as e:
             logger.error(f"Error loading library data: {e}", exc_info=True)
-            # Return cached data if available, even if stale
-            if self.cache:
-                logger.warning("Using stale cache due to error")
-                return self.cache
+            # Return cached data if available, even if stale (thread-safe)
+            with self._cache_lock:
+                if self.cache:
+                    logger.warning("Using stale cache due to error")
+                    return self.cache.copy()  # Return copy to prevent external modification
             raise
     
     def apply_filters(self, items: List[Dict], filters: Dict) -> List[Dict]:
@@ -237,9 +243,10 @@ class JellyBaseManager:
         } for op in history]
     
     def invalidate_cache(self):
-        """Invalidate cached library data."""
-        self.cache = {}
-        self.cache_timestamp = None
+        """Invalidate cached library data (thread-safe)."""
+        with self._cache_lock:
+            self.cache = {}
+            self.cache_timestamp = None
         logger.info("Cache invalidated")
     
     def update_state(self, **kwargs):

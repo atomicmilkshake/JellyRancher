@@ -27,9 +27,11 @@ def batch_add_items(client: JellyfinClient, paths: List[str],
         progress_callback: Optional callback(current, total, message)
         
     Returns:
-        Dictionary with:
+        Standardized dictionary with:
         - success_count: Number of successful scans
-        - failed_paths: List of paths that failed
+        - failed_count: Number of failed scans
+        - total: Total number of paths
+        - failed_paths: List of paths that failed (operation-specific)
     """
     try:
         logger.info(f"Batch adding items from {len(paths)} paths...")
@@ -54,8 +56,9 @@ def batch_add_items(client: JellyfinClient, paths: List[str],
         
         result = {
             'success_count': success_count,
-            'failed_paths': failed_paths,
-            'total': len(paths)
+            'failed_count': len(failed_paths),
+            'total': len(paths),
+            'failed_paths': failed_paths  # Operation-specific field
         }
         
         logger.info(f"Batch add complete: {success_count}/{len(paths)} successful")
@@ -64,8 +67,9 @@ def batch_add_items(client: JellyfinClient, paths: List[str],
         logger.error(f"Error in batch_add_items: {e}", exc_info=True)
         return {
             'success_count': 0,
-            'failed_paths': paths,
-            'total': len(paths)
+            'failed_count': len(paths),
+            'total': len(paths),
+            'failed_paths': paths
         }
 
 
@@ -80,9 +84,12 @@ def batch_remove_items(client: JellyfinClient, item_ids: List[str],
         dry_run: If True, only preview (no actual deletion)
         
     Returns:
-        Dictionary with:
-        - items_to_delete: List of items that would be deleted
-        - confirmation_required: True if dry_run
+        Standardized dictionary with:
+        - success_count: Number of successful deletions (0 if dry_run)
+        - failed_count: Number of failed deletions (0 if dry_run)
+        - total: Total number of item IDs
+        - items_to_delete: List of items that would be deleted (operation-specific)
+        - confirmation_required: True if dry_run (operation-specific)
     """
     try:
         logger.info(f"Batch remove: {len(item_ids)} items (dry_run={dry_run})")
@@ -99,29 +106,31 @@ def batch_remove_items(client: JellyfinClient, item_ids: List[str],
                 })
         
         result = {
-            'items_to_delete': items_to_delete,
-            'confirmation_required': dry_run,
-            'total': len(item_ids)
+            'success_count': 0,  # Will be updated if not dry_run
+            'failed_count': 0,   # Will be updated if not dry_run
+            'total': len(item_ids),
+            'items_to_delete': items_to_delete,  # Operation-specific field
+            'confirmation_required': dry_run  # Operation-specific field
         }
         
         if not dry_run:
             # Actually delete items
-            deleted_count = 0
+            success_count = 0
             failed_count = 0
             
             for item_id in item_ids:
                 try:
                     if client.delete_item(item_id):
-                        deleted_count += 1
+                        success_count += 1
                     else:
                         failed_count += 1
                 except Exception as e:
                     failed_count += 1
                     logger.error(f"Error deleting item {item_id}: {e}", exc_info=True)
             
-            result['deleted_count'] = deleted_count
+            result['success_count'] = success_count
             result['failed_count'] = failed_count
-            logger.info(f"Batch remove complete: {deleted_count} deleted, {failed_count} failed")
+            logger.info(f"Batch remove complete: {success_count} deleted, {failed_count} failed")
         else:
             logger.info(f"Batch remove preview: {len(items_to_delete)} items would be deleted")
         
@@ -129,9 +138,11 @@ def batch_remove_items(client: JellyfinClient, item_ids: List[str],
     except Exception as e:
         logger.error(f"Error in batch_remove_items: {e}", exc_info=True)
         return {
+            'success_count': 0,
+            'failed_count': len(item_ids),
+            'total': len(item_ids),
             'items_to_delete': [],
-            'confirmation_required': True,
-            'total': len(item_ids)
+            'confirmation_required': True
         }
 
 
@@ -147,9 +158,11 @@ def batch_update_metadata(client: JellyfinClient, item_ids: List[str],
                          Can be same for all items, or per-item if structure allows
                          
     Returns:
-        Dictionary with:
+        Standardized dictionary with:
         - success_count: Number of successful updates
-        - failed_ids: List of item IDs that failed
+        - failed_count: Number of failed updates
+        - total: Total number of item IDs
+        - failed_ids: List of item IDs that failed (operation-specific)
     """
     try:
         logger.info(f"Batch updating metadata for {len(item_ids)} items...")
@@ -169,8 +182,9 @@ def batch_update_metadata(client: JellyfinClient, item_ids: List[str],
         
         result = {
             'success_count': success_count,
-            'failed_ids': failed_ids,
-            'total': len(item_ids)
+            'failed_count': len(failed_ids),
+            'total': len(item_ids),
+            'failed_ids': failed_ids  # Operation-specific field
         }
         
         logger.info(f"Batch update complete: {success_count}/{len(item_ids)} successful")
@@ -179,8 +193,9 @@ def batch_update_metadata(client: JellyfinClient, item_ids: List[str],
         logger.error(f"Error in batch_update_metadata: {e}", exc_info=True)
         return {
             'success_count': 0,
-            'failed_ids': item_ids,
-            'total': len(item_ids)
+            'failed_count': len(item_ids),
+            'total': len(item_ids),
+            'failed_ids': item_ids
         }
 
 

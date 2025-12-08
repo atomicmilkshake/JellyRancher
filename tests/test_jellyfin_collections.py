@@ -19,7 +19,7 @@ from scripts.core.jellyfin_collections import (
     merge_collections,
     split_collection
 )
-from scripts.core.jellyfin_client import JellyfinClient
+from scripts.core.jellyfin_client import JellyfinClient, JellyfinAPIError
 
 
 class TestCreateCollectionByGenre:
@@ -68,7 +68,7 @@ class TestCreateCollectionByGenre:
 
     @pytest.mark.unit
     def test_create_collection_no_items_found(self):
-        """create_collection_by_genre() should return None when no items match genre."""
+        """create_collection_by_genre() should raise ValueError when no items match genre."""
         mock_client = MagicMock(spec=JellyfinClient)
         
         mock_items = [
@@ -77,26 +77,26 @@ class TestCreateCollectionByGenre:
         ]
         mock_client.get_all_items.return_value = mock_items
         
-        result = create_collection_by_genre(mock_client, 'Action')
+        with pytest.raises(ValueError, match="No items found for genre"):
+            create_collection_by_genre(mock_client, 'Action')
         
-        assert result is None
         mock_client.get_all_items.assert_called_once()
         mock_client.create_collection.assert_not_called()
 
     @pytest.mark.unit
     def test_create_collection_empty_items_list(self):
-        """create_collection_by_genre() should return None when library is empty."""
+        """create_collection_by_genre() should raise ValueError when library is empty."""
         mock_client = MagicMock(spec=JellyfinClient)
         mock_client.get_all_items.return_value = []
         
-        result = create_collection_by_genre(mock_client, 'Action')
+        with pytest.raises(ValueError, match="No items found for genre"):
+            create_collection_by_genre(mock_client, 'Action')
         
-        assert result is None
         mock_client.create_collection.assert_not_called()
 
     @pytest.mark.unit
     def test_create_collection_api_failure(self):
-        """create_collection_by_genre() should return None when API call fails."""
+        """create_collection_by_genre() should raise JellyfinAPIError when API call fails."""
         mock_client = MagicMock(spec=JellyfinClient)
         
         mock_items = [
@@ -105,20 +105,19 @@ class TestCreateCollectionByGenre:
         mock_client.get_all_items.return_value = mock_items
         mock_client.create_collection.return_value = None  # API failure
         
-        result = create_collection_by_genre(mock_client, 'Action')
+        with pytest.raises(JellyfinAPIError, match="Failed to create collection for genre"):
+            create_collection_by_genre(mock_client, 'Action')
         
-        assert result is None
         mock_client.create_collection.assert_called_once()
 
     @pytest.mark.unit
     def test_create_collection_exception_handling(self):
-        """create_collection_by_genre() should return None on exception."""
+        """create_collection_by_genre() should raise JellyfinAPIError on exception."""
         mock_client = MagicMock(spec=JellyfinClient)
         mock_client.get_all_items.side_effect = Exception("Network error")
         
-        result = create_collection_by_genre(mock_client, 'Action')
-        
-        assert result is None
+        with pytest.raises(JellyfinAPIError, match="Failed to create collection by genre"):
+            create_collection_by_genre(mock_client, 'Action')
 
 
 class TestCreateCollectionByYear:
@@ -147,7 +146,7 @@ class TestCreateCollectionByYear:
 
     @pytest.mark.unit
     def test_create_collection_no_items_found(self):
-        """create_collection_by_year() should return None when no items match year."""
+        """create_collection_by_year() should raise ValueError when no items match year."""
         mock_client = MagicMock(spec=JellyfinClient)
         
         mock_items = [
@@ -156,20 +155,19 @@ class TestCreateCollectionByYear:
         ]
         mock_client.get_all_items.return_value = mock_items
         
-        result = create_collection_by_year(mock_client, 2019)
+        with pytest.raises(ValueError, match="No items found for year"):
+            create_collection_by_year(mock_client, 2019)
         
-        assert result is None
         mock_client.create_collection.assert_not_called()
 
     @pytest.mark.unit
     def test_create_collection_exception_handling(self):
-        """create_collection_by_year() should return None on exception."""
+        """create_collection_by_year() should raise JellyfinAPIError on exception."""
         mock_client = MagicMock(spec=JellyfinClient)
         mock_client.get_all_items.side_effect = Exception("API error")
         
-        result = create_collection_by_year(mock_client, 2020)
-        
-        assert result is None
+        with pytest.raises(JellyfinAPIError, match="Failed to create collection by year"):
+            create_collection_by_year(mock_client, 2020)
 
 
 class TestCreateCollectionBySeries:
@@ -216,7 +214,7 @@ class TestCreateCollectionBySeries:
 
     @pytest.mark.unit
     def test_create_collection_no_episodes_found(self):
-        """create_collection_by_series() should return None when no episodes match."""
+        """create_collection_by_series() should raise ValueError when no episodes match."""
         mock_client = MagicMock(spec=JellyfinClient)
         
         mock_episodes = [
@@ -224,20 +222,19 @@ class TestCreateCollectionBySeries:
         ]
         mock_client.get_all_items.return_value = mock_episodes
         
-        result = create_collection_by_series(mock_client, 'Breaking Bad')
+        with pytest.raises(ValueError, match="No episodes found for series"):
+            create_collection_by_series(mock_client, 'Breaking Bad')
         
-        assert result is None
         mock_client.create_collection.assert_not_called()
 
     @pytest.mark.unit
     def test_create_collection_exception_handling(self):
-        """create_collection_by_series() should return None on exception."""
+        """create_collection_by_series() should raise JellyfinAPIError on exception."""
         mock_client = MagicMock(spec=JellyfinClient)
         mock_client.get_all_items.side_effect = Exception("Connection error")
         
-        result = create_collection_by_series(mock_client, 'Test Series')
-        
-        assert result is None
+        with pytest.raises(JellyfinAPIError, match="Failed to create collection by series"):
+            create_collection_by_series(mock_client, 'Test Series')
 
 
 class TestMergeCollections:

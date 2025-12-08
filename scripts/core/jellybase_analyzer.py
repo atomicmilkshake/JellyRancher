@@ -14,7 +14,6 @@ from typing import List, Dict, Tuple
 from collections import defaultdict
 from scripts.core.jellyfin_client import JellyfinClient
 from scripts.core.jellyfin_validator import JellyfinValidator
-from scripts.utils.transaction_manager import FileHasher
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +26,10 @@ def detect_content_duplicates(client: JellyfinClient, items: List[Dict]) -> List
     MUST be called from a background thread (e.g., ValidationWorker).
     DO NOT call directly from UI thread - will freeze application.
     
+    NOTE: This function delegates to JellyfinValidator.detect_content_duplicates()
+    to avoid code duplication (Issue #11). The validator's implementation includes
+    hash caching for better performance.
+    
     Args:
         client: JellyfinClient instance
         items: List of Jellyfin items
@@ -35,36 +38,9 @@ def detect_content_duplicates(client: JellyfinClient, items: List[Dict]) -> List
         List of (hash, [item_ids]) tuples for duplicate groups
     """
     try:
-        logger.info("Detecting content duplicates using hash comparison...")
-        
-        hasher = FileHasher()
-        hash_to_items = defaultdict(list)
-        
-        for item in items:
-            path = item.get('Path', '')
-            if not path:
-                continue
-            
-            try:
-                from pathlib import Path as PathLib
-                file_path = PathLib(path)
-                if not file_path.exists() or not file_path.is_file():
-                    continue
-                
-                # Calculate hash
-                file_hash = hasher.calculate_hash(file_path)
-                hash_to_items[file_hash].append(item.get('Id'))
-                
-            except Exception as e:
-                logger.warning(f"Error hashing file {path}: {e}")
-                continue
-        
-        # Find duplicates (groups with more than one item)
-        duplicates = [(hash_val, item_ids) for hash_val, item_ids in hash_to_items.items() 
-                     if len(item_ids) > 1]
-        
-        logger.info(f"Found {len(duplicates)} duplicate content groups")
-        return duplicates
+        # Use validator's implementation to avoid duplication (Issue #11)
+        validator = JellyfinValidator(client)
+        return validator.detect_content_duplicates(items)
     except Exception as e:
         logger.error(f"Error detecting content duplicates: {e}", exc_info=True)
         return []
