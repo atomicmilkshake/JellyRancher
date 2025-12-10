@@ -23,6 +23,7 @@ import json
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+import time
 
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -202,6 +203,25 @@ class RoundUpManagerAdapter:
     def load_project_state(self, project_id: int):
         """Load project state (adapter - returns None)."""
         return None
+
+
+def rate_limit(min_interval: float = 0.1):
+    """
+    Decorator to rate limit method calls to prevent rapid clicking issues.
+    """
+    def decorator(func):
+        def wrapper(self, *args, **kwargs):
+            current_time = time.time()
+            if not hasattr(self, '_last_call_times'):
+                self._last_call_times = {}
+            last_time = self._last_call_times.get(func.__name__, 0)
+            if current_time - last_time < min_interval:
+                logger.debug(f"Ignoring rapid call to {func.__name__}")
+                return
+            self._last_call_times[func.__name__] = current_time
+            return func(self, *args, **kwargs)
+        return wrapper
+    return decorator
 
 
 class JellyRancherStudio(QMainWindow):
@@ -543,6 +563,7 @@ class JellyRancherStudio(QMainWindow):
     # Round-Up Management
     # ========================================================================
 
+    @rate_limit()
     def _new_roundup(self):
         """Create a new Round-Up via dialog."""
         from scripts.ui.welcome_screen import NewRoundUpDialog
@@ -562,6 +583,7 @@ class JellyRancherStudio(QMainWindow):
             except ValueError as e:
                 self.status_label.setText(f"✗ Error: {e}")
 
+    @rate_limit()
     def _open_roundup_dialog(self):
         """Open Round-Up selection dialog."""
         from PyQt6.QtWidgets import QFileDialog
@@ -630,6 +652,7 @@ class JellyRancherStudio(QMainWindow):
             # Scan step - auto-open Scan tab
             self._open_scan_view()
 
+    @rate_limit()
     def _save_roundup(self):
         """Save the current Round-Up."""
         if not self.current_roundup:
@@ -643,6 +666,7 @@ class JellyRancherStudio(QMainWindow):
         else:
             self.status_label.setText("✗ Failed to save Round-Up")
 
+    @rate_limit()
     def _close_roundup(self):
         """Close the current Round-Up (auto-saves if unsaved changes)."""
         if not self.current_roundup:
@@ -766,6 +790,7 @@ class JellyRancherStudio(QMainWindow):
 
             self.explorer_tree.addTopLevelItem(item)
 
+    @rate_limit()
     def _on_explorer_item_clicked(self, item: QTreeWidgetItem, column: int):
         """Handle click on explorer item."""
         step_num = item.data(0, Qt.ItemDataRole.UserRole)
@@ -939,12 +964,6 @@ class JellyRancherStudio(QMainWindow):
             self.status_label.setText(f"⚠ {error_msg}")
             return
 
-        # Check if tab already open
-        for i in range(self.tab_widget.count()):
-            if "Results" in self.tab_widget.tabText(i):
-                self.tab_widget.setCurrentIndex(i)
-                return
-
         # Get scan session ID - use provided, stored in memory, from Round-Up config, or fetch most recent
         if scan_session_id is None:
             scan_session_id = self.last_scan_session_id
@@ -960,6 +979,12 @@ class JellyRancherStudio(QMainWindow):
         if scan_session_id is None:
             self.status_label.setText("⚠ No scan data found - please run a scan first")
             return
+
+        # Remove any existing Results tab to ensure fresh data load from new scan
+        for i in range(self.tab_widget.count()):
+            if "Results" in self.tab_widget.tabText(i):
+                self.tab_widget.removeTab(i)
+                break
 
         results_view = ScanResultsView(
             self.project_adapter, self.manager_adapter, scan_session_id, self
@@ -1261,10 +1286,12 @@ class JellyRancherStudio(QMainWindow):
     # Other Actions
     # ========================================================================
 
+    @rate_limit()
     def _show_settings(self):
         """Show settings dialog."""
         self.status_label.setText("⚠ Settings dialog coming soon!")
 
+    @rate_limit()
     def _show_jellyfin_settings(self):
         """Show Jellyfin settings dialog (non-modal)."""
         dialog = JellyfinSettingsDialog(self)
@@ -1283,6 +1310,7 @@ class JellyRancherStudio(QMainWindow):
         logger.info("Switched to JellyBase tab")
         self.status_label.setText("✓ Switched to JellyBase")
 
+    @rate_limit()
     def _toggle_dark_mode(self, checked: bool):
         """Toggle dark mode."""
         global DARK_MODE_ENABLED
@@ -1290,6 +1318,7 @@ class JellyRancherStudio(QMainWindow):
         apply_stylesheet(QApplication.instance(), dark_mode=checked)
         logger.info(f"Dark mode: {'ENABLED' if checked else 'DISABLED'}")
 
+    @rate_limit()
     def _show_keyboard_shortcuts(self):
         """Show keyboard shortcuts dialog (non-modal)."""
         shortcuts_text = """
@@ -1318,6 +1347,7 @@ class JellyRancherStudio(QMainWindow):
         msg.show()  # Non-blocking
         self._shortcuts_dialog = msg  # Prevent garbage collection
 
+    @rate_limit()
     def _show_about(self):
         """Show about dialog (non-modal)."""
         about_text = (
