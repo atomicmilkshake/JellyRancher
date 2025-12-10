@@ -1457,7 +1457,7 @@ class SettingsTab(QWidget):
 
     def reset_to_defaults(self):
         """Reset all settings to defaults."""
-        if QMessageBox.question(self, "Confirm", "Reset all settings to defaults?") == QMessageBox.Yes:
+        if QMessageBox.question(self, "Confirm", "Reset all settings to defaults?") == QMessageBox.StandardButton.Yes:
             self.settings.reset_to_defaults()
             
             # Update UI

@@ -909,7 +909,7 @@ Tailor JellyRancher to your specific workflow and environment."""),
         layout.addWidget(header)
         
         info = QLabel("Select the media type and folder you want to organize")
-        info.setStyleSheet("color: #666; padding: 2px 5px;")
+        info.setStyleSheet("color: #888; padding: 2px 5px;")  # Improved contrast from #666
         layout.addWidget(info)
         
         # Media type selection
@@ -1344,6 +1344,8 @@ Tailor JellyRancher to your specific workflow and environment."""),
         lang_layout.addWidget(QLabel("Language:"))
         self.sub_language = QComboBox()
         self.sub_language.addItems(["English", "Spanish", "French", "German"])
+        self.sub_language.setMinimumWidth(120)
+        self.sub_language.setStyleSheet("QComboBox { background-color: #3d3d3d; color: #ffffff; border: 1px solid #606060; padding: 4px; }")
         lang_layout.addWidget(self.sub_language)
         config_layout.addLayout(lang_layout)
 
@@ -1385,6 +1387,7 @@ Tailor JellyRancher to your specific workflow and environment."""),
         # Actions
         actions_layout = QHBoxLayout()
         detect_btn = QPushButton("🔍 Detect Coverage")
+        detect_btn.setStyleSheet("background-color: #0e639c; color: white; font-weight: bold;")
         detect_btn.clicked.connect(self.detect_subtitle_coverage)
         actions_layout.addWidget(detect_btn)
 
@@ -1536,10 +1539,12 @@ Tailor JellyRancher to your specific workflow and environment."""),
         toolbar_layout.addWidget(bulk_select_label)
 
         select_all_btn = QPushButton("✓ All")
+        select_all_btn.setStyleSheet("background-color: #4caf50; color: white; font-weight: bold; padding: 4px 8px;")
         select_all_btn.clicked.connect(lambda: self.batch_bulk_select(True))
         toolbar_layout.addWidget(select_all_btn)
 
         select_none_btn = QPushButton("✗ None")
+        select_none_btn.setStyleSheet("background-color: #f44336; color: white; font-weight: bold; padding: 4px 8px;")
         select_none_btn.clicked.connect(lambda: self.batch_bulk_select(False))
         toolbar_layout.addWidget(select_none_btn)
 
@@ -1553,10 +1558,12 @@ Tailor JellyRancher to your specific workflow and environment."""),
         toolbar_layout.addWidget(QLabel(" | "))
 
         export_plan_btn = QPushButton("📤 Export Plan")
+        export_plan_btn.setStyleSheet("background-color: #0e639c; color: white; font-weight: bold;")
         export_plan_btn.clicked.connect(self.batch_export_plan)
         toolbar_layout.addWidget(export_plan_btn)
 
         import_plan_btn = QPushButton("📥 Import Plan")
+        import_plan_btn.setStyleSheet("background-color: #0e639c; color: white; font-weight: bold;")
         import_plan_btn.clicked.connect(self.batch_import_plan)
         toolbar_layout.addWidget(import_plan_btn)
 
@@ -1589,6 +1596,7 @@ Tailor JellyRancher to your specific workflow and environment."""),
         # Actions
         actions_layout = QHBoxLayout()
         self.batch_analyze_btn = QPushButton("🧠 AI Analysis")
+        self.batch_analyze_btn.setStyleSheet("background-color: #9c27b0; color: white; font-weight: bold;")
         self.batch_analyze_btn.clicked.connect(self.run_batch_analysis)
         actions_layout.addWidget(self.batch_analyze_btn)
 
@@ -1705,10 +1713,12 @@ Tailor JellyRancher to your specific workflow and environment."""),
         # Actions
         actions_layout = QHBoxLayout()
         self.code_analyze_btn = QPushButton("🔍 Run Analysis")
+        self.code_analyze_btn.setStyleSheet("background-color: #0e639c; color: white; font-weight: bold;")
         self.code_analyze_btn.clicked.connect(self.run_code_analysis)
         actions_layout.addWidget(self.code_analyze_btn)
 
         self.code_report_btn = QPushButton("📊 Generate Report")
+        self.code_report_btn.setStyleSheet("background-color: #4caf50; color: white; font-weight: bold;")
         self.code_report_btn.clicked.connect(self.generate_code_report)
         actions_layout.addWidget(self.code_report_btn)
 
@@ -1824,10 +1834,12 @@ Tailor JellyRancher to your specific workflow and environment."""),
         # Actions
         actions_layout = QHBoxLayout()
         self.analytics_refresh_btn = QPushButton("🔄 Refresh Data")
+        self.analytics_refresh_btn.setStyleSheet("background-color: #0e639c; color: white; font-weight: bold;")
         self.analytics_refresh_btn.clicked.connect(self.refresh_analytics)
         actions_layout.addWidget(self.analytics_refresh_btn)
 
         self.analytics_export_btn = QPushButton("📤 Export Report")
+        self.analytics_export_btn.setStyleSheet("background-color: #e91e63; color: white; font-weight: bold;")
         self.analytics_export_btn.clicked.connect(self.export_analytics_report)
         actions_layout.addWidget(self.analytics_export_btn)
 
@@ -1939,16 +1951,18 @@ Tailor JellyRancher to your specific workflow and environment."""),
         self.settings_show_key_btn.setCheckable(True)
         self.settings_show_key_btn.toggled.connect(
             lambda checked: self.settings_tmdb_api_key.setEchoMode(
-                QLineEdit.Normal if checked else QLineEdit.EchoMode.Password
+                QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password
             )
         )
         tmdb_layout.addWidget(self.settings_show_key_btn)
 
         self.settings_test_key_btn = QPushButton("Test")
+        self.settings_test_key_btn.setStyleSheet("background-color: #0e639c; color: white; font-weight: bold;")
         self.settings_test_key_btn.clicked.connect(self.test_tmdb_api_key)
         tmdb_layout.addWidget(self.settings_test_key_btn)
 
         self.settings_get_key_btn = QPushButton("Get Key")
+        self.settings_get_key_btn.setStyleSheet("background-color: #ff9800; color: white; font-weight: bold;")
         self.settings_get_key_btn.clicked.connect(
             lambda: QDesktopServices.openUrl(
                 QUrl("https://www.themoviedb.org/settings/api")
@@ -2051,89 +2065,122 @@ Tailor JellyRancher to your specific workflow and environment."""),
         tab_padding_v = max(4, int(5 * self.zoom_level))
         tab_padding_h = max(8, int(10 * self.zoom_level))
         
+        # Dark mode colors - consistent with dark_mode.qss
+        bg_main = "#1e1e1e"
+        bg_secondary = "#2d2d2d"
+        bg_input = "#252525"
+        border_color = "#404040"
+        text_color = "#e0e0e0"
+        text_muted = "#a0a0a0"
+        accent_blue = "#0e639c"
+        accent_hover = "#1177bb"
+
         style = f"""
         QMainWindow {{
-            background-color: #f5f5f5;
+            background-color: {bg_main};
             font-size: {body_font_size}pt;
+            color: {text_color};
         }}
         QTabWidget::pane {{
-            border: 1px solid #cccccc;
+            border: 1px solid {border_color};
+            background-color: {bg_input};
         }}
         QTabBar::tab {{
-            background-color: #e0e0e0;
-            border: 1px solid #cccccc;
+            background-color: {bg_secondary};
+            color: {text_muted};
+            border: 1px solid {border_color};
             padding: {tab_padding_v}px {tab_padding_h}px;
             font-size: {tab_font_size}pt;
             font-weight: normal;
             min-width: 120px;
         }}
         QTabBar::tab:selected {{
-            background-color: #f5f5f5;
-            border-bottom-color: #f5f5f5;
+            background-color: {bg_input};
+            color: #ffffff;
+            border-bottom: 2px solid {accent_blue};
             font-weight: bold;
         }}
         QTabBar::tab:hover {{
-            background-color: #d5d5d5;
+            background-color: #333333;
+            color: {text_color};
         }}
         QGroupBox {{
-            border: 1px solid #cccccc;
+            border: 1px solid {border_color};
             border-radius: 3px;
             margin-top: 8px;
             padding-top: 8px;
             font-weight: bold;
             font-size: {groupbox_font_size}pt;
+            color: {text_color};
+            background-color: {bg_main};
         }}
         QGroupBox::title {{
             subcontrol-origin: margin;
             subcontrol-position: top left;
             padding: 2px 5px;
+            color: {text_color};
         }}
         QPushButton {{
             padding: {button_padding}px {button_padding * 2}px;
-            background-color: #e0e0e0;
-            border: 1px solid #999999;
-            border-radius: 3px;
-            font-weight: 500;
+            background-color: {accent_blue};
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
             min-height: 20px;
             font-size: {button_font_size}pt;
         }}
         QPushButton:hover {{
-            background-color: #d0d0d0;
+            background-color: {accent_hover};
         }}
         QPushButton:pressed {{
-            background-color: #c0c0c0;
+            background-color: #094771;
+        }}
+        QPushButton:disabled {{
+            background-color: #4a4a4a;
+            color: #888888;
         }}
         QLineEdit {{
             padding: {button_padding}px;
-            border: 1px solid #cccccc;
+            border: 1px solid {border_color};
             border-radius: 3px;
             font-size: {body_font_size}pt;
-            background-color: white;
+            background-color: {bg_input};
+            color: {text_color};
         }}
         QComboBox {{
             padding: {button_padding}px;
-            border: 1px solid #cccccc;
+            border: 1px solid {border_color};
             border-radius: 3px;
             font-size: {body_font_size}pt;
-            background-color: white;
+            background-color: {bg_input};
+            color: {text_color};
         }}
         QLabel {{
             font-size: {body_font_size}pt;
+            color: {text_color};
         }}
         QTextEdit, QListWidget {{
             font-size: {body_font_size}pt;
-            border: 1px solid #cccccc;
+            border: 1px solid {border_color};
             border-radius: 3px;
+            background-color: {bg_input};
+            color: {text_color};
         }}
         QProgressBar {{
-            border: 1px solid #cccccc;
+            border: 1px solid {border_color};
             border-radius: 4px;
             text-align: center;
             height: 20px;
             font-size: {body_font_size}pt;
+            background-color: {bg_input};
+            color: {text_color};
         }}
         QProgressBar::chunk {{
             background-color: #4CAF50;
+        }}
+        QCheckBox {{
+            color: {text_color};
         }}
         """
         self.setStyleSheet(style)
@@ -2350,7 +2397,7 @@ Tailor JellyRancher to your specific workflow and environment."""),
                 checkbox_widget = QWidget()
                 checkbox_layout = QHBoxLayout(checkbox_widget)
                 checkbox_layout.addWidget(checkbox)
-                checkbox_layout.setAlignment(Qt.AlignCenter)
+                checkbox_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 checkbox_layout.setContentsMargins(0, 0, 0, 0)
                 self.batch_action_table.setCellWidget(row, 0, checkbox_widget)
 
@@ -2505,7 +2552,7 @@ Tailor JellyRancher to your specific workflow and environment."""),
                 checkbox_widget = QWidget()
                 checkbox_layout = QHBoxLayout(checkbox_widget)
                 checkbox_layout.addWidget(checkbox)
-                checkbox_layout.setAlignment(Qt.AlignCenter)
+                checkbox_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 checkbox_layout.setContentsMargins(0, 0, 0, 0)
                 self.batch_action_table.setCellWidget(row, 0, checkbox_widget)
 
@@ -2605,11 +2652,11 @@ Tailor JellyRancher to your specific workflow and environment."""),
             self,
             "Confirm Batch Execution",
             f"Execute {total} operations?\n\n{action_summary}\n\nA snapshot will be created for rollback.",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
         )
 
-        if reply != QMessageBox.Yes:
+        if reply != QMessageBox.StandardButton.Yes:
             return
 
         # Create snapshot
@@ -2962,9 +3009,9 @@ Recent Activity:
             reply = QMessageBox.question(
                 dialog, "Confirm Delete",
                 f"Delete credential '{cred_key}'?",
-                QMessageBox.Yes | QMessageBox.No
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )
-            if reply == QMessageBox.Yes:
+            if reply == QMessageBox.StandardButton.Yes:
                 if cred_mgr.delete_credential(cred_key):
                     refresh_list()
                     QMessageBox.information(dialog, "Success", f"Deleted '{cred_key}'")
@@ -2994,7 +3041,7 @@ Recent Activity:
         show_value_btn.setFixedWidth(40)
         show_value_btn.setCheckable(True)
         show_value_btn.toggled.connect(
-            lambda checked: value_input.setEchoMode(QLineEdit.Normal if checked else QLineEdit.EchoMode.Password)
+            lambda checked: value_input.setEchoMode(QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password)
         )
 
         value_layout = QHBoxLayout()
@@ -3045,7 +3092,10 @@ Recent Activity:
         layout.addWidget(close_btn)
 
         dialog.setLayout(layout)
-        dialog.exec()
+        # Non-blocking per Phase 61-C
+        dialog.finished.connect(dialog.deleteLater)
+        dialog.show()
+
     def save_settings(self):
         """Save current settings from UI to settings backend."""
         try:
@@ -3093,11 +3143,11 @@ Recent Activity:
             self,
             "Reset Settings",
             "Are you sure you want to reset all settings to defaults?\n\nThis will clear:\n- TMDB API Key\n- All preferences\n\nThis action cannot be undone.",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
         )
 
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             try:
                 # Clear settings
                 self.settings_tmdb_api_key.clear()
@@ -3167,95 +3217,7 @@ Recent Activity:
             self.logger.error(f"Error testing TMDB API key: {str(e)}")
 
     # Menu actions removed: open_memory_query - ChromaDB dependency removed
-    
-    def open_tmdb_cache_dialog(self):
-        """Open the TMDB Cache Generator dialog."""
-        try:
-            from dialogs.tmdb_cache_dialog import TMDBCacheDialog
-            
-            dialog = TMDBCacheDialog(self)
-            result = dialog.exec()
-            
-            if result == QDialog.Accepted:
-                self.logger.info("TMDB cache generation completed successfully")
-                self.status_bar.showMessage("TMDB cache generated successfully", 3000)
-            else:
-                self.logger.info("TMDB cache dialog cancelled")
-        
-        except Exception as e:
-            QMessageBox.critical(
-                self,
-                "Error",
-                f"Error opening TMDB Cache Generator:\n{str(e)}"
-            )
-            self.logger.error(f"Error opening TMDB cache dialog: {str(e)}")
-    
-    def open_episode_analyzer(self):
-        """Open the Episode Title Analyzer dialog."""
-        try:
-            from dialogs.episode_analysis_dialog import EpisodeAnalysisDialog
-            
-            dialog = EpisodeAnalysisDialog(self)
-            result = dialog.exec()
-            
-            if result == QDialog.Accepted:
-                results = dialog.get_results()
-                if results:
-                    issues = results.get('issues_found', 0)
-                    if issues > 0:
-                        self.logger.info(f"Episode analysis found {issues} issues")
-                        self.status_bar.showMessage(f"Analysis complete: {issues} issues found", 3000)
-                    else:
-                        self.logger.info("Episode analysis found no issues")
-                        self.status_bar.showMessage("Analysis complete: No issues found", 3000)
-            else:
-                self.logger.info("Episode analyzer cancelled")
-        
-        except Exception as e:
-            QMessageBox.critical(
-                self,
-                "Error",
-                f"Error opening Episode Analyzer:\n{str(e)}"
-            )
-            self.logger.error(f"Error opening episode analyzer: {str(e)}")
-    
-    def open_movie_analyzer(self):
-        """Open the Movie Name Analyzer dialog."""
-        try:
-            from dialogs.movie_analysis_dialog import MovieAnalysisDialog
-            
-            dialog = MovieAnalysisDialog(self)
-            result = dialog.exec()
-            
-            if result == QDialog.Accepted:
-                results = dialog.get_results()
-                if results:
-                    summary = results.get('summary', {})
-                    total = results.get('total_files', 0)
-                    issues = total - summary.get('no_issues', 0)
-                    
-                    if issues > 0:
-                        self.logger.info(f"Movie analysis found {issues}/{total} movies with issues")
-                        self.status_bar.showMessage(
-                            f"Analysis complete: {issues}/{total} movies have issues", 
-                            3000
-                        )
-                    else:
-                        self.logger.info(f"Movie analysis found no issues in {total} movies")
-                        self.status_bar.showMessage(
-                            f"Analysis complete: {total} movies, no issues found", 
-                            3000
-                        )
-            else:
-                self.logger.info("Movie analyzer cancelled")
-        
-        except Exception as e:
-            QMessageBox.critical(
-                self,
-                "Error",
-                f"Error opening Movie Analyzer:\n{str(e)}"
-            )
-            self.logger.error(f"Error opening movie analyzer: {str(e)}")
+    # Duplicate dialog functions removed - see definitions below (Phase 61-C cleanup)
 
     def journal_action(self, text: str, tags: List[str]):
         """Auto-journal removed - ChromaDB dependency removed from project."""
@@ -3288,11 +3250,11 @@ Recent Activity:
             self,
             "Confirm Restore",
             f"Restore snapshot {snapshot_id}?\n\nThis will verify files against the snapshot state.",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
         )
 
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             try:
                 result = SnapshotManager.restore_snapshot(snapshot_id, dry_run=True)
                 msg = f"Snapshot verification:\n\nVerified: {result['restored_files']}\nErrors: {len(result['errors'])}"
@@ -3316,11 +3278,11 @@ Recent Activity:
             self,
             "Confirm Delete",
             f"Delete snapshot {snapshot_id}?\n\nThis cannot be undone.",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
         )
 
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             if SnapshotManager.delete_snapshot(snapshot_id):
                 QMessageBox.information(self, "Deleted", f"Snapshot {snapshot_id} deleted.")
                 self.refresh_snapshots()
@@ -3337,52 +3299,64 @@ Recent Activity:
             return
 
         dialog = AppSettingsDialog(self)
-        dialog.exec()
+        # Non-blocking per Phase 61-C
+        dialog.finished.connect(dialog.deleteLater)
+        dialog.show()
 
     def open_tmdb_cache_dialog(self):
         """Open TMDB cache generator dialog."""
         if TMDBCacheDialog is None:
-            QMessageBox.warning(self, "Not Available", "TMDB Cache Dialog not available.")
+            self.statusBar().showMessage("TMDB Cache Dialog not available", 3000)
             return
 
         dialog = TMDBCacheDialog(self)
-        dialog.exec()
-    
+        # Non-blocking per Phase 61-C
+        dialog.finished.connect(dialog.deleteLater)
+        dialog.show()
+
     def open_wikipedia_cache_dialog(self):
         """Open Wikipedia cache generator dialog."""
         if WikipediaCacheDialog is None:
-            QMessageBox.warning(self, "Not Available", "Wikipedia Cache Dialog not available.")
+            self.statusBar().showMessage("Wikipedia Cache Dialog not available", 3000)
             return
-        
+
         dialog = WikipediaCacheDialog(self)
-        dialog.exec()
-    
+        # Non-blocking per Phase 61-C
+        dialog.finished.connect(dialog.deleteLater)
+        dialog.show()
+
     def open_canonical_db_dialog(self):
         """Open canonical database builder dialog."""
         if CanonicalDBDialog is None:
-            QMessageBox.warning(self, "Not Available", "Canonical Database Dialog not available.")
+            self.statusBar().showMessage("Canonical Database Dialog not available", 3000)
             return
-        
+
         dialog = CanonicalDBDialog(self)
-        dialog.exec()
-    
+        # Non-blocking per Phase 61-C
+        dialog.finished.connect(dialog.deleteLater)
+        dialog.show()
+
     def open_episode_analyzer(self):
         """Open episode title analyzer dialog."""
         if EpisodeAnalysisDialog is None:
-            QMessageBox.warning(self, "Not Available", "Episode Analysis Dialog not available.")
+            self.statusBar().showMessage("Episode Analysis Dialog not available", 3000)
             return
-        
+
         dialog = EpisodeAnalysisDialog(self)
-        dialog.exec()
-    
+        # Non-blocking per Phase 61-C
+        dialog.finished.connect(dialog.deleteLater)
+        dialog.show()
+
     def open_movie_analyzer(self):
         """Open movie name analyzer dialog."""
         if MovieAnalysisDialog is None:
-            QMessageBox.warning(self, "Not Available", "Movie Analysis Dialog not available.")
+            self.statusBar().showMessage("Movie Analysis Dialog not available", 3000)
             return
-        
+
         dialog = MovieAnalysisDialog(self)
-        dialog.exec()
+        # Non-blocking per Phase 61-C
+        dialog.finished.connect(dialog.deleteLater)
+        dialog.show()
     
     def show_about(self):
         QMessageBox.about(self, "About JellyRancher",
@@ -3472,25 +3446,37 @@ Recent Activity:
             self.logger.warning(f"Could not load welcome wizard: {e}")
     
     def _show_wizard(self):
-        """Actually show the wizard (called via timer)."""
+        """Actually show the wizard (called via timer). Non-blocking per Phase 60-E."""
         try:
             from getting_started_wizard import WelcomeWizard
             import json
             from pathlib import Path
-            
+
             wizard = WelcomeWizard(self)
-            result = wizard.exec()
-            
+            # Non-blocking: use show() + signals instead of exec() - Phase 60-E
+            wizard.finished.connect(lambda result: self._on_wizard_finished(wizard, result))
+            wizard.show()
+
+        except Exception as e:
+            self.logger.error(f"Error showing wizard: {e}")
+
+    def _on_wizard_finished(self, wizard, result):
+        """Handle wizard completion. Non-blocking callback."""
+        import json
+        from pathlib import Path
+        from PyQt6.QtWidgets import QDialog
+
+        try:
             # Save preference if user doesn't want to see again
             if not wizard.should_show_again():
                 config_file = Path(__file__).parent / "config" / "wizard_settings.json"
                 config_file.parent.mkdir(parents=True, exist_ok=True)
-                
+
                 with open(config_file, 'w') as f:
                     json.dump({'show_wizard': False}, f)
-                    
+
             # Handle selected quick action
-            if result == QDialog.Accepted:
+            if result == QDialog.DialogCode.Accepted.value:
                 action = wizard.get_selected_action()
                 if action == "organize_movies":
                     self.tab_widget.setCurrentIndex(0)  # Go to Workflow tab
@@ -3503,29 +3489,23 @@ Recent Activity:
                             self.tab_widget.setCurrentIndex(i)
                             break
         except Exception as e:
-            self.logger.error(f"Error showing wizard: {e}")
+            self.logger.error(f"Error handling wizard result: {e}")
+        finally:
+            wizard.deleteLater()
     
     def show_quick_start_guide(self):
-        """Show quick start guide dialog."""
+        """Show quick start guide dialog. Non-blocking per Phase 61-C."""
         try:
             from getting_started_wizard import QuickStartDialog
             dialog = QuickStartDialog(self)
-            dialog.exec()
+            # Non-blocking: use show() instead of exec()
+            dialog.finished.connect(dialog.deleteLater)
+            dialog.show()
         except ImportError:
-            # Fallback if wizard module not available
-            QMessageBox.information(
-                self,
-                "Quick Start Guide",
-                "<h3>JellyRancher Quick Start</h3>"
-                "<p><b>🎬 Organize Movies:</b></p>"
-                "<ol><li>Go to <b>Workflow tab</b></li>"
-                "<li>Add folder → Start Scan → Follow steps 1-8</li></ol>"
-                "<p><b>💬 Download Subtitles:</b></p>"
-                "<ol><li>Go to <b>Subtitles tab</b></li>"
-                "<li>Select folder → Detect Coverage → Download</li></ol>"
-                "<p><b>🔍 Simple Organization:</b></p>"
-                "<ol><li>Go to <b>Organization tab</b></li>"
-                "<li>Select media type → Browse folder → Organize</li></ol>"
+            # Fallback if wizard module not available - use status bar instead of modal
+            self.statusBar().showMessage(
+                "Quick Start: Workflow tab (organize) | Subtitles tab (download subs) | Organization tab (simple organize)",
+                10000
             )
 
 

@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "last_updated": "2025-11-09T05:21:25.651327",
+  "last_updated": "2025-12-10T08:41:42.912909",
   "settings": {
     "media_root": "C:/Jellyfin/#MEDIA",
     "movies_folder": "Movies",
@@ -21,7 +21,7 @@
     "window_geometry": null,
     "window_state": null,
     "last_session_date": null,
-    "tmdb_api_key": "a71ed25dc11e509b52067f0c10df1af4",
+    "tmdb_api_key": "",
     "custom_setting": "custom_value"
   }
 }

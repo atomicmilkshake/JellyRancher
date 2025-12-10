@@ -12,7 +12,20 @@
       "Bash(.venv/Scripts/python.exe -m pytest tests/ -v --tb=short -q)",
       "Bash(.venv/Scripts/python.exe -m pytest tests/ --tb=short -q)",
       "Bash(.venv/Scripts/python.exe:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(dir:*)",
+      "Bash(.venvScriptspython.exe -m pytest tests/ -q --tb=no)",
+      "Bash(.venv/Scripts/pip.exe:*)",
+      "Bash(findstr:*)",
+      "Bash(choco install:*)",
+      "Bash(where:*)",
+      "Bash(winget install:*)",
+      "Bash(\"C:\\Program Files\\Tesseract-OCR\\tesseract.exe\" --version)",
+      "Bash(.venvScriptspython.exe -m pytest tests/test_workflow_comprehensive.py -x --tb=short)",
+      "Bash(git -C v:JellyRancher status)",
+      "Bash(cmd /c \"cd /d V:\\JellyRancher && git status\")"
     ],
     "deny": [],
     "ask": []

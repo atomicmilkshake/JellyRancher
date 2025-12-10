@@ -1,0 +1,175 @@
+{
+  "metadata": {
+    "generated_at": "2025-12-09T22:40:35.172732",
+    "tool": "screenshot_ocr_audit.py",
+    "output_dir": "v:\\JellyRancher\\gui_audit",
+    "ocr_available": true
+  },
+  "summary": {
+    "total_screenshots": 15,
+    "total_issues": 10,
+    "issues_by_type": {
+      "missing_label": 7,
+      "minimal_text": 3
+    },
+    "issues_by_severity": {
+      "warning": 10,
+      "info": 0,
+      "error": 0
+    }
+  },
+  "screenshots": [
+    {
+      "name": "tab_0___Organization",
+      "path": "v:\\JellyRancher\\gui_audit\\tab_0___Organization.png",
+      "ocr_text": "wetcome te Masia\nStep 1: Setup Step 2: Scan Step 3: Analyze Step 4: Organize Step 5: Snapshots aa\nHover overany contralto se detaies hale or hoveroiar tab\nSTEP 4: Configure Your Source ‘headers toleam about each section ofthe appicaton.\n‘This tab helps you organize your media oar by:\n= Scanning fldrs for mai lee\n+ Organding movies and TV shows\nOise * Anaizing and fing nang sues\n“Managing snapeats for naciun/rooace\nnat ype of mas sre youeganting?\nMovies =\n\n{9 Safety Options\n\n@  Dry-run mode (prev",
+      "issues_count": 0
+    },
+    {
+      "name": "tab_1___Subtitles",
+      "path": "v:\\JellyRancher\\gui_audit\\tab_1___Subtitles.png",
+      "ocr_text": "Configuration\nrier\nLanguage: GBopensubtitles.org rose:\n@subscene\nEnglish G@Podnapisi Olive mode (write files)\nProgress\n",
+      "issues_count": 1
+    },
+    {
+      "name": "tab_2____Batch_Processing",
+      "path": "v:\\JellyRancher\\gui_audit\\tab_2____Batch_Processing.png",
+      "ocr_text": "Bo\n\nHover overanycontclto sees exianaton here\n\nroceing Option\n@dy-run mode cunkioe (STAN\n\nProgress Preview\n\n¥ Filename ‘Current Path Proposed Path Action Status\n",
+      "issues_count": 0
+    },
+    {
+      "name": "tab_3___Code_Analysis",
+      "path": "v:\\JellyRancher\\gui_audit\\tab_3___Code_Analysis.png",
+      "ocr_text": "@ code metrics (complexity, coverage)\n@ structure analysis\nOram iecrs\n\n‘Analysis Results\n\nBo\n\nHover overanycontclto sees exianaton here\n",
+      "issues_count": 1
+    },
+    {
+      "name": "tab_4___Analytics",
+      "path": "v:\\JellyRancher\\gui_audit\\tab_4___Analytics.png",
+      "ocr_text": "—— cone tap\n\ncrear me)\neT\n\na\n\n—\n\n=o\n\na\n\nmen\n\nOrganization Subtitles Timeline\n\n",
+      "issues_count": 0
+    },
+    {
+      "name": "tab_5____Settings",
+      "path": "v:\\JellyRancher\\gui_audit\\tab_5____Settings.png",
+      "ocr_text": "Control\n\nHover overanycontclto sees exianaton here\nMedia Pathe\n\nMoviesFoler | Movies\nTWShowsFolier | TVShows\n{API Credentials\n\nTwOE APIKey.\n\nMl Get a free API key from TMDB to generate episode caches\nren stats wl be shown are\nPreferences\nsatey. © Enable dry-run by default\nverre: Verify file integrity\n",
+      "issues_count": 2
+    },
+    {
+      "name": "tab_0_Organization",
+      "path": "v:\\JellyRancher\\gui_audit\\tab_0_Organization.png",
+      "ocr_text": "",
+      "issues_count": 1
+    },
+    {
+      "name": "tab_1_Subtitles",
+      "path": "v:\\JellyRancher\\gui_audit\\tab_1_Subtitles.png",
+      "ocr_text": "",
+      "issues_count": 3
+    },
+    {
+      "name": "tab_2_Timeline",
+      "path": "v:\\JellyRancher\\gui_audit\\tab_2_Timeline.png",
+      "ocr_text": "",
+      "issues_count": 1
+    },
+    {
+      "name": "tab_0_Step_1__Setup",
+      "path": "v:\\JellyRancher\\gui_audit\\tab_0_Step_1__Setup.png",
+      "ocr_text": "STEP 4: Configure Your Source\n\na MediaType\n\nnat ype of mas sre youeganting?\n\n{9 Safety Options\n\n@  Dry-run mode (preview changes without moving files)\n© M Vesty fle integrity after operations\n",
+      "issues_count": 0
+    },
+    {
+      "name": "tab_1_Step_2__Scan",
+      "path": "v:\\JellyRancher\\gui_audit\\tab_1_Step_2__Scan.png",
+      "ocr_text": "STEP 2: Sean Your Media\n\n(© Scan Operation\n\n(Gece ben blow scan your med folder:\n\nThis wit\n+ Countal mess fee\ndently TV shows and episodes\n-Unal moves\n\n+ Show folder stra\n\n",
+      "issues_count": 1
+    },
+    {
+      "name": "tab_2_Step_3__Analyze",
+      "path": "v:\\JellyRancher\\gui_audit\\tab_2_Step_3__Analyze.png",
+      "ocr_text": "STEP 3: Analyze & Fix Names (Optional)\n\n2 When to Use This Step\n\nUse LM anys it\nEpisode ties areincoect or generic\n\n{ Moa namas dont match the acl fim\n“Fes have confusing or contd names\nYou want Al suggestions forbeterrames\n\n1 Sep hs step your fies are sready named conecty\n\n(@ TWShow Episode Analysis\n\n‘Anaya and fx TV show episode tle:\n\n(Opane a window to evaw and coract pizode names ung Al\n\n1 Movie Name Analysis.\n\n‘Analyze and movie Re names:\n\n(Opane a window to evaw and coat movie names using ",
+      "issues_count": 0
+    },
+    {
+      "name": "tab_3_Step_4__Organize",
+      "path": "v:\\JellyRancher\\gui_audit\\tab_3_Step_4__Organize.png",
+      "ocr_text": "STEP 4: Organize Your Media\n\n‘A Before You Organize\n\nMake sure youve scanned fest (Step 2)\n\n‘¢ Dy-run modes enabed by defat for safety\n‘Rea the scan resus before processing\n\n_/ Soapehotewilbe rated automaticaly xe Stan)\n\n+ Crest prope flderstrocures\n| Move fest coract locations\n+ Veit feintgry Gfenaties)\n+ Crestea snapshot automaticaly\n\n18 Operation Mode\n\ncurant mose:ChackStep  setinge\n\n“ DRY-FUN MODE: Preview ony, no les moved (SAFE)\n“= LVEMODE:Actaly moves fies (seater testing)\n",
+      "issues_count": 0
+    },
+    {
+      "name": "tab_4_Step_5__Snapshots",
+      "path": "v:\\JellyRancher\\gui_audit\\tab_4_Step_5__Snapshots.png",
+      "ocr_text": "STEP 5: Snapshot Management\n\n1B What Are Snapshots?\n“Snapthts are bacup copes ofyour masa foger stare:\n“Created automaticaly before major operations\n\n“Alou yout undo organization changes\n\n“Stored secur with imestames\nUpto 10 snapshots kept automaticaly\n\nYour Snapshots\n",
+      "issues_count": 0
+    },
+    {
+      "name": "full_window",
+      "path": "v:\\JellyRancher\\gui_audit\\full_window.png",
+      "ocr_text": "File Tools View ~—-Help\nBi Organization @ subtitles 4 Batch Processing ©. Code Analysis Bi Analytics 2 Settings\nContrat\nHover overany control see ts exianaton here\nMedia Pathe\nMesaRoot | C/seiyfn/4MEDA\nMoviesFoler | Movies\nTWShowsFolier | TVShows\nAPI Credentials\n\nTwOE APIKey.\n\nMl Get a free API key from TMDB to generate episode caches\n\nCredandale tau wilbe shown hare\n\na\nsate. @Enabledry-run by defaut\n\nVerte: Verity file integrity\n\n",
+      "issues_count": 0
+    }
+  ],
+  "issues": [
+    {
+      "type": "missing_label",
+      "view": "tab_1___Subtitles",
+      "text": "Expected 'download' not found",
+      "severity": "warning"
+    },
+    {
+      "type": "missing_label",
+      "view": "tab_3___Code_Analysis",
+      "text": "Expected 'run' not found",
+      "severity": "warning"
+    },
+    {
+      "type": "missing_label",
+      "view": "tab_5____Settings",
+      "text": "Expected 'settings' not found",
+      "severity": "warning"
+    },
+    {
+      "type": "missing_label",
+      "view": "tab_5____Settings",
+      "text": "Expected 'save' not found",
+      "severity": "warning"
+    },
+    {
+      "type": "minimal_text",
+      "view": "tab_0_Organization",
+      "text": "Only 0 chars extracted",
+      "severity": "warning"
+    },
+    {
+      "type": "minimal_text",
+      "view": "tab_1_Subtitles",
+      "text": "Only 0 chars extracted",
+      "severity": "warning"
+    },
+    {
+      "type": "missing_label",
+      "view": "tab_1_Subtitles",
+      "text": "Expected 'subtitle' not found",
+      "severity": "warning"
+    },
+    {
+      "type": "missing_label",
+      "view": "tab_1_Subtitles",
+      "text": "Expected 'download' not found",
+      "severity": "warning"
+    },
+    {
+      "type": "minimal_text",
+      "view": "tab_2_Timeline",
+      "text": "Only 0 chars extracted",
+      "severity": "warning"
+    },
+    {
+      "type": "missing_label",
+      "view": "tab_1_Step_2__Scan",
+      "text": "Expected 'add' not found",
+      "severity": "warning"
+    }
+  ]
+}

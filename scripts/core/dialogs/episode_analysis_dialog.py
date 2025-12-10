@@ -415,13 +415,13 @@ class EpisodeAnalysisDialog(QDialog):
             # Season
             season = episode.get('season', 'N/A')
             season_item = QTableWidgetItem(str(season))
-            season_item.setTextAlignment(Qt.AlignCenter)
+            season_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.results_table.setItem(row, 1, season_item)
             
             # Episode
             ep_num = episode.get('episode', 'N/A')
             ep_item = QTableWidgetItem(str(ep_num))
-            ep_item.setTextAlignment(Qt.AlignCenter)
+            ep_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.results_table.setItem(row, 2, ep_item)
             
             # Current title
@@ -443,7 +443,7 @@ class EpisodeAnalysisDialog(QDialog):
             # Confidence
             confidence = episode.get('confidence', 'N/A')
             conf_item = QTableWidgetItem(confidence)
-            conf_item.setTextAlignment(Qt.AlignCenter)
+            conf_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             
             # Color code by confidence
             if confidence == 'high':
@@ -458,7 +458,7 @@ class EpisodeAnalysisDialog(QDialog):
             # Issue type
             issue_type = episode.get('issue_type', 'none')
             issue_item = QTableWidgetItem(issue_type or 'none')
-            issue_item.setTextAlignment(Qt.AlignCenter)
+            issue_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.results_table.setItem(row, 6, issue_item)
         
         self.results_table.resizeColumnsToContents()

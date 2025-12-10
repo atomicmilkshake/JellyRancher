@@ -245,68 +245,80 @@ class TestStep2ScanResultsView:
     def test_scan_results_view_ui_elements(self, qtbot, mock_project_with_roundup, mock_project_manager):
         """Verify ScanResultsView has all required UI elements."""
         from scripts.ui.scan_results_view import ScanResultsView
+        from unittest.mock import patch, MagicMock
 
-        view = ScanResultsView(
-            project=mock_project_with_roundup,
-            project_manager=mock_project_manager,
-            scan_session_id=1
-        )
-        qtbot.addWidget(view)
+        # Mock the async worker to prevent thread issues in tests
+        with patch.object(ScanResultsView, '_load_scan_results_async', MagicMock()):
+            view = ScanResultsView(
+                project=mock_project_with_roundup,
+                project_manager=mock_project_manager,
+                scan_session_id=1
+            )
+            qtbot.addWidget(view)
+            qtbot.wait(50)  # Allow event loop to process
 
-        # Required elements
-        assert hasattr(view, 'btn_send_to_analysis'), "Send to Analysis button missing"
-        assert hasattr(view, 'results_table'), "Results table missing"
+            # Required elements
+            assert hasattr(view, 'btn_send_to_analysis'), "Send to Analysis button missing"
+            assert hasattr(view, 'results_table'), "Results table missing"
 
-        # Filter checkboxes (actual attribute names)
-        filter_checkboxes = ['filter_video', 'filter_subtitle', 'filter_image', 'filter_other']
-        for chk in filter_checkboxes:
-            assert hasattr(view, chk), f"{chk} checkbox missing"
+            # Filter checkboxes (actual attribute names)
+            filter_checkboxes = ['filter_video', 'filter_subtitle', 'filter_image', 'filter_other']
+            for chk in filter_checkboxes:
+                assert hasattr(view, chk), f"{chk} checkbox missing"
 
     @pytest.mark.requires_gui
     def test_scan_results_view_filter_buttons(self, qtbot, mock_project_with_roundup, mock_project_manager):
         """Test that filter checkboxes work correctly."""
         from scripts.ui.scan_results_view import ScanResultsView
+        from unittest.mock import patch, MagicMock
 
-        view = ScanResultsView(
-            project=mock_project_with_roundup,
-            project_manager=mock_project_manager,
-            scan_session_id=1
-        )
-        qtbot.addWidget(view)
+        # Mock the async worker to prevent thread issues in tests
+        with patch.object(ScanResultsView, '_load_scan_results_async', MagicMock()):
+            view = ScanResultsView(
+                project=mock_project_with_roundup,
+                project_manager=mock_project_manager,
+                scan_session_id=1
+            )
+            qtbot.addWidget(view)
+            qtbot.wait(50)
 
-        # Toggle video filter
-        initial_state = view.filter_video.isChecked()
-        view.filter_video.setChecked(not initial_state)
-        qtbot.wait(50)
-        assert view.filter_video.isChecked() != initial_state
+            # Toggle video filter
+            initial_state = view.filter_video.isChecked()
+            view.filter_video.setChecked(not initial_state)
+            qtbot.wait(50)
+            assert view.filter_video.isChecked() != initial_state
 
     @pytest.mark.requires_gui
     def test_scan_results_view_send_to_analysis_signal(self, qtbot, mock_project_with_roundup, mock_project_manager, tmp_path):
         """ScanResultsView should emit send_to_analysis signal."""
         from scripts.ui.scan_results_view import ScanResultsView
+        from unittest.mock import patch, MagicMock
 
-        view = ScanResultsView(
-            project=mock_project_with_roundup,
-            project_manager=mock_project_manager,
-            scan_session_id=1
-        )
-        qtbot.addWidget(view)
+        # Mock the async worker to prevent thread issues in tests
+        with patch.object(ScanResultsView, '_load_scan_results_async', MagicMock()):
+            view = ScanResultsView(
+                project=mock_project_with_roundup,
+                project_manager=mock_project_manager,
+                scan_session_id=1
+            )
+            qtbot.addWidget(view)
+            qtbot.wait(50)
 
-        # Create test data
-        test_files = create_test_file_records(tmp_path, count=3)
-        view.filtered_files = test_files
+            # Create test data
+            test_files = create_test_file_records(tmp_path, count=3)
+            view.filtered_files = test_files
 
-        # Track signal
-        signal_received = []
-        view.send_to_analysis.connect(lambda files, config: signal_received.append((files, config)))
+            # Track signal
+            signal_received = []
+            view.send_to_analysis.connect(lambda files, config: signal_received.append((files, config)))
 
-        # Enable and click button
-        view.btn_send_to_analysis.setEnabled(True)
-        qtbot.mouseClick(view.btn_send_to_analysis, Qt.MouseButton.LeftButton)
-        qtbot.wait(100)
+            # Enable and click button
+            view.btn_send_to_analysis.setEnabled(True)
+            qtbot.mouseClick(view.btn_send_to_analysis, Qt.MouseButton.LeftButton)
+            qtbot.wait(100)
 
-        # Signal should be emitted
-        assert len(signal_received) > 0, "send_to_analysis signal should be emitted"
+            # Signal should be emitted
+            assert len(signal_received) > 0, "send_to_analysis signal should be emitted"
 
 
 # =============================================================================
@@ -1825,6 +1837,11 @@ class TestGUIReadability:
         try:
             import pytesseract
             from PIL import Image
+            # Configure Tesseract path for Windows
+            tesseract_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+            import os
+            if os.path.exists(tesseract_path):
+                pytesseract.pytesseract.tesseract_cmd = tesseract_path
         except ImportError:
             pytest.skip("pytesseract or PIL not installed - skipping OCR test")
 

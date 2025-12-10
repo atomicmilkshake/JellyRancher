@@ -56,7 +56,7 @@ class WelcomeWizard(QWizard):
             "<p>This wizard will guide you through the basics.</p>"
         )
         welcome_label.setWordWrap(True)
-        welcome_label.setTextFormat(Qt.RichText)
+        welcome_label.setTextFormat(Qt.TextFormat.RichText)
         layout.addWidget(welcome_label)
         
         layout.addStretch()
@@ -88,7 +88,7 @@ class WelcomeWizard(QWizard):
             "<p><b>💡 Pro Tip:</b> Each step builds on the previous one. You must complete steps in order!</p>"
         )
         overview.setWordWrap(True)
-        overview.setTextFormat(Qt.RichText)
+        overview.setTextFormat(Qt.TextFormat.RichText)
         layout.addWidget(overview)
         
         layout.addStretch()
@@ -107,7 +107,7 @@ class WelcomeWizard(QWizard):
             "<p>What would you like to do first?</p>"
         )
         label.setWordWrap(True)
-        label.setTextFormat(Qt.RichText)
+        label.setTextFormat(Qt.TextFormat.RichText)
         layout.addWidget(label)
         
         # Quick action selection
@@ -148,7 +148,7 @@ class WelcomeWizard(QWizard):
         # Get selected action
         final_text = QLabel()
         final_text.setWordWrap(True)
-        final_text.setTextFormat(Qt.RichText)
+        final_text.setTextFormat(Qt.TextFormat.RichText)
         layout.addWidget(final_text)
         
         # Update text based on selection when page is shown
@@ -237,7 +237,7 @@ class QuickStartDialog(QDialog):
         layout = QVBoxLayout()
         
         title = QLabel("<h2>🍫 JellyRancher Quick Start</h2>")
-        title.setTextFormat(Qt.RichText)
+        title.setTextFormat(Qt.TextFormat.RichText)
         layout.addWidget(title)
         
         guide = QTextEdit()

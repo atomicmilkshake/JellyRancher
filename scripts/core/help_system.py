@@ -30,7 +30,7 @@ class HelpDialog(QDialog):
         # Title
         title = QLabel("📚 Help & User Guide")
         title.setFont(QFont("Arial", 16, QFont.Weight.Bold))
-        title.setAlignment(Qt.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
         # Tab widget for different help sections
@@ -2005,6 +2005,7 @@ After:  Inception (2010).mkv
 
 # Quick help button function
 def show_help_dialog(parent=None, tab_name: str = None):
-    """Show help dialog for specific tab or general help."""
+    """Show help dialog for specific tab or general help. Non-blocking per Phase 61-C."""
     dialog = HelpDialog(parent, tab_name)
-    dialog.exec()
+    dialog.finished.connect(dialog.deleteLater)
+    dialog.show()

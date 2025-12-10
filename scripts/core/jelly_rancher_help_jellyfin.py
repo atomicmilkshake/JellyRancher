@@ -26,7 +26,7 @@ class JellyRancherHelpDialog(QDialog):
         # Title
         title = QLabel("JellyRancher Help System")
         title.setFont(QFont("Arial", 16, QFont.Weight.Bold))
-        title.setAlignment(Qt.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
         # Help content tabs
@@ -322,6 +322,7 @@ class JellyRancherHelpDialog(QDialog):
 
 
 def show_help_dialog(parent, topic="general"):
-    """Show the help dialog for a specific topic."""
+    """Show the help dialog for a specific topic. Non-blocking per Phase 61-C."""
     dialog = JellyRancherHelpDialog(parent, topic)
-    dialog.exec()
+    dialog.finished.connect(dialog.deleteLater)
+    dialog.show()
