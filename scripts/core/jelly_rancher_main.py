@@ -129,7 +129,7 @@ from jelly_rancher_help import show_help_dialog
 APP_TITLE = "JellyRancher - Unified Media Organization Platform"
 APP_VERSION = "2.0.0"
 WINDOW_WIDTH = 1200  # Reduced from 1400 for more comfortable screen fit
-WINDOW_HEIGHT = 560  # Reduced by 20% from 700px for compact display
+WINDOW_HEIGHT = 480  # Further reduced for more compact initial display
 MANAGED_FOLDERS_FILE = Path(__file__).parent / "managed_folders.json"
 
 
@@ -469,7 +469,7 @@ class JellyRancherMainWindow(QMainWindow):
         """Initialize the main UI."""
         self.setWindowTitle(APP_TITLE)
         self.setGeometry(100, 100, WINDOW_WIDTH, WINDOW_HEIGHT)
-        self.setMinimumSize(1100, 500)  # Exact fit for compact layout
+        self.setMinimumSize(1100, 450)  # Reduced minimum height for more compact layout
 
         # Create central widget and main layout
         central_widget = QWidget()
