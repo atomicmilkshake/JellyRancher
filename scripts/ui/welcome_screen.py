@@ -43,7 +43,7 @@ class NewRoundUpDialog(QDialog):
 
         # Round-Up name
         name_label = QLabel("Round-Up Name:")
-        name_label.setFont(QFont("Segoe UI", 10))
+        name_label.setFont(QFont("Segoe UI", 12))
         layout.addWidget(name_label)
 
         self.name_input = QLineEdit()
@@ -222,7 +222,7 @@ class WelcomeScreen(QWidget):
 
         # Footer
         footer = QLabel("Press F1 for help • Round-Ups stored in ~/JellyRancher/roundups/")
-        footer.setFont(QFont("Segoe UI", 9))
+        footer.setFont(QFont("Segoe UI", 11))
         footer.setAlignment(Qt.AlignmentFlag.AlignCenter)
         footer.setStyleSheet("padding-top: 20px;")
         layout.addWidget(footer)
@@ -284,7 +284,7 @@ class WelcomeScreen(QWidget):
             "No recent Round-Ups.\n\n"
             "Click 'New Round-Up' to get started!"
         )
-        self.empty_label.setFont(QFont("Segoe UI", 10))
+        self.empty_label.setFont(QFont("Segoe UI", 12))
         self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.empty_label.setStyleSheet("padding: 40px;")
         self.empty_label.setVisible(False)

@@ -238,7 +238,7 @@ class JellyfinCleanupView(QWidget):
         conn_layout = QVBoxLayout()
 
         self.conn_status_label = QLabel("● Status: Not connected")
-        self.conn_status_label.setFont(QFont("Segoe UI", 10))
+        self.conn_status_label.setFont(QFont("Segoe UI", 12))
         conn_layout.addWidget(self.conn_status_label)
 
         btn_layout = QHBoxLayout()

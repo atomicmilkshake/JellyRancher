@@ -38,7 +38,7 @@ TESSERACT_PATH = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 from PyQt6.QtWidgets import QApplication, QMainWindow, QTabWidget, QWidget
 from PyQt6.QtCore import Qt, QRect, QPoint
-from PyQt6.QtGui import QColor
+from PyQt6.QtGui import QColor, QFont
 
 # Try to import optional dependencies
 try:
@@ -460,6 +460,10 @@ def validate_gui(strict: bool = False, specific_view: Optional[str] = None):
     # Create Qt application
     app = QApplication(sys.argv)
 
+    # Set global application font to 12pt for readability
+    global_font = QFont("Segoe UI", 12)
+    app.setFont(global_font)
+
     # Create validator
     validator = GUIVisualValidator(strict=strict)
     validator.app = app
@@ -518,7 +522,7 @@ def validate_gui(strict: bool = False, specific_view: Optional[str] = None):
                 if issue['severity'] in ['CRITICAL', 'ERROR']:
                     print(f"\n[{issue['severity']}] {issue['type']} in {issue['view']}")
                     print(f"  {issue['description']}")
-                    print(f"  → {issue['fix_suggestion']}")
+                    print(f"  Fix: {issue['fix_suggestion']}")
 
         print("\n" + "=" * 70)
         print("VALIDATION COMPLETE")

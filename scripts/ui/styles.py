@@ -13,7 +13,7 @@ STUDIO_STYLESHEET = """
 
 QWidget {
     font-family: "Segoe UI", "Arial", sans-serif;
-    font-size: 10pt;
+    font-size: 12pt;
     color: #2c3e50;
 }
 

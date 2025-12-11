@@ -489,16 +489,16 @@ class JellyRancherStudio(QMainWindow):
         header_layout.setSpacing(2)
 
         title = QLabel("Round-Up Explorer")
-        title.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        title.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         header_layout.addWidget(title)
 
         self.roundup_name_label = QLabel("(No Round-Up open)")
-        self.roundup_name_label.setFont(QFont("Segoe UI", 9))
+        self.roundup_name_label.setFont(QFont("Segoe UI", 11))
         self.roundup_name_label.setStyleSheet("font-style: italic;")
         header_layout.addWidget(self.roundup_name_label)
 
         self.step_label = QLabel("")
-        self.step_label.setFont(QFont("Segoe UI", 9))
+        self.step_label.setFont(QFont("Segoe UI", 11))
         header_layout.addWidget(self.step_label)
 
         header_widget.setLayout(header_layout)
@@ -1733,6 +1733,11 @@ def main():
         app = QApplication(sys.argv)
         app.setApplicationName("JellyRancher Studio")
         app.setOrganizationName("JellyRancher")
+
+        # Set global application font to 12pt for readability
+        global_font = QFont("Segoe UI", 12)
+        app.setFont(global_font)
+
         logger.debug("QApplication created successfully")
 
         # Apply dark mode stylesheet

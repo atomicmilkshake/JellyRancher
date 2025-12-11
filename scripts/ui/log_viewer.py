@@ -123,7 +123,7 @@ class LogViewerWindow(QWidget):
         self.log_text.setPlaceholderText("Log file will appear here...")
         
         # Monospace font
-        font = QFont("Consolas", 9)
+        font = QFont("Consolas", 10)
         font.setStyleHint(QFont.StyleHint.Monospace)
         self.log_text.setFont(font)
         
