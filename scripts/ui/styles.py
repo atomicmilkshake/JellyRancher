@@ -153,14 +153,17 @@ QGroupBox {
     border: 1px solid #bdc3c7;
     border-radius: 4px;
     margin-top: 12px;
-    padding-top: 12px;
+    padding-top: 18px;
+    padding-bottom: 8px;
+    padding-left: 8px;
+    padding-right: 8px;
     background-color: white;
 }
 
 QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
-    padding: 4px 8px;
+    padding: 6px 12px;
     background-color: white;
     color: #2c3e50;
     font-weight: bold;
@@ -252,7 +255,8 @@ QLineEdit {
     background-color: white;
     border: 1px solid #bdc3c7;
     border-radius: 4px;
-    padding: 6px;
+    padding: 8px 10px;
+    min-height: 28px;
     selection-background-color: #1f6fb2;
     selection-color: white;
 }
@@ -359,7 +363,8 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 
 QCheckBox {
     color: #2c3e50;
-    spacing: 8px;
+    spacing: 12px;
+    padding: 4px 0px;
 }
 
 QCheckBox::indicator {
