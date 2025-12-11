@@ -184,25 +184,25 @@ class WelcomeScreen(QWidget):
     def _init_ui(self):
         """Initialize the UI."""
         layout = QVBoxLayout()
-        layout.setContentsMargins(40, 40, 40, 40)
-        layout.setSpacing(20)
+        layout.setContentsMargins(30, 20, 30, 20)  # Reduced margins for compact display
+        layout.setSpacing(10)  # Reduced spacing
 
         # Title
         title = QLabel("JellyRancher Studio")
-        title.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
+        title.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))  # Reduced from 28
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
         # Subtitle
         subtitle = QLabel("Media Library Organization Made Easy")
-        subtitle.setFont(QFont("Segoe UI", 12))
+        subtitle.setFont(QFont("Segoe UI", 11))  # Reduced from 12
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        subtitle.setStyleSheet("padding-bottom: 20px;")
+        subtitle.setStyleSheet("padding-bottom: 10px;")  # Reduced from 20px
         layout.addWidget(subtitle)
 
         # Main content area
         content_layout = QHBoxLayout()
-        content_layout.setSpacing(40)
+        content_layout.setSpacing(20)  # Reduced from 40
 
         # Left side: Action buttons
         actions_widget = self._create_actions_panel()
@@ -222,9 +222,9 @@ class WelcomeScreen(QWidget):
 
         # Footer
         footer = QLabel("Press F1 for help • Round-Ups stored in ~/JellyRancher/roundups/")
-        footer.setFont(QFont("Segoe UI", 11))
+        footer.setFont(QFont("Segoe UI", 10))  # Reduced from 11
         footer.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        footer.setStyleSheet("padding-top: 20px;")
+        footer.setStyleSheet("padding-top: 10px;")  # Reduced from 20px
         layout.addWidget(footer)
 
         self.setLayout(layout)

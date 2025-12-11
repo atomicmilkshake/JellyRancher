@@ -259,7 +259,7 @@ class JellyRancherStudio(QMainWindow):
 
         # Setup UI
         self.setWindowTitle("JellyRancher Studio")
-        self.resize(1400, 720)
+        self.resize(1400, 520)  # Aggressively reduced height from 720px
 
         self._create_menu_bar()
         self._create_main_layout()
