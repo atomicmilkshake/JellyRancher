@@ -1933,3 +1933,83 @@ User flagged: "SOME DIALOGS ARE MISSING" - Found 6 additional QDialog classes no
 **Overlaps Fixed:** Step 4 spacing adjustments applied
 **Git Commits:** 3 (dca6e98, ceb90d1, b684562)
 **Phase 64 Status:** ✅ CORE COMPLETE - Main implementation done, all tests passing
+
+## PHASE 65: Comprehensive GUI Screenshot Review & UI Fix Implementation
+**Date:** 2025-12-11 16:40:38 | **Status:** IN PROGRESS
+**Tests:** 831 passed, 10 skipped ✅
+
+### OBJECTIVE
+User directive: "Figure out how to take a screenshot of every possible window, tab, panel, dialog, modal, box, or any other four-sided GUI object that resembles a window or tab or panel or dialog, and I want you to personally examine each screenshot and list fixes needed."
+
+### ACCOMPLISHMENTS
+
+#### PART A: Screenshot Capture Infrastructure Improvements
+**Files Modified:**
+- `tools/gui_visual_validator.py` - Fixed contrast calculation bug (gamma correction loop), removed duplicate window-size issue spam, enhanced tab coverage
+- `tools/gui_capture_everything.py` - Created comprehensive capture tool with timestamped folders + manifest.json
+- `tools/capture_gui_runtime.py` - Fixed Unicode encoding crash (Windows cp1252), added --auto mode, fixed QModelIndex JSON serialization
+
+**Capture Results:**
+- Generated `gui_captures/capture_20251211_162027/` with 31 screenshots
+- Manifest includes: main window, 6 main tabs, 5 workflow steps, 3 analytics sub-tabs, 10 dialogs
+- All screenshots visually inspected and documented
+
+#### PART B: GUI Runtime State Capture
+**File Generated:** `gui_runtime_state.json` (2281 lines, ~117KB)
+**Timestamp:** 2025-12-11T16:32:37.362730
+**Status:** ✅ Ready for UI code edits per claude.md Section IV requirements
+
+#### PART C: Visual Inspection & Fix List Generation
+**Screenshots Reviewed:** 31 total
+**Issues Identified:**
+
+**HIGH PRIORITY:**
+1. Analytics tab empty state - No messaging when no data (feels broken)
+2. Analytics sub-tabs blank - Organization/Subtitles/Timeline show empty panels
+3. Timeline view blank - No empty state messaging
+4. App Settings dialog truncation - Text clipping visible in combo boxes
+
+**MEDIUM PRIORITY:**
+5. Control Help panel underutilized - Large blank areas, weak empty-state text
+6. Disabled actions ambiguous - "Build Database"/"Generate Cache" buttons need helper text
+
+**LOW PRIORITY:**
+7. Quick Start dialog wording - "Workflow tab" vs "Organization tab" inconsistency
+
+### IMPLEMENTATION PLAN
+Starting with highest priority fixes:
+1. Add empty state messaging to Analytics tab and sub-tabs
+2. Fix App Settings dialog truncation (minimum widths, layout constraints)
+3. Enhance Control Help panel empty states
+4. Add helper text for disabled buttons
+
+### FILES TO MODIFY
+- `scripts/core/jelly_rancher_main.py` - Analytics tab empty states (lines 1785-1900)
+- `scripts/core/dialogs/app_settings_dialog.py` - Truncation fixes
+- `scripts/core/jelly_rancher_main.py` - Control Help panel improvements
+
+### NEXT STEPS
+Implement fixes in priority order, test after each change, commit per fix group
+
+### IMPLEMENTATION COMPLETE
+**Date:** 2025-12-11 16:40:38 → 2025-12-11 17:15:00
+**Status:** ✅ ALL FIXES IMPLEMENTED
+
+**Fixes Implemented:**
+
+1. ✅ Analytics tab empty states - Added helpful messaging to Organization/Subtitles/Timeline sub-tabs with clear instructions on how to generate data
+2. ✅ refresh_analytics() method - Updated to preserve empty states when no data available, shows helpful messages instead of blank panels
+3. ✅ App Settings dialog truncation - Added minimum widths (400px for strategy combos, 150px for log combos) to prevent text clipping
+4. ✅ Control Help panels - Enhanced all tabs (Organization, Subtitles, Batch, Code, Analytics, Settings) with comprehensive empty-state text explaining available controls
+5. ✅ Disabled button tooltips - Added detailed tooltips to "Build Database" and "Generate Cache" buttons explaining why they're disabled and how to enable them
+6. ✅ Quick Start dialog wording - Fixed inconsistency: changed "Workflow tab" to "Organization tab" for consistency
+
+**Files Modified:**
+- `scripts/core/jelly_rancher_main.py` - Analytics empty states, Control Help panels, refresh_analytics() logic
+- `scripts/core/dialogs/app_settings_dialog.py` - Combo box minimum widths
+- `scripts/core/dialogs/canonical_db_dialog.py` - Enhanced disabled button tooltip
+- `scripts/core/dialogs/wikipedia_cache_dialog.py` - Enhanced disabled button tooltip
+- `scripts/core/getting_started_wizard.py` - Fixed tab name consistency
+
+**Test Results:** 831 passed, 10 skipped ✅ (98.8% pass rate)
+**Linter:** No errors ✅

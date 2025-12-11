@@ -138,6 +138,7 @@ class AppSettingsDialog(QDialog):
             "canonical - Use canonical database paths only",
             "hybrid - Combine LLM and canonical approaches"
         ])
+        self.reorg_strategy_combo.setMinimumWidth(400)  # Prevent text truncation
         strategy_layout.addRow("Reorganization Strategy:", self.reorg_strategy_combo)
 
         # Duplicate strategy
@@ -147,6 +148,7 @@ class AppSettingsDialog(QDialog):
             "largest_file - Keep largest file in each duplicate group",
             "manual - Manual review of all duplicates"
         ])
+        self.duplicate_strategy_combo.setMinimumWidth(400)  # Prevent text truncation
         strategy_layout.addRow("Duplicate Handling:", self.duplicate_strategy_combo)
 
         strategy_group.setLayout(strategy_layout)
@@ -218,6 +220,7 @@ class AppSettingsDialog(QDialog):
         self.log_level_combo = QComboBox()
         self.log_level_combo.addItems(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
         self.log_level_combo.setToolTip("Minimum log level to display in log viewer")
+        self.log_level_combo.setMinimumWidth(150)  # Prevent text truncation
         logging_layout.addRow("Log Level:", self.log_level_combo)
 
         # Auto-open log viewer
@@ -229,6 +232,7 @@ class AppSettingsDialog(QDialog):
         self.dock_position_combo = QComboBox()
         self.dock_position_combo.addItems(["Bottom", "Left", "Right", "Top"])
         self.dock_position_combo.setToolTip("Preferred position for log viewer dock widget")
+        self.dock_position_combo.setMinimumWidth(150)  # Prevent text truncation
         logging_layout.addRow("Log Viewer Position:", self.dock_position_combo)
 
         logging_group.setLayout(logging_layout)

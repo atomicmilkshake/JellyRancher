@@ -1,0 +1,320 @@
+{
+  "metadata": {
+    "generated_at": "2025-12-11T16:20:40.445552",
+    "tool": "tools/gui_capture_everything.py",
+    "output_dir": "gui_captures\\capture_20251211_162027",
+    "count": 31
+  },
+  "captures": [
+    {
+      "name": "main_window",
+      "path": "gui_captures\\capture_20251211_162027\\main_window.png",
+      "kind": "window",
+      "widget_class": "JellyRancherMainWindow",
+      "object_name": "",
+      "tab_widget_object_name": null,
+      "tab_index": null,
+      "tab_text": null
+    },
+    {
+      "name": "tabs__QTabWidget_2898442982640__tab_0__Organization",
+      "path": "gui_captures\\capture_20251211_162027\\tabs__QTabWidget_2898442982640__tab_0__Organization.png",
+      "kind": "tab_widget",
+      "widget_class": "QTabWidget",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 0,
+      "tab_text": "\ud83d\udcc1 Organization"
+    },
+    {
+      "name": "main_window__tab_0__Organization",
+      "path": "gui_captures\\capture_20251211_162027\\main_window__tab_0__Organization.png",
+      "kind": "window",
+      "widget_class": "JellyRancherMainWindow",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 0,
+      "tab_text": "\ud83d\udcc1 Organization"
+    },
+    {
+      "name": "tabs__QTabWidget_2898442982640__tab_1__Subtitles",
+      "path": "gui_captures\\capture_20251211_162027\\tabs__QTabWidget_2898442982640__tab_1__Subtitles.png",
+      "kind": "tab_widget",
+      "widget_class": "QTabWidget",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 1,
+      "tab_text": "\ud83d\udcfa Subtitles"
+    },
+    {
+      "name": "main_window__tab_1__Subtitles",
+      "path": "gui_captures\\capture_20251211_162027\\main_window__tab_1__Subtitles.png",
+      "kind": "window",
+      "widget_class": "JellyRancherMainWindow",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 1,
+      "tab_text": "\ud83d\udcfa Subtitles"
+    },
+    {
+      "name": "tabs__QTabWidget_2898442982640__tab_2__Batch_Processing",
+      "path": "gui_captures\\capture_20251211_162027\\tabs__QTabWidget_2898442982640__tab_2__Batch_Processing.png",
+      "kind": "tab_widget",
+      "widget_class": "QTabWidget",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 2,
+      "tab_text": "\u2699\ufe0f Batch Processing"
+    },
+    {
+      "name": "main_window__tab_2__Batch_Processing",
+      "path": "gui_captures\\capture_20251211_162027\\main_window__tab_2__Batch_Processing.png",
+      "kind": "window",
+      "widget_class": "JellyRancherMainWindow",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 2,
+      "tab_text": "\u2699\ufe0f Batch Processing"
+    },
+    {
+      "name": "tabs__QTabWidget_2898442982640__tab_3__Code_Analysis",
+      "path": "gui_captures\\capture_20251211_162027\\tabs__QTabWidget_2898442982640__tab_3__Code_Analysis.png",
+      "kind": "tab_widget",
+      "widget_class": "QTabWidget",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 3,
+      "tab_text": "\ud83d\udd0d Code Analysis"
+    },
+    {
+      "name": "main_window__tab_3__Code_Analysis",
+      "path": "gui_captures\\capture_20251211_162027\\main_window__tab_3__Code_Analysis.png",
+      "kind": "window",
+      "widget_class": "JellyRancherMainWindow",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 3,
+      "tab_text": "\ud83d\udd0d Code Analysis"
+    },
+    {
+      "name": "tabs__QTabWidget_2898442982640__tab_4__Analytics",
+      "path": "gui_captures\\capture_20251211_162027\\tabs__QTabWidget_2898442982640__tab_4__Analytics.png",
+      "kind": "tab_widget",
+      "widget_class": "QTabWidget",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 4,
+      "tab_text": "\ud83d\udcca Analytics"
+    },
+    {
+      "name": "main_window__tab_4__Analytics",
+      "path": "gui_captures\\capture_20251211_162027\\main_window__tab_4__Analytics.png",
+      "kind": "window",
+      "widget_class": "JellyRancherMainWindow",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 4,
+      "tab_text": "\ud83d\udcca Analytics"
+    },
+    {
+      "name": "tabs__QTabWidget_2898442982640__tab_5__Settings",
+      "path": "gui_captures\\capture_20251211_162027\\tabs__QTabWidget_2898442982640__tab_5__Settings.png",
+      "kind": "tab_widget",
+      "widget_class": "QTabWidget",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 5,
+      "tab_text": "\u2699\ufe0f Settings"
+    },
+    {
+      "name": "main_window__tab_5__Settings",
+      "path": "gui_captures\\capture_20251211_162027\\main_window__tab_5__Settings.png",
+      "kind": "window",
+      "widget_class": "JellyRancherMainWindow",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 5,
+      "tab_text": "\u2699\ufe0f Settings"
+    },
+    {
+      "name": "tabs__QTabWidget_2898941661328__tab_0__Organization",
+      "path": "gui_captures\\capture_20251211_162027\\tabs__QTabWidget_2898941661328__tab_0__Organization.png",
+      "kind": "tab_widget",
+      "widget_class": "QTabWidget",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 0,
+      "tab_text": "Organization"
+    },
+    {
+      "name": "tabs__QTabWidget_2898941661328__tab_1__Subtitles",
+      "path": "gui_captures\\capture_20251211_162027\\tabs__QTabWidget_2898941661328__tab_1__Subtitles.png",
+      "kind": "tab_widget",
+      "widget_class": "QTabWidget",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 1,
+      "tab_text": "Subtitles"
+    },
+    {
+      "name": "tabs__QTabWidget_2898941661328__tab_2__Timeline",
+      "path": "gui_captures\\capture_20251211_162027\\tabs__QTabWidget_2898941661328__tab_2__Timeline.png",
+      "kind": "tab_widget",
+      "widget_class": "QTabWidget",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 2,
+      "tab_text": "Timeline"
+    },
+    {
+      "name": "tabs__QTabWidget_2898442985200__tab_0__Step_1__Setup",
+      "path": "gui_captures\\capture_20251211_162027\\tabs__QTabWidget_2898442985200__tab_0__Step_1__Setup.png",
+      "kind": "tab_widget",
+      "widget_class": "QTabWidget",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 0,
+      "tab_text": "Step 1: Setup"
+    },
+    {
+      "name": "tabs__QTabWidget_2898442985200__tab_1__Step_2__Scan",
+      "path": "gui_captures\\capture_20251211_162027\\tabs__QTabWidget_2898442985200__tab_1__Step_2__Scan.png",
+      "kind": "tab_widget",
+      "widget_class": "QTabWidget",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 1,
+      "tab_text": "Step 2: Scan"
+    },
+    {
+      "name": "tabs__QTabWidget_2898442985200__tab_2__Step_3__Analyze",
+      "path": "gui_captures\\capture_20251211_162027\\tabs__QTabWidget_2898442985200__tab_2__Step_3__Analyze.png",
+      "kind": "tab_widget",
+      "widget_class": "QTabWidget",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 2,
+      "tab_text": "Step 3: Analyze"
+    },
+    {
+      "name": "tabs__QTabWidget_2898442985200__tab_3__Step_4__Organize",
+      "path": "gui_captures\\capture_20251211_162027\\tabs__QTabWidget_2898442985200__tab_3__Step_4__Organize.png",
+      "kind": "tab_widget",
+      "widget_class": "QTabWidget",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 3,
+      "tab_text": "Step 4: Organize"
+    },
+    {
+      "name": "tabs__QTabWidget_2898442985200__tab_4__Step_5__Snapshots",
+      "path": "gui_captures\\capture_20251211_162027\\tabs__QTabWidget_2898442985200__tab_4__Step_5__Snapshots.png",
+      "kind": "tab_widget",
+      "widget_class": "QTabWidget",
+      "object_name": "",
+      "tab_widget_object_name": "",
+      "tab_index": 4,
+      "tab_text": "Step 5: Snapshots"
+    },
+    {
+      "name": "dialog__AppSettingsDialog",
+      "path": "gui_captures\\capture_20251211_162027\\dialog__AppSettingsDialog.png",
+      "kind": "dialog",
+      "widget_class": "AppSettingsDialog",
+      "object_name": "",
+      "tab_widget_object_name": null,
+      "tab_index": null,
+      "tab_text": null
+    },
+    {
+      "name": "dialog__JellyfinSettingsDialog",
+      "path": "gui_captures\\capture_20251211_162027\\dialog__JellyfinSettingsDialog.png",
+      "kind": "dialog",
+      "widget_class": "JellyfinSettingsDialog",
+      "object_name": "",
+      "tab_widget_object_name": null,
+      "tab_index": null,
+      "tab_text": null
+    },
+    {
+      "name": "dialog__HelpDialog",
+      "path": "gui_captures\\capture_20251211_162027\\dialog__HelpDialog.png",
+      "kind": "dialog",
+      "widget_class": "HelpDialog",
+      "object_name": "",
+      "tab_widget_object_name": null,
+      "tab_index": null,
+      "tab_text": null
+    },
+    {
+      "name": "dialog__JellyRancherHelpDialog",
+      "path": "gui_captures\\capture_20251211_162027\\dialog__JellyRancherHelpDialog.png",
+      "kind": "dialog",
+      "widget_class": "JellyRancherHelpDialog",
+      "object_name": "",
+      "tab_widget_object_name": null,
+      "tab_index": null,
+      "tab_text": null
+    },
+    {
+      "name": "dialog__WelcomeWizard",
+      "path": "gui_captures\\capture_20251211_162027\\dialog__WelcomeWizard.png",
+      "kind": "dialog",
+      "widget_class": "WelcomeWizard",
+      "object_name": "",
+      "tab_widget_object_name": null,
+      "tab_index": null,
+      "tab_text": null
+    },
+    {
+      "name": "dialog__QuickStartDialog",
+      "path": "gui_captures\\capture_20251211_162027\\dialog__QuickStartDialog.png",
+      "kind": "dialog",
+      "widget_class": "QuickStartDialog",
+      "object_name": "",
+      "tab_widget_object_name": null,
+      "tab_index": null,
+      "tab_text": null
+    },
+    {
+      "name": "dialog__EpisodeAnalysisDialog",
+      "path": "gui_captures\\capture_20251211_162027\\dialog__EpisodeAnalysisDialog.png",
+      "kind": "dialog",
+      "widget_class": "EpisodeAnalysisDialog",
+      "object_name": "",
+      "tab_widget_object_name": null,
+      "tab_index": null,
+      "tab_text": null
+    },
+    {
+      "name": "dialog__MovieAnalysisDialog",
+      "path": "gui_captures\\capture_20251211_162027\\dialog__MovieAnalysisDialog.png",
+      "kind": "dialog",
+      "widget_class": "MovieAnalysisDialog",
+      "object_name": "",
+      "tab_widget_object_name": null,
+      "tab_index": null,
+      "tab_text": null
+    },
+    {
+      "name": "dialog__WikipediaCacheDialog",
+      "path": "gui_captures\\capture_20251211_162027\\dialog__WikipediaCacheDialog.png",
+      "kind": "dialog",
+      "widget_class": "WikipediaCacheDialog",
+      "object_name": "",
+      "tab_widget_object_name": null,
+      "tab_index": null,
+      "tab_text": null
+    },
+    {
+      "name": "dialog__CanonicalDBDialog",
+      "path": "gui_captures\\capture_20251211_162027\\dialog__CanonicalDBDialog.png",
+      "kind": "dialog",
+      "widget_class": "CanonicalDBDialog",
+      "object_name": "",
+      "tab_widget_object_name": null,
+      "tab_index": null,
+      "tab_text": null
+    }
+  ]
+}

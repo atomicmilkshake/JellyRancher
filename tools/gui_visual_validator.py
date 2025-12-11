@@ -95,16 +95,21 @@ class GUIVisualValidator:
         """Calculate WCAG contrast ratio between two colors."""
         def get_luminance(c: QColor) -> float:
             # Convert to relative luminance
-            r, g, b = c.red() / 255.0, c.green() / 255.0, c.blue() / 255.0
+            r = c.red() / 255.0
+            g = c.green() / 255.0
+            b = c.blue() / 255.0
 
-            # Apply gamma correction
-            for val in [r, g, b]:
-                if val <= 0.03928:
-                    val = val / 12.92
-                else:
-                    val = ((val + 0.055) / 1.055) ** 2.4
+            # Apply gamma correction (sRGB -> linear)
+            def linearize(v: float) -> float:
+                if v <= 0.03928:
+                    return v / 12.92
+                return ((v + 0.055) / 1.055) ** 2.4
 
-            return r * 0.2126 + g * 0.7152 + b * 0.0722
+            r_lin = linearize(r)
+            g_lin = linearize(g)
+            b_lin = linearize(b)
+
+            return r_lin * 0.2126 + g_lin * 0.7152 + b_lin * 0.0722
 
         l1 = get_luminance(color1)
         l2 = get_luminance(color2)
@@ -314,10 +319,8 @@ class GUIVisualValidator:
         text_issues = self.detect_small_text(widget, name)
         view_issues.extend(text_issues)
 
-        # Window size (only for main window)
-        if window and isinstance(widget, QMainWindow):
-            size_issues = self.check_window_size(widget)
-            view_issues.extend(size_issues)
+        # NOTE: Window sizing checks are handled once in validate_main_window()
+        # to avoid duplicate reports when also validating the full window view.
 
         self.issues.extend(view_issues)
 
@@ -347,6 +350,16 @@ class GUIVisualValidator:
         # Find and validate tab widgets
         tab_widgets = window.findChildren(QTabWidget)
 
+        # Heuristic: treat the largest tab widget as the "main" tab container.
+        # Other tab widgets are likely nested (e.g., analytics sub-tabs).
+        def area(w: QWidget) -> int:
+            try:
+                return max(0, w.width()) * max(0, w.height())
+            except Exception:
+                return 0
+
+        main_tab_widget = max(tab_widgets, key=area) if tab_widgets else None
+
         for tab_widget in tab_widgets:
             tab_name = tab_widget.objectName() or "main_tabs"
             print(f"\nTab Widget: {tab_name} ({tab_widget.count()} tabs)")
@@ -360,14 +373,11 @@ class GUIVisualValidator:
                 QApplication.processEvents()
                 time.sleep(0.2)
 
-                # Validate tab content
-                tab_content = tab_widget.widget(i)
-                if tab_content:
-                    self.validate_view(
-                        tab_content,
-                        f"tab_{i}_{clean_name}",
-                        window=window
-                    )
+                # Validate the tab widget itself so nested tabs still render correctly.
+                # For the main tab widget, also capture the full window state for that tab.
+                self.validate_view(tab_widget, f"tabs_{tab_name}_tab_{i}_{clean_name}")
+                if tab_widget is main_tab_widget:
+                    self.validate_view(window, f"main_window__tab_{i}_{clean_name}", window=window)
 
         # Validate main window itself
         print("\n" + "=" * 70)

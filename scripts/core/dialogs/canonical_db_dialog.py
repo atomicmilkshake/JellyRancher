@@ -254,7 +254,11 @@ class CanonicalDBDialog(QDialog):
         layout.addStretch()
 
         self.build_button = QPushButton("🏗️ Build Database")
-        self.build_button.setToolTip("Build canonical metadata database")
+        self.build_button.setToolTip(
+            "Build canonical metadata database from selected analysis file.\n\n"
+            "This button is disabled until you select a valid analysis file\n"
+            "containing a 'detected_media' array from LLM analysis."
+        )
         self.build_button.clicked.connect(self.build_database)
         self.build_button.setEnabled(False)
         self.build_button.setFixedHeight(32)  # Reduced by 20% from 40

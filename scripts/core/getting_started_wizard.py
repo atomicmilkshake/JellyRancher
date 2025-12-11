@@ -198,7 +198,7 @@ class WelcomeWizard(QWizard):
                         "<ul>"
                         "<li>Hover over any control for helpful tooltips</li>"
                         "<li>Click the <b>❓ Help</b> buttons for detailed documentation</li>"
-                        "<li>The <b>Workflow tab</b> is the most powerful but also most complex</li>"
+                        "<li>The <b>Organization tab</b> is the most powerful but also most complex</li>"
                         "<li>The <b>Organization tab</b> is great for quick, simple tasks</li>"
                         "<li>Settings are in the last tab</li>"
                         "</ul>"
@@ -247,7 +247,7 @@ class QuickStartDialog(QDialog):
             
             <p><b>🎬 Organize Movies:</b></p>
             <ol>
-                <li>Go to <b>Workflow tab</b></li>
+                <li>Go to <b>Organization tab</b></li>
                 <li>Add folder → Start Scan → Follow steps 1-8</li>
             </ol>
             

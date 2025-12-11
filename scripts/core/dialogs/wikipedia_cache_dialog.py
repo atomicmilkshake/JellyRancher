@@ -249,7 +249,13 @@ class WikipediaCacheDialog(QDialog):
         layout.addStretch()
 
         self.generate_button = QPushButton("📥 Generate Cache")
-        self.generate_button.setToolTip("Generate episode cache from Wikipedia data")
+        self.generate_button.setToolTip(
+            "Generate episode cache from Wikipedia data.\n\n"
+            "This button is disabled until you:\n"
+            "1. Search Wikipedia for a TV show\n"
+            "2. Select a result from the search results list\n\n"
+            "Once enabled, clicking will save episode data to the cache."
+        )
         self.generate_button.clicked.connect(self.generate_cache)
         self.generate_button.setEnabled(False)
         self.generate_button.setFixedHeight(32)

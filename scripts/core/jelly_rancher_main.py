@@ -1639,7 +1639,16 @@ Tailor JellyRancher to your specific workflow and environment."""),
 
         self.batch_help_text = QTextEdit()
         self.batch_help_text.setReadOnly(True)
-        self.batch_help_text.setPlainText("Hover over any control to see its explanation here.")
+        self.batch_help_text.setPlainText(
+            "Control Help\n"
+            "============\n\n"
+            "Hover over any control in the Batch Processing tab to see detailed explanations here.\n\n"
+            "Batch Processing allows you to:\n"
+            "• Process multiple folders at once\n"
+            "• Apply organization rules in bulk\n"
+            "• Generate reports for multiple operations\n\n"
+            "Tip: Use batch processing to organize large media collections efficiently."
+        )
         self.batch_help_text.setMaximumWidth(420)
         self.batch_help_text.setMinimumWidth(380)
         self.batch_help_text.setWordWrapMode(QTextOption.WrapMode.WordWrap)
@@ -1757,7 +1766,17 @@ Tailor JellyRancher to your specific workflow and environment."""),
 
         self.code_help_text = QTextEdit()
         self.code_help_text.setReadOnly(True)
-        self.code_help_text.setPlainText("Hover over any control to see its explanation here.")
+        self.code_help_text.setPlainText(
+            "Control Help\n"
+            "============\n\n"
+            "Hover over any control in the Code Analysis tab to see detailed explanations here.\n\n"
+            "Code Analysis provides:\n"
+            "• Static code analysis and linting\n"
+            "• Documentation quality checks\n"
+            "• Code structure analysis\n"
+            "• Test coverage reports\n\n"
+            "Tip: Use code analysis to maintain code quality and catch issues early."
+        )
         self.code_help_text.setMaximumWidth(420)
         self.code_help_text.setMinimumWidth(380)
         self.code_help_text.setWordWrapMode(QTextOption.WrapMode.WordWrap)
@@ -1827,6 +1846,16 @@ Tailor JellyRancher to your specific workflow and environment."""),
         org_layout = QVBoxLayout()
         self.org_report_text = QTextEdit()
         self.org_report_text.setReadOnly(True)
+        # Set initial empty state message
+        self.org_report_text.setPlainText(
+            "No organization data available yet.\n\n"
+            "To generate organization analytics:\n"
+            "1. Go to Organization tab\n"
+            "2. Complete Step 1: Setup (select media folder)\n"
+            "3. Complete Step 2: Scan (analyze your media)\n"
+            "4. Complete Step 4: Organize (execute organization)\n\n"
+            "After organizing media, refresh this report to see statistics."
+        )
         org_layout.addWidget(self.org_report_text)
         org_tab.setLayout(org_layout)
         self.analytics_tabs.addTab(org_tab, "Organization")
@@ -1836,6 +1865,16 @@ Tailor JellyRancher to your specific workflow and environment."""),
         sub_layout = QVBoxLayout()
         self.sub_report_text = QTextEdit()
         self.sub_report_text.setReadOnly(True)
+        # Set initial empty state message
+        self.sub_report_text.setPlainText(
+            "No subtitle data available yet.\n\n"
+            "To generate subtitle analytics:\n"
+            "1. Go to Subtitles tab\n"
+            "2. Select a folder with video files\n"
+            "3. Click 'Detect Coverage' to scan for missing subtitles\n"
+            "4. Click 'Download Subtitles' to download missing files\n\n"
+            "After downloading subtitles, refresh this report to see statistics."
+        )
         sub_layout.addWidget(self.sub_report_text)
         sub_tab.setLayout(sub_layout)
         self.analytics_tabs.addTab(sub_tab, "Subtitles")
@@ -1845,6 +1884,20 @@ Tailor JellyRancher to your specific workflow and environment."""),
         timeline_layout = QVBoxLayout()
         self.timeline_text = QTextEdit()
         self.timeline_text.setReadOnly(True)
+        # Set initial empty state message
+        self.timeline_text.setPlainText(
+            "No timeline data available yet.\n\n"
+            "Timeline shows chronological activity from your audit log.\n\n"
+            "To generate timeline data:\n"
+            "1. Perform any operation (scan, organize, download subtitles)\n"
+            "2. Operations are automatically logged to the audit trail\n"
+            "3. Refresh this report to see your activity timeline\n\n"
+            "The timeline will show:\n"
+            "• Operation timestamps\n"
+            "• Files processed\n"
+            "• Success/failure status\n"
+            "• Rollback points"
+        )
         timeline_layout.addWidget(self.timeline_text)
         timeline_tab.setLayout(timeline_layout)
         self.analytics_tabs.addTab(timeline_tab, "Timeline")
@@ -1879,7 +1932,19 @@ Tailor JellyRancher to your specific workflow and environment."""),
 
         self.analytics_help_text = QTextEdit()
         self.analytics_help_text.setReadOnly(True)
-        self.analytics_help_text.setPlainText("Hover over any control to see its explanation here.")
+        self.analytics_help_text.setPlainText(
+            "Control Help\n"
+            "============\n\n"
+            "Hover over any control in the Analytics tab to see detailed explanations here.\n\n"
+            "Available Controls:\n"
+            "• System Statistics - Overview of your media library\n"
+            "• Organization Report - Files moved and organization history\n"
+            "• Subtitles Report - Subtitle download statistics\n"
+            "• Timeline - Chronological activity log\n"
+            "• Refresh Data - Update all analytics from latest data\n"
+            "• Export Report - Save analytics to a file\n\n"
+            "Tip: Use the Refresh button after completing operations to see updated statistics."
+        )
         self.analytics_help_text.setMaximumWidth(420)
         self.analytics_help_text.setMinimumWidth(380)
         self.analytics_help_text.setWordWrapMode(QTextOption.WrapMode.WordWrap)
@@ -2053,7 +2118,19 @@ Tailor JellyRancher to your specific workflow and environment."""),
 
         self.settings_help_text = QTextEdit()
         self.settings_help_text.setReadOnly(True)
-        self.settings_help_text.setPlainText("Hover over any control to see its explanation here.")
+        self.settings_help_text.setPlainText(
+            "Control Help\n"
+            "============\n\n"
+            "Hover over any control in the Settings tab to see detailed explanations here.\n\n"
+            "Settings Configuration:\n"
+            "• Media Paths - Configure destination folders for organized media\n"
+            "• API Credentials - Set up TMDB and other API keys\n"
+            "• Reorganization Strategies - Choose how media is organized\n"
+            "• Auto-Approval - Configure automatic operation approval\n"
+            "• Safety & Verification - MD5 checksums and backup settings\n"
+            "• Logging - Configure log levels and viewer preferences\n\n"
+            "Tip: Configure paths and strategies before starting organization operations."
+        )
         self.settings_help_text.setMaximumWidth(420)
         self.settings_help_text.setMinimumWidth(380)
         self.settings_help_text.setWordWrapMode(QTextOption.WrapMode.WordWrap)
@@ -2911,41 +2988,90 @@ Documentation Coverage:
             sub_summary = (
                 "Subtitle Coverage Summary\n"
                 "==========================\n\n"
-                "Run subtitle detection on folders to populate this report.\n\n"
-                "Coverage by folder:\n"
-                "  (No data yet)\n\n"
-                "To generate coverage data:\n"
-                "1. Go to Subtitles tab\n"
-                "2. Select a media folder\n"
-                "3. Click 'Detect Coverage'\n"
             )
+            # TODO: Query actual subtitle data from audit log
+            has_subtitle_data = False  # Placeholder - would check audit log
+            
+            if has_subtitle_data:
+                # Would populate with actual data
+                sub_summary += "Coverage by folder:\n"
+                sub_summary += "  (Data would appear here)\n"
+            else:
+                sub_summary += (
+                    "No subtitle data available yet.\n\n"
+                    "To generate subtitle analytics:\n"
+                    "1. Go to Subtitles tab\n"
+                    "2. Select a folder with video files\n"
+                    "3. Click 'Detect Coverage' to scan for missing subtitles\n"
+                    "4. Click 'Download Subtitles' to download missing files\n\n"
+                    "After downloading subtitles, refresh this report to see statistics."
+                )
+            
             self.sub_report_text.setPlainText(sub_summary)
             
             # Organization summary
             org_summary = (
                 "Organization Summary\n"
                 "====================\n\n"
-                "Run organization scans to populate this report.\n\n"
-                "Recent operations:\n"
-                "  (No data yet)\n\n"
-                "Snapshots available:\n"
             )
             try:
                 snapshots = SnapshotManager.list_snapshots()
                 if snapshots:
+                    org_summary += f"Found {len(snapshots)} snapshot(s):\n\n"
                     for snap in snapshots[:5]:
                         org_summary += f"  • {snap['id']} ({snap['type']}) - {snap['total_media']} files\n"
+                    if len(snapshots) > 5:
+                        org_summary += f"  ... and {len(snapshots) - 5} more snapshots\n"
+                    org_summary += "\n"
                 else:
-                    org_summary += "  (No snapshots)\n"
+                    org_summary += (
+                        "No organization data available yet.\n\n"
+                        "To generate organization analytics:\n"
+                        "1. Go to Organization tab\n"
+                        "2. Complete Step 1: Setup (select media folder)\n"
+                        "3. Complete Step 2: Scan (analyze your media)\n"
+                        "4. Complete Step 4: Organize (execute organization)\n\n"
+                        "After organizing media, refresh this report to see statistics."
+                    )
             except Exception:
-                org_summary += "  (Snapshot listing unavailable)\n"
+                org_summary += (
+                    "No organization data available yet.\n\n"
+                    "To generate organization analytics:\n"
+                    "1. Go to Organization tab\n"
+                    "2. Complete Step 1: Setup (select media folder)\n"
+                    "3. Complete Step 2: Scan (analyze your media)\n"
+                    "4. Complete Step 4: Organize (execute organization)\n\n"
+                    "After organizing media, refresh this report to see statistics."
+                )
             
             self.org_report_text.setPlainText(org_summary)
             
-            # Activity timeline (ChromaDB removed)
-            timeline = "Recent Activity\n===============\n\n"
-            timeline += "(ChromaDB semantic search has been removed)\n"
-            timeline += "(Memory/journal features disabled)\n"
+            # Activity timeline
+            timeline = (
+                "Activity Timeline\n"
+                "================\n\n"
+            )
+            # TODO: Query actual timeline data from audit log
+            has_timeline_data = False  # Placeholder - would check audit log
+            
+            if has_timeline_data:
+                # Would populate with actual timeline entries
+                timeline += "Recent operations:\n"
+                timeline += "  (Timeline data would appear here)\n"
+            else:
+                timeline += (
+                    "No timeline data available yet.\n\n"
+                    "Timeline shows chronological activity from your audit log.\n\n"
+                    "To generate timeline data:\n"
+                    "1. Perform any operation (scan, organize, download subtitles)\n"
+                    "2. Operations are automatically logged to the audit trail\n"
+                    "3. Refresh this report to see your activity timeline\n\n"
+                    "The timeline will show:\n"
+                    "• Operation timestamps\n"
+                    "• Files processed\n"
+                    "• Success/failure status\n"
+                    "• Rollback points"
+                )
             
             self.timeline_text.setPlainText(timeline)
             
