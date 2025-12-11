@@ -58,7 +58,7 @@ class AppSettingsDialog(QDialog):
 
         self.setWindowTitle("Application Settings")
         self.setMinimumWidth(700)
-        self.setMinimumHeight(600)
+        self.setMinimumHeight(480)  # Reduced by 20% from 600
 
         self._init_ui()
         self._load_config()
@@ -242,7 +242,7 @@ class AppSettingsDialog(QDialog):
 
         help_text = QTextEdit()
         help_text.setReadOnly(True)
-        help_text.setMaximumHeight(150)
+        help_text.setMaximumHeight(120)  # Reduced by 20% from 150
         help_text.setHtml("""
         <p><b>Destination Base Paths:</b> Root directories where reorganized media will be placed.</p>
 

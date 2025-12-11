@@ -132,7 +132,7 @@ class TMDBCacheDialog(QDialog):
         """Initialize the dialog UI."""
         self.setWindowTitle("TMDB Episode Cache Generator")
         self.setModal(False)  # Non-modal (Phase 48-E-4: Modal banishment)
-        self.resize(900, 700)
+        self.resize(900, 560)
         
         layout = QVBoxLayout(self)
         
@@ -190,7 +190,7 @@ class TMDBCacheDialog(QDialog):
         self.search_button = QPushButton("🔍 Search")
         self.search_button.setToolTip("Execute TMDB search")
         self.search_button.clicked.connect(self.search_tmdb)
-        self.search_button.setFixedHeight(40)
+        self.search_button.setFixedHeight(32)
         font = QFont()
         font.setPointSize(12)
         self.search_button.setFont(font)
@@ -256,7 +256,7 @@ class TMDBCacheDialog(QDialog):
         self.generate_button.setToolTip("Generate episode cache for selected show")
         self.generate_button.clicked.connect(self.generate_cache)
         self.generate_button.setEnabled(False)
-        self.generate_button.setFixedHeight(40)
+        self.generate_button.setFixedHeight(32)
         font = QFont()
         font.setPointSize(11)
         self.generate_button.setFont(font)
@@ -264,7 +264,7 @@ class TMDBCacheDialog(QDialog):
         
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.clicked.connect(self.reject)
-        self.cancel_button.setFixedHeight(40)
+        self.cancel_button.setFixedHeight(32)
         layout.addWidget(self.cancel_button)
         
         return layout

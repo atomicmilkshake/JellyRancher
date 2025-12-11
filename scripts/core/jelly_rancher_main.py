@@ -129,7 +129,7 @@ from jelly_rancher_help import show_help_dialog
 APP_TITLE = "JellyRancher - Unified Media Organization Platform"
 APP_VERSION = "2.0.0"
 WINDOW_WIDTH = 1200  # Reduced from 1400 for more comfortable screen fit
-WINDOW_HEIGHT = 700  # Reduced from 800 for more comfortable screen fit
+WINDOW_HEIGHT = 560  # Reduced by 20% from 700px for compact display
 MANAGED_FOLDERS_FILE = Path(__file__).parent / "managed_folders.json"
 
 
@@ -1026,7 +1026,7 @@ Tailor JellyRancher to your specific workflow and environment."""),
         summary_layout.setSpacing(5)
         self.org_summary = QTextEdit()
         self.org_summary.setReadOnly(True)
-        self.org_summary.setMinimumHeight(200)  # Reduced from 300
+        self.org_summary.setMinimumHeight(160)  # Reduced by 20% from 200
         self.org_summary.setPlaceholderText("Scan results will appear here...\n\nYou'll see:\n• TV Shows with episode counts per season\n• Movies organized by title\n• Total file counts and statistics\n• Folder structure summary")
         self.org_summary.setStyleSheet("QTextEdit { font-family: 'Courier New', monospace; font-size: 9pt; }")
         summary_layout.addWidget(self.org_summary)
@@ -1273,7 +1273,7 @@ Tailor JellyRancher to your specific workflow and environment."""),
         
         # Snapshot list
         self.snapshot_list = QListWidget()
-        self.snapshot_list.setMinimumHeight(150)  # Reduced from 200
+        self.snapshot_list.setMinimumHeight(120)  # Reduced by 20% from 150
         self.snapshot_list.setToolTip("Select a snapshot to restore or delete")
         manage_layout.addWidget(self.snapshot_list)
         
@@ -1396,7 +1396,7 @@ Tailor JellyRancher to your specific workflow and environment."""),
         self.sub_progress = QProgressBar()
         progress_layout.addWidget(self.sub_progress)
         self.sub_log = QTextEdit()
-        self.sub_log.setMaximumHeight(200)
+        self.sub_log.setMaximumHeight(160)
         progress_layout.addWidget(self.sub_log)
         progress_group.setLayout(progress_layout)
         layout.addWidget(progress_group)
@@ -1543,7 +1543,7 @@ Tailor JellyRancher to your specific workflow and environment."""),
         self.batch_progress = QProgressBar()
         progress_layout.addWidget(self.batch_progress)
         self.batch_log = QTextEdit()
-        self.batch_log.setMaximumHeight(150)
+        self.batch_log.setMaximumHeight(120)
         progress_layout.addWidget(self.batch_log)
 
         # Editable Action Table (ENHANCED!)
@@ -2076,7 +2076,7 @@ Tailor JellyRancher to your specific workflow and environment."""),
     def create_status_bar(self):
         """Create application status bar."""
         self.status_bar = self.statusBar()
-        self.status_bar.setMaximumHeight(18)  # Compact status bar
+        self.status_bar.setMaximumHeight(14)  # Compact status bar (20% reduction)
         self.status_bar.showMessage("Ready")
 
     def apply_stylesheet(self):

@@ -169,7 +169,7 @@ class CanonicalDBDialog(QDialog):
         """Initialize the dialog UI."""
         self.setWindowTitle("Canonical Database Builder")
         self.setModal(False)  # Phase 48-E: Great Modal Banishment
-        self.resize(800, 600)
+        self.resize(800, 480)  # Reduced by 20% from 600px height
 
         layout = QVBoxLayout(self)
 
@@ -203,7 +203,7 @@ class CanonicalDBDialog(QDialog):
         self.select_file_button = QPushButton("📁 Select Analysis File")
         self.select_file_button.setToolTip("Select JSON file with detected media from LLM analysis")
         self.select_file_button.clicked.connect(self.select_analysis_file)
-        self.select_file_button.setFixedHeight(35)
+        self.select_file_button.setFixedHeight(28)  # Reduced by 20% from 35
         layout.addRow("", self.select_file_button)
 
         # File info
@@ -257,7 +257,7 @@ class CanonicalDBDialog(QDialog):
         self.build_button.setToolTip("Build canonical metadata database")
         self.build_button.clicked.connect(self.build_database)
         self.build_button.setEnabled(False)
-        self.build_button.setFixedHeight(40)
+        self.build_button.setFixedHeight(32)  # Reduced by 20% from 40
         font = QFont()
         font.setPointSize(11)
         self.build_button.setFont(font)
@@ -265,7 +265,7 @@ class CanonicalDBDialog(QDialog):
 
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.clicked.connect(self.reject)
-        self.cancel_button.setFixedHeight(40)
+        self.cancel_button.setFixedHeight(32)  # Reduced by 20% from 40
         layout.addWidget(self.cancel_button)
 
         return layout

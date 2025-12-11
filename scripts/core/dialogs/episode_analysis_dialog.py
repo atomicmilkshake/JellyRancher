@@ -113,7 +113,7 @@ class EpisodeAnalysisDialog(QDialog):
         """Initialize the dialog UI."""
         self.setWindowTitle("Episode Title Analyzer")
         self.setModal(False)  # Non-modal (Phase 48-E-4: Modal banishment)
-        self.resize(1200, 800)
+        self.resize(1200, 640)  # Reduced by 20% from 800px height
         
         layout = QVBoxLayout(self)
         
@@ -186,7 +186,7 @@ class EpisodeAnalysisDialog(QDialog):
         self.analyze_button = QPushButton("🔍 Analyze Episodes")
         self.analyze_button.clicked.connect(self.start_analysis)
         self.analyze_button.setEnabled(False)
-        self.analyze_button.setFixedHeight(40)
+        self.analyze_button.setFixedHeight(32)
         font = QFont()
         font.setPointSize(12)
         self.analyze_button.setFont(font)
@@ -285,7 +285,7 @@ class EpisodeAnalysisDialog(QDialog):
         
         self.close_button = QPushButton("Close")
         self.close_button.clicked.connect(self.accept)
-        self.close_button.setFixedHeight(40)
+        self.close_button.setFixedHeight(32)
         layout.addWidget(self.close_button)
         
         return layout

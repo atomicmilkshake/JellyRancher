@@ -70,7 +70,7 @@ class MovieAnalysisDialog(QDialog):
         self.setModal(False)
         self.setWindowTitle("Movie Name Analysis")
         self.setModal(False)  # Non-modal (Phase 48-E-4: Modal banishment)
-        self.resize(1000, 700)
+        self.resize(1000, 560)
         
         self.analyzer = MovieNameAnalyzer()
         self.logger = ProjectLogger('movie_analysis_dialog')
@@ -134,7 +134,7 @@ class MovieAnalysisDialog(QDialog):
         
         self.details_text = QTextEdit()
         self.details_text.setReadOnly(True)
-        self.details_text.setMaximumHeight(150)
+        self.details_text.setMaximumHeight(120)
         layout.addWidget(self.details_text, stretch=1)
         
         # Button section
@@ -165,7 +165,7 @@ class MovieAnalysisDialog(QDialog):
         self.analyze_button = QPushButton("🔍 Analyze Movies")
         self.analyze_button.clicked.connect(self.start_analysis)
         self.analyze_button.setEnabled(False)
-        self.analyze_button.setFixedHeight(40)
+        self.analyze_button.setFixedHeight(32)
         font = QFont()
         font.setPointSize(12)
         self.analyze_button.setFont(font)
@@ -197,7 +197,7 @@ class MovieAnalysisDialog(QDialog):
         self.export_button = QPushButton("📄 Export Results")
         self.export_button.clicked.connect(self.export_results)
         self.export_button.setEnabled(False)
-        self.export_button.setFixedHeight(40)
+        self.export_button.setFixedHeight(32)
         layout.addWidget(self.export_button)
         
         layout.addStretch()
@@ -206,18 +206,18 @@ class MovieAnalysisDialog(QDialog):
         self.fix_button = QPushButton("🔧 Fix Issues (Dry Run)")
         self.fix_button.clicked.connect(lambda: self.fix_issues(dry_run=True))
         self.fix_button.setEnabled(False)
-        self.fix_button.setFixedHeight(40)
+        self.fix_button.setFixedHeight(32)
         layout.addWidget(self.fix_button)
         
         self.fix_apply_button = QPushButton("✅ Apply Fixes")
         self.fix_apply_button.clicked.connect(lambda: self.fix_issues(dry_run=False))
         self.fix_apply_button.setEnabled(False)
-        self.fix_apply_button.setFixedHeight(40)
+        self.fix_apply_button.setFixedHeight(32)
         layout.addWidget(self.fix_apply_button)
         
         self.close_button = QPushButton("Close")
         self.close_button.clicked.connect(self.close)
-        self.close_button.setFixedHeight(40)
+        self.close_button.setFixedHeight(32)
         layout.addWidget(self.close_button)
         
         return layout

@@ -94,7 +94,7 @@ class JellyfinSettingsDialog(QDialog):
 
         self.setWindowTitle("Jellyfin Integration Settings")
         self.setMinimumWidth(600)
-        self.setMinimumHeight(500)
+        self.setMinimumHeight(400)
         
         # Non-modal dialog (Phase 48-E-4: Modal banishment)
         self.setModal(False)
@@ -160,7 +160,7 @@ class JellyfinSettingsDialog(QDialog):
 
         help_text = QTextEdit()
         help_text.setReadOnly(True)
-        help_text.setMaximumHeight(200)
+        help_text.setMaximumHeight(160)
         help_text.setHtml("""
         <p><b>To generate a Jellyfin API key:</b></p>
         <ol>
