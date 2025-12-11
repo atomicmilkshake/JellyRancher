@@ -140,43 +140,47 @@ class AnalysisView(QWidget):
                 self._load_scan_data()
             
             logger.info(f"AnalysisView initialized (filtered={self.using_filtered_data})")
-    
+        except Exception as e:
+            logger.error(f"Failed to initialize AnalysisView: {e}", exc_info=True)
+            self._set_status(f"Initialization Error: {e}", level='error')
+            raise
+
     def set_bucket_data(self, bucket_data: dict):
         """
         Set bucket-categorized data from Sorting Canvas.
-        
+
         When bucket_data is set, analysis will use per-bucket specialized prompts
         for better accuracy. Each bucket (Movies, TV Shows, etc.) gets its own
         optimized LLM prompt.
-        
+
         Args:
             bucket_data: Dict with 'buckets' containing per-bucket items and prompts
         """
         self.bucket_data = bucket_data
-        
+
         if bucket_data:
             # Update UI to show per-bucket mode
             bucket_names = list(bucket_data.get('buckets', {}).keys())
             total_items = bucket_data.get('total_items', 0)
-            
+
             self._set_status(
                 f"📦 Per-Bucket Mode: {len(bucket_names)} buckets ({total_items} items) - "
                 f"Buckets: {', '.join(b.replace('_', ' ').title() for b in bucket_names)}"
             )
-            
+
             # Display bucket summary in source preview
             self._display_bucket_summary(bucket_data)
-            
+
             logger.info(f"Set bucket data: {len(bucket_names)} buckets, {total_items} items")
-    
+
     def _display_bucket_summary(self, bucket_data: dict):
         """Display bucket summary in the source preview area."""
         if not hasattr(self, 'source_preview'):
             return
-            
+
         lines = ["=== PER-BUCKET ANALYSIS MODE ===\n"]
         lines.append("Items categorized by Sorting Canvas:\n")
-        
+
         for bucket_name, data in bucket_data.get('buckets', {}).items():
             icon = {
                 'movies': '🎬',
@@ -186,27 +190,21 @@ class AnalysisView(QWidget):
                 'books': '📚',
                 'unsorted': '❓'
             }.get(bucket_name, '📦')
-            
+
             name = bucket_name.replace('_', ' ').title()
             item_count = data.get('item_count', 0)
             file_count = data.get('file_count', 0)
             size_gb = data.get('size_bytes', 0) / (1024**3)
-            
+
             lines.append(f"\n{icon} {name}:")
             lines.append(f"   Items: {item_count}")
             lines.append(f"   Files: {file_count}")
             lines.append(f"   Size: {size_gb:.2f} GB")
-        
+
         lines.append("\n\nEach bucket will be analyzed with a specialized prompt")
         lines.append("optimized for that media category.")
-        
+
         self.source_preview.setText("\n".join(lines))
-            
-        except Exception as e:
-            logger.error(f"Failed to initialize AnalysisView: {e}", exc_info=True)
-            self._set_status(f"Initialization Error: {e}", level='error')
-            logger.error(f"Failed to initialize AnalysisView: {e}", exc_info=True)
-            raise
     
     def _init_ui(self):
         """Build the UI with sub-tabs for better organization."""
