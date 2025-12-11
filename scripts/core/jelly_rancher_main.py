@@ -37,7 +37,7 @@ from PyQt6.QtWidgets import (
     QStyle, QFrame, QAbstractItemView
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QSize, QEvent, QUrl
-from PyQt6.QtGui import QIcon, QFont, QColor, QTextCursor, QPixmap, QWheelEvent, QDesktopServices, QAction
+from PyQt6.QtGui import QIcon, QFont, QColor, QTextCursor, QPixmap, QWheelEvent, QDesktopServices, QAction, QTextOption
 
 # Add scripts to path
 current_dir = Path(__file__).parent
@@ -828,6 +828,9 @@ Tailor JellyRancher to your specific workflow and environment."""),
         self.org_help_text = QTextEdit()
         self.org_help_text.setReadOnly(True)
         self.org_help_text.setPlainText("**Welcome to Media Organization**\n\nHover over any control to see detailed help, or hover over tab headers to learn about each section of the application.\n\nThis tab helps you organize your media library by:\n• Scanning folders for media files\n• Organizing movies and TV shows\n• Analyzing and fixing naming issues\n• Managing snapshots for backup/rollback")
+        self.org_help_text.setMinimumWidth(380)
+        self.org_help_text.setMaximumWidth(420)
+        self.org_help_text.setWordWrapMode(QTextOption.WrapMode.WordWrap)
         help_layout.addWidget(self.org_help_text)
         help_group.setLayout(help_layout)
         right_layout.addWidget(help_group, 1)  # Takes 50% of vertical space
@@ -999,8 +1002,12 @@ Tailor JellyRancher to your specific workflow and environment."""),
         # Scan action
         scan_group = QGroupBox("🔍 Scan Operation")
         scan_layout = QVBoxLayout()
-        scan_layout.setSpacing(5)
-        scan_layout.addWidget(QLabel("Click the button below to scan your media folder:"))
+        scan_layout.setSpacing(8)
+        scan_label = QLabel("Click the button below to scan your media folder:")
+        scan_label.setWordWrap(True)
+        scan_label.setMinimumWidth(450)
+        scan_label.setMaximumWidth(500)
+        scan_layout.addWidget(scan_label)
         self.org_scan_btn = QPushButton("🔍 SCAN FOLDER NOW")
         self.org_scan_btn.clicked.connect(self.scan_organization_folder)
         self.org_scan_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 8px;")
@@ -1148,8 +1155,10 @@ Tailor JellyRancher to your specific workflow and environment."""),
         
         # Safety reminder
         safety_group = QGroupBox("⚠️ Before You Organize")
+        safety_group.setMinimumWidth(450)
         safety_layout = QVBoxLayout()
-        safety_layout.setSpacing(5)
+        safety_layout.setSpacing(10)
+        safety_layout.setContentsMargins(15, 20, 15, 10)
         safety_layout.addWidget(QLabel("Important reminders:"))
         safety_layout.addWidget(QLabel("✓ Make sure you've scanned first (Step 2)"))
         safety_layout.addWidget(QLabel("✓ Dry-run mode is enabled by default for safety"))
@@ -1177,12 +1186,20 @@ Tailor JellyRancher to your specific workflow and environment."""),
         
         # Dry-run vs Live
         mode_group = QGroupBox("🔄 Operation Mode")
+        mode_group.setMinimumWidth(500)
         mode_layout = QVBoxLayout()
-        mode_layout.setSpacing(5)
-        mode_layout.addWidget(QLabel("Current mode: Check Step 1 settings"))
+        mode_layout.setSpacing(12)
+        mode_layout.setContentsMargins(15, 20, 15, 10)
+        mode_title = QLabel("Current mode: Check Step 1 settings")
+        mode_title.setMinimumWidth(300)
+        mode_layout.addWidget(mode_title)
         mode_layout.addWidget(QLabel(""))
-        mode_layout.addWidget(QLabel("• DRY-RUN MODE: Preview only, no files moved (SAFE)"))
-        mode_layout.addWidget(QLabel("• LIVE MODE: Actually moves files (use after testing)"))
+        dry_run_label = QLabel("• DRY-RUN MODE: Preview only, no files moved (SAFE)")
+        dry_run_label.setMinimumWidth(400)
+        mode_layout.addWidget(dry_run_label)
+        live_label = QLabel("• LIVE MODE: Actually moves files (use after testing)")
+        live_label.setMinimumWidth(400)
+        mode_layout.addWidget(live_label)
         mode_group.setLayout(mode_layout)
         layout.addWidget(mode_group)
         
@@ -1413,8 +1430,9 @@ Tailor JellyRancher to your specific workflow and environment."""),
         self.sub_help_text = QTextEdit()
         self.sub_help_text.setReadOnly(True)
         self.sub_help_text.setPlainText("**Welcome to Subtitle Management**\n\nHover over any control to see detailed help.\n\nThis tab helps you manage subtitles by:\n• Detecting which media files are missing subtitles\n• Downloading subtitles from multiple providers\n• Managing subtitle file organization")
-        self.sub_help_text.setMaximumWidth(350)
-        self.sub_help_text.setMinimumWidth(300)
+        self.sub_help_text.setMaximumWidth(420)
+        self.sub_help_text.setMinimumWidth(380)
+        self.sub_help_text.setWordWrapMode(QTextOption.WrapMode.WordWrap)
         right_layout.addWidget(self.sub_help_text)
 
         right_panel.setLayout(right_layout)
@@ -1622,8 +1640,9 @@ Tailor JellyRancher to your specific workflow and environment."""),
         self.batch_help_text = QTextEdit()
         self.batch_help_text.setReadOnly(True)
         self.batch_help_text.setPlainText("Hover over any control to see its explanation here.")
-        self.batch_help_text.setMaximumWidth(350)
-        self.batch_help_text.setMinimumWidth(300)
+        self.batch_help_text.setMaximumWidth(420)
+        self.batch_help_text.setMinimumWidth(380)
+        self.batch_help_text.setWordWrapMode(QTextOption.WrapMode.WordWrap)
         right_layout.addWidget(self.batch_help_text)
 
         right_panel.setLayout(right_layout)
@@ -1739,8 +1758,9 @@ Tailor JellyRancher to your specific workflow and environment."""),
         self.code_help_text = QTextEdit()
         self.code_help_text.setReadOnly(True)
         self.code_help_text.setPlainText("Hover over any control to see its explanation here.")
-        self.code_help_text.setMaximumWidth(350)
-        self.code_help_text.setMinimumWidth(300)
+        self.code_help_text.setMaximumWidth(420)
+        self.code_help_text.setMinimumWidth(380)
+        self.code_help_text.setWordWrapMode(QTextOption.WrapMode.WordWrap)
         right_layout.addWidget(self.code_help_text)
 
         right_panel.setLayout(right_layout)
@@ -1860,8 +1880,9 @@ Tailor JellyRancher to your specific workflow and environment."""),
         self.analytics_help_text = QTextEdit()
         self.analytics_help_text.setReadOnly(True)
         self.analytics_help_text.setPlainText("Hover over any control to see its explanation here.")
-        self.analytics_help_text.setMaximumWidth(350)
-        self.analytics_help_text.setMinimumWidth(300)
+        self.analytics_help_text.setMaximumWidth(420)
+        self.analytics_help_text.setMinimumWidth(380)
+        self.analytics_help_text.setWordWrapMode(QTextOption.WrapMode.WordWrap)
         right_layout.addWidget(self.analytics_help_text)
 
         right_panel.setLayout(right_layout)
@@ -1907,7 +1928,8 @@ Tailor JellyRancher to your specific workflow and environment."""),
         # Title
         title_layout = QHBoxLayout()
         title = QLabel("Settings & Configuration")
-        title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        title.setMinimumWidth(350)
         title_layout.addWidget(title)
         title_layout.addStretch()
         help_btn = QPushButton("❓ Help")
@@ -1933,14 +1955,19 @@ Tailor JellyRancher to your specific workflow and environment."""),
         # API Credentials
         creds_group = QGroupBox("API Credentials")
         creds_layout = QVBoxLayout()
+        creds_layout.setSpacing(8)
+        creds_layout.setContentsMargins(10, 15, 10, 10)
 
         # TMDB API Key
         tmdb_layout = QHBoxLayout()
+        tmdb_layout.setSpacing(10)
         self.settings_tmdb_label = QLabel("TMDB API Key:")
+        self.settings_tmdb_label.setMinimumWidth(120)
         tmdb_layout.addWidget(self.settings_tmdb_label)
         self.settings_tmdb_api_key = QLineEdit()
         self.settings_tmdb_api_key.setEchoMode(QLineEdit.EchoMode.Password)
         self.settings_tmdb_api_key.setPlaceholderText("Enter your TMDB API key")
+        self.settings_tmdb_api_key.setMinimumWidth(250)
         tmdb_api_key = self.settings.get_tmdb_api_key()
         if tmdb_api_key:
             self.settings_tmdb_api_key.setText(tmdb_api_key)
@@ -2027,8 +2054,9 @@ Tailor JellyRancher to your specific workflow and environment."""),
         self.settings_help_text = QTextEdit()
         self.settings_help_text.setReadOnly(True)
         self.settings_help_text.setPlainText("Hover over any control to see its explanation here.")
-        self.settings_help_text.setMaximumWidth(350)
-        self.settings_help_text.setMinimumWidth(300)
+        self.settings_help_text.setMaximumWidth(420)
+        self.settings_help_text.setMinimumWidth(380)
+        self.settings_help_text.setWordWrapMode(QTextOption.WrapMode.WordWrap)
         right_layout.addWidget(self.settings_help_text)
 
         right_panel.setLayout(right_layout)
