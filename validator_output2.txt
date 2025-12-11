@@ -1,0 +1,15 @@
+======================================================================
+JellyRancher GUI Visual Validator
+======================================================================
+
+Dependencies: Available
+Strict mode: False
+Output: gui_visual_issues/
+Traceback (most recent call last):
+  File "V:\JellyRancher\tools\gui_visual_validator.py", line 556, in <module>
+    exit_code = validate_gui(strict=args.strict, specific_view=args.view)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "V:\JellyRancher\tools\gui_visual_validator.py", line 464, in validate_gui
+    global_font = QFont("Segoe UI", 12)
+                  ^^^^^
+NameError: name 'QFont' is not defined. Did you mean: 'QPoint'?

@@ -49,7 +49,7 @@ class FolderContentSelectionDialog(QDialog):
             self.checkboxes = {}  # path -> QCheckBox
             
             self.setWindowTitle(f"Select contents to include in scan")
-            self.setMinimumSize(600, 400)
+            self.setMinimumSize(600, 320)  # Reduced by 20% from 400px
             
             # Apply comprehensive dialog styling with white background for list
             dialog_stylesheet = """

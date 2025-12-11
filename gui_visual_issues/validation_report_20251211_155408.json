@@ -1,0 +1,591 @@
+{
+  "metadata": {
+    "timestamp": "2025-12-11T15:54:08.788492",
+    "tool": "gui_visual_validator.py",
+    "output_dir": "V:\\JellyRancher\\gui_visual_issues",
+    "deps_available": true
+  },
+  "summary": {
+    "views_scanned": 15,
+    "total_issues": 45,
+    "score": 0,
+    "passed": false,
+    "issues_by_severity": {
+      "CRITICAL": 8,
+      "ERROR": 20,
+      "WARNING": 17,
+      "INFO": 0
+    },
+    "issues_by_type": {
+      "window_too_tall": 20,
+      "window_too_wide": 16,
+      "text_overlap": 8,
+      "small_text": 1
+    }
+  },
+  "screenshots": [
+    {
+      "name": "tab_0___Organization",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tab_0___Organization.png",
+      "issues_count": 0
+    },
+    {
+      "name": "tab_1___Subtitles",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tab_1___Subtitles.png",
+      "issues_count": 0
+    },
+    {
+      "name": "tab_2____Batch_Processing",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tab_2____Batch_Processing.png",
+      "issues_count": 0
+    },
+    {
+      "name": "tab_3___Code_Analysis",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tab_3___Code_Analysis.png",
+      "issues_count": 0
+    },
+    {
+      "name": "tab_4___Analytics",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tab_4___Analytics.png",
+      "issues_count": 0
+    },
+    {
+      "name": "tab_5____Settings",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tab_5____Settings.png",
+      "issues_count": 1
+    },
+    {
+      "name": "tab_0_Organization",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tab_0_Organization.png",
+      "issues_count": 0
+    },
+    {
+      "name": "tab_1_Subtitles",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tab_1_Subtitles.png",
+      "issues_count": 0
+    },
+    {
+      "name": "tab_2_Timeline",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tab_2_Timeline.png",
+      "issues_count": 0
+    },
+    {
+      "name": "tab_0_Step_1__Setup",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tab_0_Step_1__Setup.png",
+      "issues_count": 0
+    },
+    {
+      "name": "tab_1_Step_2__Scan",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tab_1_Step_2__Scan.png",
+      "issues_count": 1
+    },
+    {
+      "name": "tab_2_Step_3__Analyze",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tab_2_Step_3__Analyze.png",
+      "issues_count": 0
+    },
+    {
+      "name": "tab_3_Step_4__Organize",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tab_3_Step_4__Organize.png",
+      "issues_count": 4
+    },
+    {
+      "name": "tab_4_Step_5__Snapshots",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tab_4_Step_5__Snapshots.png",
+      "issues_count": 0
+    },
+    {
+      "name": "main_window",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\main_window.png",
+      "issues_count": 21
+    }
+  ],
+  "issues": [
+    {
+      "type": "text_overlap",
+      "view": "tab_5____Settings",
+      "severity": "CRITICAL",
+      "description": "Text 'Settings' overlaps 'Configuration'",
+      "location": "(27, 42)",
+      "overlap_area": 1118,
+      "screenshot": "tab_5____Settings.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tab_1_Step_2__Scan",
+      "severity": "CRITICAL",
+      "description": "Text 'below' overlaps 'to'",
+      "location": "(129, 144)",
+      "overlap_area": 120,
+      "screenshot": "tab_1_Step_2__Scan.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tab_3_Step_4__Organize",
+      "severity": "CRITICAL",
+      "description": "Text 'Before' overlaps 'You'",
+      "location": "(48, 108)",
+      "overlap_area": 260,
+      "screenshot": "tab_3_Step_4__Organize.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tab_3_Step_4__Organize",
+      "severity": "CRITICAL",
+      "description": "Text 'Before' overlaps 'Organize'",
+      "location": "(48, 108)",
+      "overlap_area": 715,
+      "screenshot": "tab_3_Step_4__Organize.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tab_3_Step_4__Organize",
+      "severity": "CRITICAL",
+      "description": "Text 'default' overlaps 'for'",
+      "location": "(226, 227)",
+      "overlap_area": 169,
+      "screenshot": "tab_3_Step_4__Organize.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tab_3_Step_4__Organize",
+      "severity": "CRITICAL",
+      "description": "Text 'Operation' overlaps 'Mode'",
+      "location": "(44, 637)",
+      "overlap_area": 450,
+      "screenshot": "tab_3_Step_4__Organize.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window",
+      "severity": "CRITICAL",
+      "description": "Text 'ae' overlaps 'Hover'",
+      "location": "(1092, 129)",
+      "overlap_area": 330,
+      "screenshot": "main_window.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window",
+      "severity": "CRITICAL",
+      "description": "Text 'ae' overlaps 'over'",
+      "location": "(1092, 129)",
+      "overlap_area": 250,
+      "screenshot": "main_window.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 720px at 150% DPI on 1920x1080",
+      "actual_height": 800,
+      "effective_height": 720.0,
+      "resolution": "1920x1080",
+      "dpi": 150,
+      "fix_suggestion": "Reduce height to 684px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 768px at 100% DPI on 1366x768",
+      "actual_height": 800,
+      "effective_height": 768.0,
+      "resolution": "1366x768",
+      "dpi": 100,
+      "fix_suggestion": "Reduce height to 729px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 614px at 125% DPI on 1366x768",
+      "actual_height": 800,
+      "effective_height": 614.0,
+      "resolution": "1366x768",
+      "dpi": 125,
+      "fix_suggestion": "Reduce height to 583px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 512px at 150% DPI on 1366x768",
+      "actual_height": 800,
+      "effective_height": 512.0,
+      "resolution": "1366x768",
+      "dpi": 150,
+      "fix_suggestion": "Reduce height to 486px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 768px at 100% DPI on 1024x768",
+      "actual_height": 800,
+      "effective_height": 768.0,
+      "resolution": "1024x768",
+      "dpi": 100,
+      "fix_suggestion": "Reduce height to 729px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 614px at 125% DPI on 1024x768",
+      "actual_height": 800,
+      "effective_height": 614.0,
+      "resolution": "1024x768",
+      "dpi": 125,
+      "fix_suggestion": "Reduce height to 583px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 512px at 150% DPI on 1024x768",
+      "actual_height": 800,
+      "effective_height": 512.0,
+      "resolution": "1024x768",
+      "dpi": 150,
+      "fix_suggestion": "Reduce height to 486px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 600px at 100% DPI on 800x600",
+      "actual_height": 800,
+      "effective_height": 600.0,
+      "resolution": "800x600",
+      "dpi": 100,
+      "fix_suggestion": "Reduce height to 570px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 480px at 125% DPI on 800x600",
+      "actual_height": 800,
+      "effective_height": 480.0,
+      "resolution": "800x600",
+      "dpi": 125,
+      "fix_suggestion": "Reduce height to 456px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 400px at 150% DPI on 800x600",
+      "actual_height": 800,
+      "effective_height": 400.0,
+      "resolution": "800x600",
+      "dpi": 150,
+      "fix_suggestion": "Reduce height to 380px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 720px at 150% DPI on 1920x1080",
+      "actual_height": 800,
+      "effective_height": 720.0,
+      "resolution": "1920x1080",
+      "dpi": 150,
+      "fix_suggestion": "Reduce height to 684px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 768px at 100% DPI on 1366x768",
+      "actual_height": 800,
+      "effective_height": 768.0,
+      "resolution": "1366x768",
+      "dpi": 100,
+      "fix_suggestion": "Reduce height to 729px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 614px at 125% DPI on 1366x768",
+      "actual_height": 800,
+      "effective_height": 614.0,
+      "resolution": "1366x768",
+      "dpi": 125,
+      "fix_suggestion": "Reduce height to 583px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 512px at 150% DPI on 1366x768",
+      "actual_height": 800,
+      "effective_height": 512.0,
+      "resolution": "1366x768",
+      "dpi": 150,
+      "fix_suggestion": "Reduce height to 486px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 768px at 100% DPI on 1024x768",
+      "actual_height": 800,
+      "effective_height": 768.0,
+      "resolution": "1024x768",
+      "dpi": 100,
+      "fix_suggestion": "Reduce height to 729px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 614px at 125% DPI on 1024x768",
+      "actual_height": 800,
+      "effective_height": 614.0,
+      "resolution": "1024x768",
+      "dpi": 125,
+      "fix_suggestion": "Reduce height to 583px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 512px at 150% DPI on 1024x768",
+      "actual_height": 800,
+      "effective_height": 512.0,
+      "resolution": "1024x768",
+      "dpi": 150,
+      "fix_suggestion": "Reduce height to 486px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 600px at 100% DPI on 800x600",
+      "actual_height": 800,
+      "effective_height": 600.0,
+      "resolution": "800x600",
+      "dpi": 100,
+      "fix_suggestion": "Reduce height to 570px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 480px at 125% DPI on 800x600",
+      "actual_height": 800,
+      "effective_height": 480.0,
+      "resolution": "800x600",
+      "dpi": 125,
+      "fix_suggestion": "Reduce height to 456px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 400px at 150% DPI on 800x600",
+      "actual_height": 800,
+      "effective_height": 400.0,
+      "resolution": "800x600",
+      "dpi": 150,
+      "fix_suggestion": "Reduce height to 380px or make scrollable"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 1093px at 125% DPI on 1366x768",
+      "actual_width": 1200,
+      "effective_width": 1093.0,
+      "resolution": "1366x768",
+      "dpi": 125,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 911px at 150% DPI on 1366x768",
+      "actual_width": 1200,
+      "effective_width": 911.0,
+      "resolution": "1366x768",
+      "dpi": 150,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 1024px at 100% DPI on 1024x768",
+      "actual_width": 1200,
+      "effective_width": 1024.0,
+      "resolution": "1024x768",
+      "dpi": 100,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 819px at 125% DPI on 1024x768",
+      "actual_width": 1200,
+      "effective_width": 819.0,
+      "resolution": "1024x768",
+      "dpi": 125,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 683px at 150% DPI on 1024x768",
+      "actual_width": 1200,
+      "effective_width": 683.0,
+      "resolution": "1024x768",
+      "dpi": 150,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 800px at 100% DPI on 800x600",
+      "actual_width": 1200,
+      "effective_width": 800.0,
+      "resolution": "800x600",
+      "dpi": 100,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 640px at 125% DPI on 800x600",
+      "actual_width": 1200,
+      "effective_width": 640.0,
+      "resolution": "800x600",
+      "dpi": 125,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 533px at 150% DPI on 800x600",
+      "actual_width": 1200,
+      "effective_width": 533.0,
+      "resolution": "800x600",
+      "dpi": 150,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "small_text",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Text size 7pt below readable threshold (11pt)",
+      "actual_size": 7,
+      "min_size": 11,
+      "font_family": "Segoe UI",
+      "fix_suggestion": "Increase font size to at least 11pt"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 1093px at 125% DPI on 1366x768",
+      "actual_width": 1200,
+      "effective_width": 1093.0,
+      "resolution": "1366x768",
+      "dpi": 125,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 911px at 150% DPI on 1366x768",
+      "actual_width": 1200,
+      "effective_width": 911.0,
+      "resolution": "1366x768",
+      "dpi": 150,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 1024px at 100% DPI on 1024x768",
+      "actual_width": 1200,
+      "effective_width": 1024.0,
+      "resolution": "1024x768",
+      "dpi": 100,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 819px at 125% DPI on 1024x768",
+      "actual_width": 1200,
+      "effective_width": 819.0,
+      "resolution": "1024x768",
+      "dpi": 125,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 683px at 150% DPI on 1024x768",
+      "actual_width": 1200,
+      "effective_width": 683.0,
+      "resolution": "1024x768",
+      "dpi": 150,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 800px at 100% DPI on 800x600",
+      "actual_width": 1200,
+      "effective_width": 800.0,
+      "resolution": "800x600",
+      "dpi": 100,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 640px at 125% DPI on 800x600",
+      "actual_width": 1200,
+      "effective_width": 640.0,
+      "resolution": "800x600",
+      "dpi": 125,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 533px at 150% DPI on 800x600",
+      "actual_width": 1200,
+      "effective_width": 533.0,
+      "resolution": "800x600",
+      "dpi": 150,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    }
+  ]
+}

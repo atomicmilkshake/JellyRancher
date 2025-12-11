@@ -20,7 +20,7 @@ class WelcomeWizard(QWizard):
         super().__init__(parent)
         self.setWindowTitle("Welcome to JellyRancher!")
         self.setWizardStyle(QWizard.WizardStyle.ModernStyle)
-        self.setMinimumSize(700, 500)
+        self.setMinimumSize(700, 400)  # Reduced by 20% from 500px
         
         # Add pages
         self.addPage(self.create_welcome_page())
@@ -228,11 +228,11 @@ class WelcomeWizard(QWizard):
 
 class QuickStartDialog(QDialog):
     """Simple quick start dialog for users who dismissed the wizard."""
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Quick Start Guide")
-        self.setMinimumSize(500, 400)
+        self.setMinimumSize(500, 320)  # Reduced by 20% from 400px
         
         layout = QVBoxLayout()
         

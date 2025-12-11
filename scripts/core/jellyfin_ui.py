@@ -140,7 +140,7 @@ def show_help_dialog(parent, topic):
 APP_TITLE = "Jellyfin Media Organization Agent"
 APP_VERSION = "2.0.0"
 WINDOW_WIDTH = 1200
-WINDOW_HEIGHT = 800
+WINDOW_HEIGHT = 640  # Reduced by 20% from 800px
 MANAGED_FOLDERS_FILE = Path(__file__).parent / "managed_folders.json"
 
 

@@ -20,7 +20,7 @@ class HelpDialog(QDialog):
     def __init__(self, parent=None, tab_name: str = None):
         super().__init__(parent)
         self.setWindowTitle(f"{tab_name or 'Jellyfin Organizer'} - Help & Instructions")
-        self.setGeometry(100, 100, 900, 700)
+        self.setGeometry(100, 100, 900, 560)  # Reduced by 20% from 700px
         self.init_ui(tab_name)
 
     def init_ui(self, initial_tab: str = None):

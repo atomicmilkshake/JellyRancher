@@ -46,6 +46,26 @@
 
 ### **Virtual Env:** Always `.venv\Scripts\python.exe`; activate: `.venv\Scripts\Activate.ps1`.
 
+### **PowerShell: ALWAYS USE `pwsh.exe` (PowerShell 7+)**
+
+**CRITICAL:** NEVER use `powershell.exe` (legacy Windows PowerShell 5.1). ALWAYS use `pwsh.exe`.
+
+| Executable | Version | Use? |
+|------------|---------|------|
+| `pwsh.exe` | 7.x | **YES - ALWAYS USE THIS** |
+| `powershell.exe` | 5.1 | **NO - NEVER USE** |
+
+**Python subprocess calls:**
+```python
+# CORRECT
+subprocess.run(['pwsh.exe', '-NoProfile', '-Command', cmd], shell=False)
+
+# WRONG - causes issues when running inside pwsh
+subprocess.run(['powershell.exe', ...], shell=True)
+```
+
+**Rationale:** When already running inside PowerShell 7 (pwsh), calling `powershell.exe` via subprocess with `shell=True` causes the shell to misinterpret arguments. Using `pwsh.exe` directly with `shell=False` avoids this entirely.
+
 ### **Function Index (Query First):**
 
 BEFORE new features: `.venv\Scripts\python.exe tools/query_function_index_semantic.py search "query"`. Reuse or [OBSTACLE: Missing—propose implement/adapt; ask user].

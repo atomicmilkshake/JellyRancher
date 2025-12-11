@@ -1,0 +1,296 @@
+======================================================================
+JellyRancher GUI Visual Validator
+======================================================================
+
+Dependencies: Available
+Strict mode: False
+Output: gui_visual_issues/
+[INFO] [jelly_rancher_master] ================================================================================
+[INFO] [jelly_rancher_master] ================================================================================
+[INFO] [jelly_rancher_master] JellyRancher Master Logger Initialized
+[INFO] [jelly_rancher_master] JellyRancher Master Logger Initialized
+[INFO] [jelly_rancher_master] Log file: logs\jelly_rancher_master_20251211.log
+[INFO] [jelly_rancher_master] Log file: logs\jelly_rancher_master_20251211.log
+[INFO] [jelly_rancher_master] Root logger configured - all logging.getLogger(__name__) calls will now log
+[INFO] [jelly_rancher_master] Root logger configured - all logging.getLogger(__name__) calls will now log
+[INFO] [jelly_rancher_master] ================================================================================
+[INFO] [jelly_rancher_master] ================================================================================
+[INFO] [_common.credential_manager] [KEY] Master password loaded from JELLYFIN_ORG_PASSWORD environment variable
+[INFO] [immutable_audit] [LOAD] Loaded audit log: audit-20251106_223352.jsonl
+[INFO] [immutable_audit] [OK] Audit chain verified: 931 entries (100% integrity)
+[INFO] [credential_manager] [KEY] Master password loaded from JELLYFIN_ORG_PASSWORD environment variable
+[INFO] [jelly_rancher_master.settings_manager] Settings loaded from V:\JellyRancher\scripts\core\config\settings.json
+[INFO] [jelly_rancher_master.settings_manager] Settings loaded from V:\JellyRancher\scripts\core\config\settings.json
+[INFO] [jelly_rancher_master.jelly_rancher_main] Settings loaded into UI
+[INFO] [jelly_rancher_master.jelly_rancher_main] Settings loaded into UI
+
+Main window loaded successfully
+
+======================================================================
+MAIN WINDOW VALIDATION
+======================================================================
+
+Tab Widget: main_tabs (6 tabs)
+  Validating: tab_0___Organization
+    Screenshot: tab_0___Organization.png
+    Issues: 8
+      - [CRITICAL] text_overlap: Text 'to' overlaps 'each'
+      - [CRITICAL] text_overlap: Text 'learn' overlaps 'learn'
+      - [CRITICAL] text_overlap: Text 'about' overlaps 'about'
+      - [CRITICAL] text_overlap: Text 'each' overlaps 'each'
+      - [CRITICAL] text_overlap: Text 'of' overlaps 'of'
+      - [CRITICAL] text_overlap: Text 'applicati' overlaps 'application.'
+      - [CRITICAL] text_overlap: Text 'Activity' overlaps 'Log'
+      - [WARNING] small_text: Text size 9pt below readable threshold (11pt)
+  Validating: tab_1___Subtitles
+    Screenshot: tab_1___Subtitles.png
+    Issues: 1
+      - [WARNING] small_text: Text size 9pt below readable threshold (11pt)
+  Validating: tab_2____Batch_Processing
+    Screenshot: tab_2____Batch_Processing.png
+    Issues: 1
+      - [WARNING] small_text: Text size 9pt below readable threshold (11pt)
+  Validating: tab_3___Code_Analysis
+    Screenshot: tab_3___Code_Analysis.png
+    Issues: 1
+      - [WARNING] small_text: Text size 9pt below readable threshold (11pt)
+  Validating: tab_4___Analytics
+    Screenshot: tab_4___Analytics.png
+    Issues: 2
+      - [CRITICAL] text_overlap: Text 'Analytics' overlaps 'Reporting'
+      - [WARNING] small_text: Text size 9pt below readable threshold (11pt)
+  Validating: tab_5____Settings
+    Screenshot: tab_5____Settings.png
+    Issues: 1
+      - [WARNING] small_text: Text size 9pt below readable threshold (11pt)
+
+Tab Widget: main_tabs (3 tabs)
+  Validating: tab_0_Organization
+    Screenshot: tab_0_Organization.png
+    Issues: 1
+      - [WARNING] small_text: Text size 9pt below readable threshold (11pt)
+  Validating: tab_1_Subtitles
+    Screenshot: tab_1_Subtitles.png
+    Issues: 1
+      - [WARNING] small_text: Text size 9pt below readable threshold (11pt)
+  Validating: tab_2_Timeline
+    Screenshot: tab_2_Timeline.png
+    Issues: 1
+      - [WARNING] small_text: Text size 9pt below readable threshold (11pt)
+
+Tab Widget: main_tabs (5 tabs)
+  Validating: tab_0_Step_1__Setup
+    Screenshot: tab_0_Step_1__Setup.png
+    Issues: 1
+      - [WARNING] small_text: Text size 9pt below readable threshold (11pt)
+  Validating: tab_1_Step_2__Scan
+    Screenshot: tab_1_Step_2__Scan.png
+    Issues: 2
+      - [CRITICAL] text_overlap: Text 'below' overlaps 'to'
+      - [WARNING] small_text: Text size 9pt below readable threshold (11pt)
+  Validating: tab_2_Step_3__Analyze
+    Screenshot: tab_2_Step_3__Analyze.png
+    Issues: 1
+      - [WARNING] small_text: Text size 9pt below readable threshold (11pt)
+  Validating: tab_3_Step_4__Organize
+    Screenshot: tab_3_Step_4__Organize.png
+    Issues: 5
+      - [CRITICAL] text_overlap: Text 'Before' overlaps 'You'
+      - [CRITICAL] text_overlap: Text 'Before' overlaps 'Organize'
+      - [CRITICAL] text_overlap: Text 'default' overlaps 'for'
+      - [CRITICAL] text_overlap: Text 'Operation' overlaps 'Mode'
+      - [WARNING] small_text: Text size 9pt below readable threshold (11pt)
+  Validating: tab_4_Step_5__Snapshots
+    Screenshot: tab_4_Step_5__Snapshots.png
+    Issues: 1
+      - [WARNING] small_text: Text size 9pt below readable threshold (11pt)
+
+======================================================================
+FULL WINDOW
+======================================================================
+  Validating: main_window
+    Screenshot: main_window.png
+    Issues: 19
+      - [WARNING] small_text: Text size 7pt below readable threshold (11pt)
+      - [ERROR] window_too_tall: Window 800px > effective 720px at 150% DPI on 1920
+      - [ERROR] window_too_tall: Window 800px > effective 768px at 100% DPI on 1366
+      - [ERROR] window_too_tall: Window 800px > effective 614px at 125% DPI on 1366
+      - [WARNING] window_too_wide: Window 1200px > effective 1093px at 125% DPI on 13
+      - [ERROR] window_too_tall: Window 800px > effective 512px at 150% DPI on 1366
+      - [WARNING] window_too_wide: Window 1200px > effective 911px at 150% DPI on 136
+      - [ERROR] window_too_tall: Window 800px > effective 768px at 100% DPI on 1024
+      - [WARNING] window_too_wide: Window 1200px > effective 1024px at 100% DPI on 10
+      - [ERROR] window_too_tall: Window 800px > effective 614px at 125% DPI on 1024
+      - [WARNING] window_too_wide: Window 1200px > effective 819px at 125% DPI on 102
+      - [ERROR] window_too_tall: Window 800px > effective 512px at 150% DPI on 1024
+      - [WARNING] window_too_wide: Window 1200px > effective 683px at 150% DPI on 102
+      - [ERROR] window_too_tall: Window 800px > effective 600px at 100% DPI on 800x
+      - [WARNING] window_too_wide: Window 1200px > effective 800px at 100% DPI on 800
+      - [ERROR] window_too_tall: Window 800px > effective 480px at 125% DPI on 800x
+      - [WARNING] window_too_wide: Window 1200px > effective 640px at 125% DPI on 800
+      - [ERROR] window_too_tall: Window 800px > effective 400px at 150% DPI on 800x
+      - [WARNING] window_too_wide: Window 1200px > effective 533px at 150% DPI on 800
+
+Report saved: V:\JellyRancher\gui_visual_issues\validation_report_20251211_145721.json
+
+======================================================================
+VALIDATION SUMMARY
+======================================================================
+Views scanned: 15
+Total issues: 64
+Health score: 0/100
+Passed: NO
+
+Issues by severity:
+  - CRITICAL: 13
+  - ERROR: 20
+  - WARNING: 31
+
+Issues by type:
+  - window_too_tall: 20
+  - window_too_wide: 16
+  - text_overlap: 13
+  - small_text: 15
+
+======================================================================
+CRITICAL & ERROR ISSUES
+======================================================================
+
+[CRITICAL] text_overlap in tab_0___Organization
+  Text 'to' overlaps 'each'
+  Fix: Increase spacing or adjust layout margins
+
+[CRITICAL] text_overlap in tab_0___Organization
+  Text 'learn' overlaps 'learn'
+  Fix: Increase spacing or adjust layout margins
+
+[CRITICAL] text_overlap in tab_0___Organization
+  Text 'about' overlaps 'about'
+  Fix: Increase spacing or adjust layout margins
+
+[CRITICAL] text_overlap in tab_0___Organization
+  Text 'each' overlaps 'each'
+  Fix: Increase spacing or adjust layout margins
+
+[CRITICAL] text_overlap in tab_0___Organization
+  Text 'of' overlaps 'of'
+  Fix: Increase spacing or adjust layout margins
+
+[CRITICAL] text_overlap in tab_0___Organization
+  Text 'applicati' overlaps 'application.'
+  Fix: Increase spacing or adjust layout margins
+
+[CRITICAL] text_overlap in tab_0___Organization
+  Text 'Activity' overlaps 'Log'
+  Fix: Increase spacing or adjust layout margins
+
+[CRITICAL] text_overlap in tab_4___Analytics
+  Text 'Analytics' overlaps 'Reporting'
+  Fix: Increase spacing or adjust layout margins
+
+[CRITICAL] text_overlap in tab_1_Step_2__Scan
+  Text 'below' overlaps 'to'
+  Fix: Increase spacing or adjust layout margins
+
+[CRITICAL] text_overlap in tab_3_Step_4__Organize
+  Text 'Before' overlaps 'You'
+  Fix: Increase spacing or adjust layout margins
+
+[CRITICAL] text_overlap in tab_3_Step_4__Organize
+  Text 'Before' overlaps 'Organize'
+  Fix: Increase spacing or adjust layout margins
+
+[CRITICAL] text_overlap in tab_3_Step_4__Organize
+  Text 'default' overlaps 'for'
+  Fix: Increase spacing or adjust layout margins
+
+[CRITICAL] text_overlap in tab_3_Step_4__Organize
+  Text 'Operation' overlaps 'Mode'
+  Fix: Increase spacing or adjust layout margins
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 720px at 150% DPI on 1920x1080
+  Fix: Reduce height to 684px or make scrollable
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 768px at 100% DPI on 1366x768
+  Fix: Reduce height to 729px or make scrollable
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 614px at 125% DPI on 1366x768
+  Fix: Reduce height to 583px or make scrollable
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 512px at 150% DPI on 1366x768
+  Fix: Reduce height to 486px or make scrollable
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 768px at 100% DPI on 1024x768
+  Fix: Reduce height to 729px or make scrollable
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 614px at 125% DPI on 1024x768
+  Fix: Reduce height to 583px or make scrollable
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 512px at 150% DPI on 1024x768
+  Fix: Reduce height to 486px or make scrollable
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 600px at 100% DPI on 800x600
+  Fix: Reduce height to 570px or make scrollable
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 480px at 125% DPI on 800x600
+  Fix: Reduce height to 456px or make scrollable
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 400px at 150% DPI on 800x600
+  Fix: Reduce height to 380px or make scrollable
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 720px at 150% DPI on 1920x1080
+  Fix: Reduce height to 684px or make scrollable
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 768px at 100% DPI on 1366x768
+  Fix: Reduce height to 729px or make scrollable
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 614px at 125% DPI on 1366x768
+  Fix: Reduce height to 583px or make scrollable
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 512px at 150% DPI on 1366x768
+  Fix: Reduce height to 486px or make scrollable
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 768px at 100% DPI on 1024x768
+  Fix: Reduce height to 729px or make scrollable
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 614px at 125% DPI on 1024x768
+  Fix: Reduce height to 583px or make scrollable
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 512px at 150% DPI on 1024x768
+  Fix: Reduce height to 486px or make scrollable
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 600px at 100% DPI on 800x600
+  Fix: Reduce height to 570px or make scrollable
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 480px at 125% DPI on 800x600
+  Fix: Reduce height to 456px or make scrollable
+
+[ERROR] window_too_tall in main_window
+  Window 800px > effective 400px at 150% DPI on 800x600
+  Fix: Reduce height to 380px or make scrollable
+
+======================================================================
+VALIDATION COMPLETE
+======================================================================
+
+Screenshots: V:\JellyRancher\gui_visual_issues
+Report: V:\JellyRancher\gui_visual_issues\validation_report_20251211_145721.json

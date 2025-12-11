@@ -36,7 +36,7 @@ class NewRoundUpDialog(QDialog):
         self.setObjectName("new_roundup_dialog")  # For AT-AT automated testing
         self.setWindowTitle("Create New Round-Up")
         self.setModal(False)  # Phase 48-E: Great Modal Banishment
-        self.resize(500, 250)
+        self.resize(500, 200)  # Reduced by 20% from 250px
 
         layout = QVBoxLayout()
         layout.setSpacing(15)
@@ -50,7 +50,7 @@ class NewRoundUpDialog(QDialog):
         self.name_input.setObjectName("roundup_name_input")  # For AT-AT automated testing
         self.name_input.setPlaceholderText("e.g., My TV Library, Movie Collection 2024")
         self.name_input.setFont(QFont("Segoe UI", 11))
-        self.name_input.setMinimumHeight(35)
+        self.name_input.setMinimumHeight(28)  # Reduced by 20% from 35px
         layout.addWidget(self.name_input)
 
         # Spacer

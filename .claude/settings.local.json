@@ -30,7 +30,21 @@
       "Bash(.venvScriptspython.exe -m pytest tests/ -q --tb=short)",
       "Bash(cmd /c \".venv\\Scripts\\python.exe -m pytest tests/ -q --tb=short 2>&1 | tail -50\")",
       "Bash(.venvScriptspython.exe -m pytest tests/ -q --tb=line)",
-      "Bash(sqlite3 --version:*)"
+      "Bash(sqlite3 --version:*)",
+      "Bash(ls:*)",
+      "Bash(cmd /c \"cd /d v:\\JellyRancher && .venv\\Scripts\\python.exe tools/gui_visual_validator.py 2>&1\")",
+      "Bash(cmd /c \".venv\\Scripts\\python.exe -m py_compile tools/gui_visual_validator.py && echo Syntax OK\")",
+      "Bash(pwsh.exe -NoProfile -Command \".venv\\Scripts\\python.exe -m py_compile tools/gui_visual_validator.py; ''Syntax check passed''\")",
+      "Bash(pwsh.exe -NoProfile -Command \".venv\\Scripts\\python.exe -m pytest:*)",
+      "Bash(pwsh.exe -NoProfile -Command \".venv\\Scripts\\python.exe -m py_compile scripts/ui/analysis_view.py; ''Syntax OK''\")",
+      "Bash(pwsh.exe -NoProfile -Command \"git status\")",
+      "Bash(pwsh.exe -NoProfile -Command \"git add scripts/ui/analysis_view.py tools/gui_visual_validator.py\")",
+      "Bash(pwsh.exe -NoProfile -Command \"git commit -m ''$(cat <<''EOF''\nfeat: Add GUI Visual Validator tool for detecting layout/contrast/sizing issues\n\nAdds gui_visual_validator.py to catch the specific GUI issues that plague\nAI-assisted development:\n- Text overlapping text/graphics (collision detection via OCR)\n- Windows too tall/wide for common resolutions at various DPI settings\n- Low-contrast text that violates WCAG AA standards\n- Text smaller than readable thresholds (accessibility)\n- Visual regression detection against baseline\n\nAlso fixes syntax error in analysis_view.py where set_bucket_data() and\n_display_bucket_summary() methods were incorrectly indented as part of\n__init__ method, causing orphaned except block.\n\nUsage:\n  python tools/gui_visual_validator.py [--strict] [--view VIEW_NAME]\n\n🤖 Generated with Claude Code\n\nCo-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>\nEOF\n)''\")",
+      "Bash(pwsh.exe -NoProfile -Command \"git log -1 --format=''[%h] %an - %s''\")",
+      "Bash(pwsh.exe -NoProfile -Command:*)",
+      "Bash(powershell -Command \"Get-Content ''v:\\JellyRancher\\gui_visual_issues\\validation_report_20251211_145210.json'' | ConvertFrom-Json | Select-Object -ExpandProperty issues | Where-Object {$_severity -eq ''CRITICAL''} | ForEach-Object {$_type + '' in '' + $_view + '': '' + $_description} | head -20\")",
+      "Bash(grep:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
