@@ -1777,7 +1777,7 @@ Tailor JellyRancher to your specific workflow and environment."""),
         # Title
         title_layout = QHBoxLayout()
         title = QLabel("Analytics & Reporting")
-        title.setFont(QFont("Arial", 9, QFont.Weight.Bold))
+        title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
         title_layout.addWidget(title)
         title_layout.addStretch()
         help_btn = QPushButton("❓ Help")
@@ -1907,7 +1907,7 @@ Tailor JellyRancher to your specific workflow and environment."""),
         # Title
         title_layout = QHBoxLayout()
         title = QLabel("Settings & Configuration")
-        title.setFont(QFont("Arial", 9, QFont.Weight.Bold))
+        title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
         title_layout.addWidget(title)
         title_layout.addStretch()
         help_btn = QPushButton("❓ Help")
