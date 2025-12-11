@@ -1351,10 +1351,131 @@ Tests use PyQt6's `QTest` for realistic interaction:
 
 1. **pytest-qt is the standard** for Qt GUI testing with QTest + qtbot
 2. **Modal dialogs block test execution** - must be mocked or suppressed
-3. **Autouse fixtures are critical** for test-wide setup (mock_message_boxes)
-4. **QMessageBox buttons use StandardButton enum** in PyQt6 (deprecated old style)
-5. **Welcome wizard suppression requires patching before window init**
-6. **cb.click() more reliable than QTest.mouseClick()** for checkbox toggling
+
+---
+
+## PHASE 63: GUI Text Overlap Reduction & Layout Fixes
+
+**Date:** 2025-12-11 15:33-15:40 | **Tests:** 831 passing | **Commits:** acb7cf8
+
+### Problem Statement
+AI-assisted GUI development inherently lacks visual feedback, causing layout issues:
+- Text elements overlapping other text (e.g., "Settings" + "Configuration", "below" + "to")
+- Window dimensions exceeding common resolution/DPI combinations
+- Low-contrast text and tiny fonts affecting readability
+- No automated detection tool to catch these issues before commit
+
+### Solution: GUI Visual Validator Tool (Phase 62)
+Built comprehensive visual inspection tool `tools/gui_visual_validator.py` (~560 lines):
+- **Overlap Detection:** OCR-based collision detection using Tesseract + pytesseract
+- **Contrast Analysis:** WCAG AA (4.5:1 ratio) luminance calculations
+- **Window Sizing:** Tests 12 scenarios (4 resolutions × 3 DPI levels)
+- **Text Size:** Flags fonts < 11pt accessibility threshold
+- **JSON Reports:** Detailed issue reports with severity levels and screenshots
+
+### Phase 63 Improvements: Text Overlap Reduction
+
+**Starting State:** 14 CRITICAL text overlap issues
+
+**Issues Fixed:**
+1. **Settings Tab** (`jelly_rancher_main.py:1909-1950`)
+   - Title: Reduced font from 14pt → 13pt, added min-width 350px
+   - TMDB Label: Added min-width 120px to label
+   - API Key Input: Added min-width 250px
+   - Group spacing: Increased to 10px, added 10-15px margins
+
+2. **Step 2 (Scan Tab)** (`jelly_rancher_main.py:1006-1009`)
+   - Instruction label: Added word wrapping, min-width 450px, max-width 500px
+   - Layout spacing: 5px → 8px
+
+3. **Step 4 (Organize Tab)** (`jelly_rancher_main.py:1155-1202`)
+   - Safety group: min-width 450px, spacing 10px, margins 15/20px
+   - Operation mode: min-width 500px, spacing 12px, margins 15/20px
+   - Content labels: Explicit widths (300-400px) to prevent squishing
+
+4. **Help Text Panels** (All 6 tabs: Organization, Subtitles, Batch, Code, Analytics, Settings)
+   - Width: 350px max → 420px max
+   - Min-width: 300px → 380px
+   - Word wrapping: Enabled on QTextEdit elements
+
+**Technical Changes:**
+- Added `QTextOption` import to support word wrapping
+- Applied consistent spacing conventions: 8-12px between elements
+- Used `setMinimumWidth()` and `setMaximumWidth()` to constrain text flow
+- Applied `setWordWrapMode(QTextOption.WrapMode.WordWrap)` to prevent overflow
+
+### Validation Results
+
+**Before:** 51 total issues
+- 14 CRITICAL overlaps (text collisions)
+- 20 ERROR (window sizing)
+- 16 WARNING (window sizing, contrast)
+- 1 WARNING (small text)
+
+**After:** 45 total issues
+- 8 CRITICAL overlaps (43% reduction)
+- 20 ERROR (window sizing - unchanged, architectural issue)
+- 16 WARNING (window sizing/contrast - unchanged)
+- 1 WARNING (small text - unchanged)
+
+**Test Results:** 831 passed, 10 skipped, 0 failures
+- No regressions from spacing/width adjustments
+- All PyQt6 code compatible
+- All tests pass before/after changes
+
+### Files Modified
+
+**scripts/core/jelly_rancher_main.py**
+- Line 40: Added `QTextOption` import
+- Lines 831-833: Organization tab help text width + wrapping
+- Lines 1006-1009: Step 2 scan label word wrapping + width
+- Lines 1158-1161: Safety group spacing + margins
+- Lines 1189-1192, 1194-1200: Operation mode group + labels
+- Lines 1430-1432: Subtitles help text width + wrapping
+- Lines 1640-1642: Batch help text width + wrapping
+- Lines 1758-1760: Code analysis help text width + wrapping
+- Lines 1880-1882: Analytics help text width + wrapping
+- Lines 2028-2031, 1929-1930, 1943-1946: Settings tab title + form fields
+
+### Key Decision
+**Spacing over Font Reduction:** Rather than shrink fonts further (already at 12-14pt), increased layout spacing and constraints to allow text natural width. This improves readability while reducing overlaps.
+
+### Remaining Issues (8 CRITICAL Overlaps)
+1. Settings title "Settings" + "Configuration" - Title width constraint needed
+2. Step 2 scan "below" + "to" - Label width increased but still detecting false positives
+3. Step 4 "Before" + "You" - Group title rendering width issue
+4. Step 4 "Before" + "Organize" - Same group title issue
+5. Step 4 "default" + "for" - New overlap detected (from organizing layout)
+6. Step 4 "Operation" + "Mode" - Group title spacing issue
+7-8. Main window "ae" + "Hover/over" - OCR artifact (character fragments detected as overlaps)
+
+These remaining overlaps are primarily:
+- Group box titles that need architectural fixes (custom styling/widths)
+- OCR false positives from character-level fragment detection
+- Would require more intensive layout refactoring with diminishing returns
+
+### Performance & Quality Metrics
+- **Validation Time:** ~30s (includes OCR on 15 views)
+- **Screenshot Coverage:** 15 views (all main tabs + sub-tabs)
+- **Issue Classification:** Accurate severity + location data for targeting fixes
+- **Regression Testing:** 831 tests validate no side effects from spacing changes
+
+### Next Steps (Future Phases)
+1. Reduce remaining 8 CRITICAL overlaps with custom QGroupBox styling
+2. Implement window height reduction (currently 800px exceeds many DPI scenarios)
+3. Add visual regression detection (baseline screenshot comparison)
+4. Integrate validator into pre-commit hook for continuous monitoring
+
+### Git Commit
+```
+acb7cf8 - fix: Reduce GUI text overlap issues through spacing and layout improvements
+```
+
+**Commit Summary:**
+- 47 insertions, 19 deletions in jelly_rancher_main.py
+- Targeted layout improvements to 6 major views
+- No breaking changes, full backward compatibility
+- All 831 tests passing post-commit
 7. **QDialog.reject() cleaner than .close()** for dialog cleanup
 
 ### TESTING TOOLS USED:
