@@ -132,9 +132,9 @@ class TestBuildAnalysisPrompt:
     @pytest.mark.unit
     def test_builds_prompt_with_structure(self, analyzer):
         """Should build prompt containing structure data."""
-        # Use structure format that tree renderer expects
+        # Use structure format that tree renderer expects, with Path keys
         structure = {
-            "/media/Movies": {
+            Path("/media/Movies"): {
                 "files": ["movie1.mkv", "movie2.mkv"],
                 "total_size": 1024**3,
                 "file_types": {".mkv": 2}
@@ -145,7 +145,7 @@ class TestBuildAnalysisPrompt:
         
         assert "Movies" in prompt
         # Updated to match current tree format prompt text
-        assert "JELLYFIN NAMING REQUIREMENTS" in prompt
+        assert "JELLYFIN COMPLIANCE GUIDELINES" in prompt
         assert "detected_media" in prompt
     
     @pytest.mark.unit
@@ -372,3 +372,242 @@ class TestSetupLogger:
         assert analyzer.logger is not None
         assert hasattr(analyzer.logger, 'info')
         assert hasattr(analyzer.logger, 'error')
+
+
+class TestMetadataFiltering:
+    """Test filtering of Jellyfin metadata folders."""
+
+    @pytest.fixture
+    def analyzer(self):
+        """Create analyzer with mocked client."""
+        with patch('scripts.media.llm_structure_analyzer.PoeClient'):
+            from scripts.media.llm_structure_analyzer import LLMStructureAnalyzer
+            return LLMStructureAnalyzer()
+
+    @pytest.mark.unit
+    def test_metadata_folder_filtering(self, analyzer):
+        """Test that .trickplay and other metadata folders are skipped."""
+        assert analyzer._is_metadata_folder("Show.S01E01.trickplay") == True
+        assert analyzer._is_metadata_folder("Season 1") == False
+        assert analyzer._is_metadata_folder("extrafanart") == True
+        assert analyzer._is_metadata_folder("Movie (2020)") == False
+        assert analyzer._is_metadata_folder(".nfo") == True
+        assert analyzer._is_metadata_folder("extrathumbs") == True
+
+
+class TestTVShowAggregation:
+    """Test TV show detection and aggregation."""
+
+    @pytest.fixture
+    def analyzer(self):
+        """Create analyzer with mocked client."""
+        with patch('scripts.media.llm_structure_analyzer.PoeClient'):
+            from scripts.media.llm_structure_analyzer import LLMStructureAnalyzer
+            return LLMStructureAnalyzer()
+
+    @pytest.mark.unit
+    def test_tv_show_aggregation_basic(self, analyzer):
+        """Test basic TV show aggregation with seasons."""
+        # Mock folder structure with 3 seasons
+        show_path = Path("W:/Media/Seinfeld (1989)")
+        folder_data = {
+            'subfolders': ['Season 1', 'Season 2', 'Season 3'],
+            'seasons': {
+                'Season 1': {'files': ['ep1.mkv', 'ep2.mkv'], 'size': 1000000},
+                'Season 2': {'files': ['ep1.mkv', 'ep2.mkv'], 'size': 1000000},
+                'Season 3': {'files': ['ep1.mkv'], 'size': 500000},  # Incomplete
+            }
+        }
+
+        result = analyzer._aggregate_tv_show(show_path, folder_data)
+
+        assert result is not None
+        assert result['title'] == "Seinfeld (1989)"
+        assert result['seasons'] == 3
+        assert result['episodes'] == 5  # 2 + 2 + 1
+        assert result['total_size'] == 2500000
+        # All seasons have < 10 episodes, so all are considered incomplete
+        assert len(result['issues']) == 3  # All 3 seasons incomplete
+        assert "Season Season 1 may be incomplete (2 episodes)" in result['issues']
+
+    @pytest.mark.unit
+    def test_tv_show_no_seasons(self, analyzer):
+        """Test that folders without seasons are not treated as TV shows."""
+        show_path = Path("W:/Media/Movie (2020)")
+        folder_data = {
+            'subfolders': [],  # No seasons
+            'files': ['movie.mkv']
+        }
+
+        result = analyzer._aggregate_tv_show(show_path, folder_data)
+        assert result is None
+
+    @pytest.mark.unit
+    def test_tv_show_year_extraction(self, analyzer):
+        """Test year range extraction from TV show titles."""
+        # Test with year range
+        show_path = Path("W:/Media/The Office (2005-2013)")
+        folder_data = {'subfolders': ['Season 1']}
+        result = analyzer._aggregate_tv_show(show_path, folder_data)
+        assert result['title'] == "The Office (2005-2013)"
+
+        # Test without years
+        show_path = Path("W:/Media/Old Show")
+        result = analyzer._aggregate_tv_show(show_path, folder_data)
+        assert result['title'] == "Old Show"
+
+
+class TestMovieInfoExtraction:
+    """Test movie information extraction."""
+
+    @pytest.fixture
+    def analyzer(self):
+        """Create analyzer with mocked client."""
+        with patch('scripts.media.llm_structure_analyzer.PoeClient'):
+            from scripts.media.llm_structure_analyzer import LLMStructureAnalyzer
+            return LLMStructureAnalyzer()
+
+    @pytest.mark.unit
+    def test_movie_with_year(self, analyzer):
+        """Test movie with year in title."""
+        movie_path = Path("W:/Movies/The Godfather (1972)")
+        folder_data = {'total_size': 5000000000}  # 5GB
+
+        result = analyzer._extract_movie_info(movie_path, folder_data)
+
+        assert result['title'] == "The Godfather (1972)"
+        assert result['size'] == 5000000000
+        assert result['issues'] == []  # Has year
+
+    @pytest.mark.unit
+    def test_movie_missing_year(self, analyzer):
+        """Test movie without year in title."""
+        movie_path = Path("W:/Movies/Old Movie")
+        folder_data = {'total_size': 2000000000}
+
+        result = analyzer._extract_movie_info(movie_path, folder_data)
+
+        assert result['title'] == "Old Movie"
+        assert result['issues'] == ["missing year"]
+
+
+class TestIssueCategorization:
+    """Test issue categorization for grouping."""
+
+    @pytest.fixture
+    def analyzer(self):
+        """Create analyzer with mocked client."""
+        with patch('scripts.media.llm_structure_analyzer.PoeClient'):
+            from scripts.media.llm_structure_analyzer import LLMStructureAnalyzer
+            return LLMStructureAnalyzer()
+
+    @pytest.mark.unit
+    def test_issue_categorization(self, analyzer):
+        """Test that issues are properly categorized."""
+        assert analyzer._categorize_issue("missing year") == "missing year metadata"
+        assert analyzer._categorize_issue("Season 3 may be incomplete") == "with incomplete seasons"
+        assert analyzer._categorize_issue("non-standard naming") == "with non-standard naming"
+        assert analyzer._categorize_issue("some other issue") == "with other issues"
+
+
+class TestSizeFormatting:
+    """Test human-readable size formatting."""
+
+    @pytest.fixture
+    def analyzer(self):
+        """Create analyzer with mocked client."""
+        with patch('scripts.media.llm_structure_analyzer.PoeClient'):
+            from scripts.media.llm_structure_analyzer import LLMStructureAnalyzer
+            return LLMStructureAnalyzer()
+
+    @pytest.mark.unit
+    def test_size_formatting(self, analyzer):
+        """Test size formatting for different units."""
+        assert analyzer._format_size(500) == "0.5 KB"  # 500 bytes = 0.488 KB ≈ 0.5 KB
+        assert analyzer._format_size(1500000) == "1.4 MB"  # 1500000 / 1024^2 ≈ 1.4305 MB
+        assert analyzer._format_size(3000000000) == "2.8 GB"  # 3 * 1024^3 approx
+
+
+class TestPromptOptimization:
+    """Test the complete prompt optimization."""
+
+    @pytest.fixture
+    def analyzer(self):
+        """Create analyzer with mocked client."""
+        with patch('scripts.media.llm_structure_analyzer.PoeClient'):
+            from scripts.media.llm_structure_analyzer import LLMStructureAnalyzer
+            return LLMStructureAnalyzer()
+
+    @pytest.mark.unit
+    def test_title_to_path_mapping(self, analyzer):
+        """Test that title_to_path_map is built correctly."""
+        # Mock structure with movies and TV shows
+        structure_summary = {
+            Path("W:/Movies/The Godfather (1972)"): {
+                'total_size': 5000000000,
+                'files': ['movie.mkv']
+            },
+            Path("W:/TV/Seinfeld (1989)"): {
+                'subfolders': ['Season 1', 'Season 2'],
+                'seasons': {
+                    'Season 1': {'files': ['ep1.mkv'], 'size': 1000000},
+                    'Season 2': {'files': ['ep1.mkv'], 'size': 1000000},
+                }
+            },
+            # Metadata folder that should be skipped
+            Path("W:/TV/Seinfeld (1989)/Season 1/.trickplay"): {
+                'files': ['thumb.jpg']
+            }
+        }
+
+        # Call the method that builds the prompt
+        analyzer._build_tree_prompt(structure_summary)
+
+        # Check that title_to_path_map was populated
+        assert "The Godfather (1972)" in analyzer.title_to_path_map
+        assert "Seinfeld (1989)" in analyzer.title_to_path_map
+        assert analyzer.title_to_path_map["The Godfather (1972)"] == Path("W:/Movies/The Godfather (1972)")
+        assert analyzer.title_to_path_map["Seinfeld (1989)"] == Path("W:/TV/Seinfeld (1989)")
+
+    @pytest.mark.unit
+    def test_prompt_reduction_simulation(self, analyzer):
+        """Test that the new prompt format is significantly shorter."""
+        # Create a structure that would generate a long prompt with old method
+        structure_summary = {}
+
+        # Add some movies
+        for i in range(10):
+            structure_summary[Path(f"W:/Movies/Movie {i} (2020)")] = {
+                'total_size': 2000000000,
+                'files': [f'movie{i}.mkv']
+            }
+
+        # Add a TV show with many seasons (would create many lines in old format)
+        seasons = {}
+        for s in range(1, 10):  # 9 seasons
+            seasons[f'Season {s}'] = {
+                'files': [f'ep{j}.mkv' for j in range(1, 11)],  # 10 episodes each
+                'size': 10000000
+            }
+
+        structure_summary[Path("W:/TV/Long Running Show (2000-2010)")] = {
+            'subfolders': [f'Season {s}' for s in range(1, 10)],
+            'seasons': seasons
+        }
+
+        # Generate the optimized prompt
+        prompt = analyzer._build_tree_prompt(structure_summary)
+
+        # Count lines
+        line_count = len(prompt.split('\n'))
+
+        # The optimized prompt should be much shorter than the old format would be
+        # Old format: ~10 movies + ~90 season folders + metadata = 100+ lines
+        # New format: ~10 movie lines + 1 TV show line + headers = ~20 lines
+        assert line_count < 50, f"Prompt too long: {line_count} lines"
+
+        # Verify content
+        assert "📺 MOVIES (10 items," in prompt
+        assert "📺 TV SHOWS (1 items," in prompt
+        assert "Long Running Show (2000-2010)" in prompt
+        assert "9 seasons, 90 episodes" in prompt

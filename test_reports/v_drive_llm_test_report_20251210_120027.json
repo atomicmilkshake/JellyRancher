@@ -1,0 +1,38 @@
+{
+  "test_info": {
+    "test_name": "V Drive LLM Prompt Optimization Test",
+    "test_date": "2025-12-10T12:00:27.315966",
+    "v_drive_path": "V:\\",
+    "roundup_name": "V_Drive_LLM_Test"
+  },
+  "metrics": {
+    "start_time": "2025-12-10 12:00:27.220835",
+    "scan_files_found": 10,
+    "scan_folders_found": 9,
+    "prompt_tokens_before": 653,
+    "prompt_tokens_after": 536,
+    "token_reduction_percent": 17.917304747320063,
+    "analysis_duration_seconds": 9e-06,
+    "detected_movies": 2,
+    "detected_tv_shows": 2,
+    "folder_changes_proposed": 2
+  },
+  "optimization_results": {
+    "token_reduction_percent": 17.917304747320063,
+    "prompt_size_optimized": 536,
+    "prompt_size_old": 653,
+    "metadata_folders_filtered": true,
+    "tv_shows_aggregated": true
+  },
+  "analysis_summary": {
+    "detected_movies": 2,
+    "detected_tv_shows": 2,
+    "folder_changes_proposed": 2,
+    "analysis_duration_seconds": 9e-06
+  },
+  "structure_summary": {
+    "total_files_scanned": 10,
+    "total_folders_scanned": 9,
+    "v_drive_accessible": true
+  }
+}

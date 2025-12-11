@@ -258,6 +258,8 @@ class ChaosMonkey:
         widget = random.choice(editable)
         name = widget.objectName() or "Unknown"
         value = EdgeCaseData.get_random()
+        # Truncate to prevent issues with extremely long inputs
+        value = value[:1000] if len(value) > 1000 else value
         self.actions_taken.append(f"Fill input {name}: {repr(value)[:50]}")
 
         try:

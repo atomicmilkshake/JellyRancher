@@ -25,7 +25,12 @@
       "Bash(\"C:\\Program Files\\Tesseract-OCR\\tesseract.exe\" --version)",
       "Bash(.venvScriptspython.exe -m pytest tests/test_workflow_comprehensive.py -x --tb=short)",
       "Bash(git -C v:JellyRancher status)",
-      "Bash(cmd /c \"cd /d V:\\JellyRancher && git status\")"
+      "Bash(cmd /c \"cd /d V:\\JellyRancher && git status\")",
+      "Bash(.venvScriptspython.exe -m pytest tests/ -v --tb=short -q)",
+      "Bash(.venvScriptspython.exe -m pytest tests/ -q --tb=short)",
+      "Bash(cmd /c \".venv\\Scripts\\python.exe -m pytest tests/ -q --tb=short 2>&1 | tail -50\")",
+      "Bash(.venvScriptspython.exe -m pytest tests/ -q --tb=line)",
+      "Bash(sqlite3 --version:*)"
     ],
     "deny": [],
     "ask": []

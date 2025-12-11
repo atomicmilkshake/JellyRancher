@@ -1,0 +1,42 @@
+🎭 JELLYRANCHER COMPREHENSIVE GUI AUTOMATION TEST SUITE REPORT
+==========================================================================================
+
+📊 SUITE EXECUTION SUMMARY
+--------------------------------------------------
+Start Time: 2025-12-10 15:21:09.975558
+End Time: 2025-12-10 15:21:52.978564
+Duration: 43.00s
+Scenarios Executed: 6
+Scenarios Passed: 6
+Scenarios Failed: 0
+
+🎯 PERFORMANCE METRICS
+--------------------------------------------------
+Total GUI Interactions: 25
+Total Errors Encountered: 0
+Average Scenario Duration: 7.17s
+
+📋 SCENARIO RESULTS
+--------------------------------------------------
+✓ PASS basic_workflow (6.71s, 5 interactions, 0 errors)
+✓ PASS slow_user (10.62s, 5 interactions, 0 errors)
+✓ PASS fast_user (4.63s, 5 interactions, 0 errors)
+✓ PASS interrupted_workflow (7.72s, 3 interactions, 0 errors)
+✓ PASS error_recovery (6.71s, 5 interactions, 0 errors)
+✓ PASS alternative_paths (6.62s, 2 interactions, 0 errors)
+
+💡 RECOMMENDATIONS
+--------------------------------------------------
+• All tests passed successfully - no recommendations needed
+
+✅ SUITE CONCLUSION
+--------------------------------------------------
+Overall Success Rate: 100.0%
+The GUI automation test suite identified working interaction patterns
+and provided failure analysis for scenarios that need improvement.
+
+📁 OUTPUT FILES
+--------------------------------------------------
+• gui_automation_suite_summary.txt (this file)
+• gui_automation_suite_report_*.json (detailed data)
+• gui_automation_suite_*.log (execution log)

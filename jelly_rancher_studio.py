@@ -48,6 +48,7 @@ from scripts.ui.execution_view import ExecutionView
 from scripts.ui.subtitles_view import SubtitlesView
 from scripts.ui.log_viewer import LogViewerWindow
 from scripts.ui.jellybase_view import JellyBaseView
+from scripts.ui.sorting_canvas_view import SortingCanvasView
 from scripts.core.dialogs.jellyfin_settings_dialog import JellyfinSettingsDialog
 
 # Initialize logging
@@ -363,7 +364,12 @@ class JellyRancherStudio(QMainWindow):
         # Tools menu
         tools_menu = menubar.addMenu("&Tools")
 
-        # Jellyfin Cleanup removed - now accessible via JellyBase tab
+        # Sorting Canvas - the "secret weapon"
+        sorting_canvas_action = QAction("🎯 &Sorting Canvas", self)
+        sorting_canvas_action.setShortcut("Ctrl+Shift+S")
+        sorting_canvas_action.setToolTip("Open the Sorting Canvas for per-bucket categorization")
+        sorting_canvas_action.triggered.connect(lambda: self._open_sorting_canvas())
+        tools_menu.addAction(sorting_canvas_action)
 
         tools_menu.addSeparator()
 
@@ -996,6 +1002,126 @@ class JellyRancherStudio(QMainWindow):
 
         logger.info(f"Opened Scan Results view (session #{scan_session_id})")
 
+    def _open_sorting_canvas(self, filtered_files: list = None, filter_config: dict = None):
+        """
+        Open the Sorting Canvas view - the 'secret weapon' for per-bucket categorization.
+        
+        The Sorting Canvas sits between Scan Results and Analysis, allowing users
+        to drag-drop files/folders into category buckets. Each bucket gets a
+        specialized LLM prompt for better analysis results.
+        
+        Args:
+            filtered_files: Optional list of FileRecord objects from ScanResultsView
+            filter_config: Optional filter configuration dict
+        """
+        if not self.current_roundup or not self.project_adapter:
+            self.status_label.setText("⚠ Please open a Round-Up first")
+            return
+
+        # Check if tab already open
+        for i in range(self.tab_widget.count()):
+            if "Sorting Canvas" in self.tab_widget.tabText(i):
+                self.tab_widget.setCurrentIndex(i)
+                return
+
+        # Get scanned files from database if not provided
+        scanned_files = filtered_files or []
+        if not scanned_files:
+            scanned_files = self._get_scanned_files_from_roundup()
+
+        # Create the Sorting Canvas view
+        canvas_view = SortingCanvasView(
+            self.project_adapter, 
+            self.manager_adapter,
+            scanned_files=scanned_files,
+            parent=self
+        )
+        canvas_view.send_to_analysis.connect(self._on_send_from_sorting_canvas)
+        canvas_view.canvas_saved.connect(self._on_canvas_saved)
+
+        # Try to load existing bucket assignments
+        canvas_view.load_from_database()
+
+        self.tab_widget.addTab(canvas_view, f"🎯 Sorting Canvas - {self.current_roundup.name}")
+        self.tab_widget.setCurrentWidget(canvas_view)
+
+        logger.info(f"Opened Sorting Canvas with {len(scanned_files)} files")
+
+    def _get_scanned_files_from_roundup(self) -> list:
+        """Get scanned files from the Round-Up database."""
+        if not self.current_roundup:
+            return []
+        
+        try:
+            import sqlite3
+            from scripts.core.file_scanner import FileRecord
+            from pathlib import Path
+            
+            db_path = self.current_roundup.path / "data.db"
+            if not db_path.exists():
+                return []
+            
+            conn = sqlite3.connect(str(db_path))
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT path, filename, extension, size_bytes, blake3_hash, created_at
+                FROM scan_files
+            ''')
+            
+            files = []
+            for row in cursor.fetchall():
+                # Create FileRecord-like objects
+                files.append(FileRecord(
+                    path=Path(row['path']),
+                    size_bytes=row['size_bytes'] or 0,
+                    blake3_hash=row['blake3_hash'] or '',
+                    extension=row['extension'] or ''
+                ))
+            
+            conn.close()
+            return files
+            
+        except Exception as e:
+            logger.error(f"Failed to get scanned files from Round-Up: {e}")
+            return []
+
+    def _on_send_from_sorting_canvas(self, bucket_data: dict):
+        """Handle send to analysis from Sorting Canvas with per-bucket data."""
+        if not self.current_roundup or not self.project_adapter:
+            return
+
+        # Update step status
+        if self.current_roundup:
+            self.current_roundup.complete_step(2)  # Results/Canvas complete
+            self.roundup_manager.save(self.current_roundup)
+
+        # Open analysis view with bucket-categorized data
+        analysis_view = AnalysisView(
+            self.project_adapter, self.manager_adapter, self
+        )
+        analysis_view.analysis_saved.connect(self._on_analysis_saved)
+        analysis_view.metadata_built.connect(self._on_metadata_built)
+        analysis_view.send_to_review.connect(self._on_send_to_review_from_analysis)
+
+        # Set bucket data for per-bucket analysis (uses specialized prompts)
+        analysis_view.set_bucket_data(bucket_data)
+
+        self.tab_widget.addTab(
+            analysis_view,
+            f"3️⃣ Analysis (Per-Bucket) - {self.current_roundup.name}"
+        )
+        self.tab_widget.setCurrentWidget(analysis_view)
+
+        logger.info(f"Opened Analysis with {len(bucket_data.get('buckets', {}))} buckets")
+
+    def _on_canvas_saved(self):
+        """Handle Sorting Canvas saved."""
+        if self.current_roundup:
+            self._update_save_indicator()
+        self.status_label.setText("Sorting Canvas assignments saved ✓")
+
     def _open_analysis_view(self, analysis_id: Optional[int] = None):
         """Open the Analysis view."""
         if not self.current_roundup or not self.project_adapter:
@@ -1159,31 +1285,21 @@ class JellyRancherStudio(QMainWindow):
         self._open_scan_results_view(scan_session_id)
 
     def _on_send_to_analysis(self, filtered_files: list, filter_config: dict):
-        """Handle send to analysis from results view."""
+        """
+        Handle send to analysis from results view.
+        
+        Routes through Sorting Canvas for per-bucket categorization (the 'secret weapon').
+        Users can categorize files into buckets (Movies, TV Shows, etc.) before analysis,
+        which enables specialized per-bucket LLM prompts for better accuracy.
+        """
         if not self.current_roundup or not self.project_adapter:
             return
 
-        # Update step status
-        if self.current_roundup:
-            self.current_roundup.complete_step(2)
-
-        # Open analysis view with filtered data
-        analysis_view = AnalysisView(
-            self.project_adapter, self.manager_adapter, self,
-            filtered_files=filtered_files,
-            filter_config=filter_config
-        )
-        analysis_view.analysis_saved.connect(self._on_analysis_saved)
-        analysis_view.metadata_built.connect(self._on_metadata_built)
-        analysis_view.send_to_review.connect(self._on_send_to_review_from_analysis)
-
-        self.tab_widget.addTab(
-            analysis_view,
-            f"3️⃣ Analysis (Filtered) - {self.current_roundup.name}"
-        )
-        self.tab_widget.setCurrentWidget(analysis_view)
-
-        logger.info(f"Opened Analysis with {len(filtered_files)} filtered files")
+        # Route through Sorting Canvas for per-bucket categorization
+        # This is the "secret weapon" - each bucket gets specialized LLM prompts
+        self._open_sorting_canvas(filtered_files, filter_config)
+        
+        logger.info(f"Routed {len(filtered_files)} filtered files to Sorting Canvas")
 
     def _on_analysis_saved(self, analysis_id: int):
         """Handle analysis saved."""

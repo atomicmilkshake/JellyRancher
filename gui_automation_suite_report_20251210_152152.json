@@ -1,0 +1,123 @@
+{
+  "suite_execution": {
+    "start_time": "2025-12-10 15:21:09.975558",
+    "end_time": "2025-12-10 15:21:52.978564",
+    "duration_seconds": 43.003006,
+    "scenarios_executed": 6,
+    "scenarios_passed": 6,
+    "scenarios_failed": 0
+  },
+  "performance_metrics": {
+    "total_gui_interactions": 25,
+    "total_errors_encountered": 0,
+    "average_scenario_duration": 7.167167666666667
+  },
+  "test_results": [
+    {
+      "success": true,
+      "scenario": "basic_workflow",
+      "duration_seconds": 6.707784,
+      "metrics": {
+        "scenario": "basic_workflow",
+        "start_time": "2025-12-10 15:21:09.976058",
+        "gui_interactions": 5,
+        "errors_encountered": 0,
+        "timeouts": 0,
+        "element_not_found": 0,
+        "recovery_attempts": 0
+      },
+      "gui_app_launched": true,
+      "main_window_found": true,
+      "errors": []
+    },
+    {
+      "success": true,
+      "scenario": "slow_user",
+      "duration_seconds": 10.615103,
+      "metrics": {
+        "scenario": "slow_user",
+        "start_time": "2025-12-10 15:21:16.684342",
+        "gui_interactions": 5,
+        "errors_encountered": 0,
+        "timeouts": 0,
+        "element_not_found": 0,
+        "recovery_attempts": 0
+      },
+      "gui_app_launched": true,
+      "main_window_found": true,
+      "errors": []
+    },
+    {
+      "success": true,
+      "scenario": "fast_user",
+      "duration_seconds": 4.629788,
+      "metrics": {
+        "scenario": "fast_user",
+        "start_time": "2025-12-10 15:21:27.299948",
+        "gui_interactions": 5,
+        "errors_encountered": 0,
+        "timeouts": 0,
+        "element_not_found": 0,
+        "recovery_attempts": 0
+      },
+      "gui_app_launched": true,
+      "main_window_found": true,
+      "errors": []
+    },
+    {
+      "success": true,
+      "scenario": "interrupted_workflow",
+      "duration_seconds": 7.715207,
+      "metrics": {
+        "scenario": "interrupted_workflow",
+        "start_time": "2025-12-10 15:21:31.930233",
+        "gui_interactions": 3,
+        "errors_encountered": 0,
+        "timeouts": 0,
+        "element_not_found": 0,
+        "recovery_attempts": 0
+      },
+      "gui_app_launched": true,
+      "main_window_found": true,
+      "errors": []
+    },
+    {
+      "success": true,
+      "scenario": "error_recovery",
+      "duration_seconds": 6.71383,
+      "metrics": {
+        "scenario": "error_recovery",
+        "start_time": "2025-12-10 15:21:39.645940",
+        "gui_interactions": 5,
+        "errors_encountered": 0,
+        "timeouts": 0,
+        "element_not_found": 0,
+        "recovery_attempts": 1
+      },
+      "gui_app_launched": true,
+      "main_window_found": true,
+      "errors": []
+    },
+    {
+      "success": true,
+      "scenario": "alternative_paths",
+      "duration_seconds": 6.618794,
+      "metrics": {
+        "scenario": "alternative_paths",
+        "start_time": "2025-12-10 15:21:46.359770",
+        "gui_interactions": 2,
+        "errors_encountered": 0,
+        "timeouts": 0,
+        "element_not_found": 0,
+        "recovery_attempts": 0
+      },
+      "gui_app_launched": true,
+      "main_window_found": true,
+      "errors": []
+    }
+  ],
+  "failure_analysis": [],
+  "recommendations": [
+    "All tests passed successfully - no recommendations needed"
+  ]
+}

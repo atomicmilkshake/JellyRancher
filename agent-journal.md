@@ -1517,9 +1517,141 @@ Changed the early-return logic to instead **remove the old Results tab** and **c
 
 ---
 
+## PHASE 62-D: Sorting Canvas Implementation (THE SECRET WEAPON)
+**Date:** 2025-12-11 10:38:21
+**Status:** COMPLETED ✅
+**Tests:** 820 passed (49 new Sorting Canvas tests), 10 skipped
+
+### OBJECTIVE:
+Implement the Sorting Canvas - the "secret weapon" for media categorization that allows users to drag-drop files/folders into category buckets before LLM analysis. Each bucket gets a specialized LLM prompt optimized for that media type.
+
+### ACCOMPLISHMENTS:
+
+#### 1. Bucket Manager (`scripts/core/bucket_manager.py` ~530 lines)
+- **BucketType enum:** Movies, TV Shows, Games, Music, Books, Unsorted
+- **BucketItem dataclass:** Path, name, size, file count, auto/manual assignment tracking
+- **Bucket dataclass:** Items list, statistics, serialization
+- **BucketManager class:**
+  - Add/move/remove items between buckets
+  - Auto-categorization with pattern matching (TV: S01E01, Movies: years/quality tags)
+  - Undo/redo support (last 50 operations)
+  - Database persistence (SQLite bucket_assignments table)
+  - Statistics tracking (items, files, sizes per bucket)
+
+#### 2. Per-Bucket Prompts (`scripts/core/per_bucket_prompts.py` ~350 lines)
+- **PromptBuilder class:** Generates category-specific LLM prompts
+  - `get_movie_prompt()`: Year detection, quality tags, release groups
+  - `get_tv_show_prompt()`: S01E01 patterns, multi-episode files, specials
+  - `get_game_prompt()`: Platform detection, versions, DLC
+  - `get_music_prompt()`: Artist/album/track structure
+  - `get_book_prompt()`: Author/title/series detection
+  - `get_unsorted_prompt()`: Mixed content categorization
+- **Jellyfin naming conventions** embedded in each prompt
+- **build_folder_summary_for_bucket()**: Formats items for LLM consumption
+
+#### 3. Sorting Canvas View (`scripts/ui/sorting_canvas_view.py` ~650 lines)
+- **DraggableTreeWidget:** Custom QTreeWidget with drag-drop support
+- **BucketWidget:** Individual bucket UI with statistics display
+- **SortingCanvasView:** Main UI with:
+  - 6 bucket widgets (Unsorted + 5 categories)
+  - Auto-sort button (pattern-based categorization)
+  - Reset button (move all to Unsorted)
+  - Undo/Redo buttons
+  - Statistics label (items, files, size)
+  - Save/Load bucket assignments
+  - Send to Analysis with per-bucket prompts
+- **Color-coded buckets:** Movies (red), TV Shows (blue), Games (purple), etc.
+- **Drag-drop between buckets** with visual feedback
+
+#### 4. Studio Integration (`jelly_rancher_studio.py`)
+- Added import for `SortingCanvasView`
+- Added `_open_sorting_canvas()` method
+- Added `_get_scanned_files_from_roundup()` helper
+- Added `_on_send_from_sorting_canvas()` signal handler
+- Added `_on_canvas_saved()` signal handler
+- Modified `_on_send_to_analysis()` to route through Sorting Canvas
+- Added menu action: Tools → Sorting Canvas (Ctrl+Shift+S)
+
+#### 5. Analysis View Updates (`scripts/ui/analysis_view.py`)
+- Added `bucket_data` attribute
+- Added `set_bucket_data()` method
+- Added `_display_bucket_summary()` for per-bucket mode display
+
+#### 6. Comprehensive Tests (`tests/test_sorting_canvas.py` ~750 lines)
+**49 tests covering:**
+- BucketType: enum values, string conversion
+- BucketItem: creation, serialization roundtrip
+- Bucket: add/remove items, statistics, serialization
+- BucketManager: initialization, item management, move operations
+- Auto-categorization: TV shows, movies, music, books, games patterns
+- Undo/Redo: move reversal, empty stack handling
+- Database persistence: save/load to SQLite
+- Per-bucket prompts: content validation for all categories
+- Folder summary builder: formatting, truncation
+- PerBucketAnalyzer: empty buckets, batch analysis
+- Integration: complete workflow simulation
+- GUI tests: view creation, bucket widgets, auto-sort button
+
+### TEST RESULTS:
+```
+tests/test_sorting_canvas.py - 49 tests
+├── BucketType tests: 3 passed
+├── BucketItem tests: 3 passed
+├── Bucket tests: 4 passed
+├── BucketManager tests: 8 passed
+├── Auto-categorization: 7 passed
+├── Undo/Redo: 4 passed
+├── Database persistence: 3 passed
+├── Per-bucket prompts: 7 passed
+├── Folder summary: 3 passed
+├── PerBucketAnalyzer: 3 passed
+├── Integration: 1 passed
+└── GUI tests: 3 passed
+Total: 49 passed, 0 failed, 0 skipped
+```
+
+### FILES CREATED:
+- `scripts/core/bucket_manager.py` - Bucket state management (~530 lines)
+- `scripts/core/per_bucket_prompts.py` - Category-specific LLM prompts (~350 lines)
+- `scripts/ui/sorting_canvas_view.py` - Drag-drop UI (~650 lines)
+- `tests/test_sorting_canvas.py` - Comprehensive tests (~750 lines)
+
+### FILES MODIFIED:
+- `jelly_rancher_studio.py` - Studio integration (imports, methods, menu)
+- `scripts/ui/analysis_view.py` - Bucket data support
+
+### WORKFLOW INTEGRATION:
+The Sorting Canvas is now inserted between Scan Results (Step 2) and Analysis (Step 3):
+
+```
+1. Scan → 2. Results → [🎯 SORTING CANVAS] → 3. Analysis → 4. Canonical DB → 5. Review → 6. Execute
+                              ↓
+                    Drag-drop categorization
+                    Per-bucket LLM prompts
+```
+
+### KEY PATTERNS FOR AUTO-CATEGORIZATION:
+- **TV Shows:** S01E01, Season 1, 1x01, Episode 1
+- **Movies:** (2020), .2020., 720p/1080p/4K, BluRay/WEB-DL
+- **Music:** .mp3, .flac, .wav extensions
+- **Books:** .epub, .mobi, .pdf extensions
+- **Games:** ISO, ROM, game keywords
+
+### ACCESS METHODS:
+1. **Via Workflow:** Results view "Send to Analysis" → Sorting Canvas
+2. **Via Menu:** Tools → Sorting Canvas (Ctrl+Shift+S)
+3. **Direct:** `studio._open_sorting_canvas()`
+
+### NEXT STEPS:
+1. Implement actual per-bucket LLM analysis (connect prompts to LLM workers)
+2. Phase D: Implement 22 stub functions
+3. Phase E: JellyBase completion
+
+---
+
 ## CURRENT STATE SUMMARY
-**Date:** 2025-12-10 16:30:00
-**Tests:** 771 passed, 10 skipped ✅
+**Date:** 2025-12-11 10:38:21
+**Tests:** 820 passed (750 base + 49 Sorting Canvas + 21 pre-existing flaky), 10 skipped ✅
 **GUI Automation:** 6/6 scenarios passed ✅
-**Recent Fix:** Scan results state management ✅
-**Next Priority:** Sorting Canvas implementation (Phase 62-D)
+**Sorting Canvas:** IMPLEMENTED ✅
+**Next Priority:** Per-bucket LLM integration, stub function implementation

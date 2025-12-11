@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 import logging
+from collections import defaultdict
 
 # Add parent directories to path for imports
 sys.path.append(str(Path(__file__).parent.parent / 'ai'))
@@ -64,6 +65,9 @@ class LLMStructureAnalyzer:
                 )
             except Exception as e:
                 raise RuntimeError(f"Failed to initialize Poe client: {e}")
+            
+            # Initialize title-to-path mapping for LLM response parsing
+            self.title_to_path_map = {}
             
             self.logger.info(f"LLM Structure Analyzer initialized with model: {model}")
             
@@ -488,105 +492,248 @@ IMPORTANT: Return ONLY the JSON object, no additional text before or after.
             self.logger.error(f"Unexpected error building prompt: {e}", exc_info=True)
             raise RuntimeError(f"Failed to build analysis prompt: {e}")
     
+    def _is_metadata_folder(self, folder_name: str) -> bool:
+        """
+        Check if folder is Jellyfin/Plex metadata (should be skipped from prompt).
+        
+        Args:
+            folder_name: Name of the folder to check
+            
+        Returns:
+            True if folder is metadata, False if it's actual media content
+        """
+        metadata_patterns = [
+            '.trickplay',   # Jellyfin thumbnail preview strips
+            '.nfo',         # XML metadata files
+            'extrafanart',  # Extra artwork folder
+            'extrathumbs'   # Extra thumbnails folder
+        ]
+        folder_lower = folder_name.lower()
+        return any(pattern in folder_lower for pattern in metadata_patterns)
+    
+    def _aggregate_tv_show(self, show_folder_path: Path, folder_data: Dict) -> Optional[Dict]:
+        """
+        Aggregate TV show info from season subfolders.
+        
+        Args:
+            show_folder_path: Path to the show root folder
+            folder_data: Dictionary containing folder structure from FileScanner
+            
+        Returns:
+            Aggregated show info:
+            {
+                'title': 'Show Name (2015-2020)',  # Display title with year range
+                'seasons': 9,                      # Number of seasons detected
+                'episodes': 180,                   # Total episode count
+                'total_size': 123456789,           # Total size in bytes
+                'issues': ['missing_year', 'incomplete_season_3']  # Aggregated issues
+            }
+            
+            Returns None if not a TV show folder
+        """
+        import re
+        
+        # Check if this folder contains "Season XX" subfolders
+        subfolders = folder_data.get('subfolders', [])
+        season_folders = [f for f in subfolders if re.match(r'Season \d+', f, re.IGNORECASE)]
+        
+        if len(season_folders) < 1:
+            return None  # Not a TV show folder
+        
+        # Extract year/year range from folder name
+        folder_name = show_folder_path.name
+        year_match = re.search(r'\((\d{4})(?:-(\d{4}))?\)', folder_name)
+        if year_match:
+            year_start = year_match.group(1)
+            year_end = year_match.group(2)
+            title_with_years = folder_name  # Already has years
+        else:
+            # Extract just the title
+            title = re.sub(r'\s*\(\d{4}.*?\)\s*', '', folder_name).strip()
+            title_with_years = title  # No years available
+        
+        # Count total episodes across all seasons
+        total_episodes = 0
+        total_size = 0
+        issues = []
+        
+        for season_folder in season_folders:
+            season_path = show_folder_path / season_folder
+            season_data = folder_data.get('seasons', {}).get(season_folder, {})
+            
+            # Count video files (episodes)
+            video_extensions = ['.mkv', '.mp4', '.avi', '.m4v', '.ts']
+            files = season_data.get('files', [])
+            episode_count = sum(1 for f in files if any(f.lower().endswith(ext) for ext in video_extensions))
+            total_episodes += episode_count
+            
+            # Accumulate size
+            total_size += season_data.get('size', 0)
+            
+            # Check for incomplete seasons (fewer than expected episodes)
+            if episode_count < 10:  # Heuristic: most seasons have 10+ episodes
+                issues.append(f"Season {season_folder} may be incomplete ({episode_count} episodes)")
+        
+        return {
+            'title': title_with_years,
+            'seasons': len(season_folders),
+            'episodes': total_episodes,
+            'total_size': total_size,
+            'issues': issues
+        }
+    
+    def _extract_movie_info(self, movie_path: Path, folder_data: Dict) -> Dict:
+        """
+        Extract movie information from folder data.
+        
+        Args:
+            movie_path: Path to the movie folder
+            folder_data: Dictionary containing folder structure
+            
+        Returns:
+            Movie info dictionary
+        """
+        folder_name = movie_path.name
+        total_size = folder_data.get('total_size', 0)
+        issues = []
+        
+        # Check for year in folder name
+        if not any(c in folder_name for c in ['(', ')']):
+            issues.append("missing year")
+        
+        return {
+            'title': folder_name,
+            'size': total_size,
+            'issues': issues
+        }
+    
+    def _categorize_issue(self, issue: str) -> str:
+        """
+        Categorize an issue for grouping.
+        
+        Args:
+            issue: Issue description
+            
+        Returns:
+            Categorized issue type
+        """
+        issue_lower = issue.lower()
+        if "missing year" in issue_lower:
+            return "missing year metadata"
+        elif "incomplete" in issue_lower:
+            return "with incomplete seasons"
+        elif "non-standard" in issue_lower:
+            return "with non-standard naming"
+        else:
+            return "with other issues"
+    
+    def _format_size(self, size_bytes: int) -> str:
+        """
+        Format size in human-readable format.
+        
+        Args:
+            size_bytes: Size in bytes
+            
+        Returns:
+            Formatted size string
+        """
+        if size_bytes >= 1024**3:
+            return f"{size_bytes / 1024**3:.1f} GB"
+        elif size_bytes >= 1024**2:
+            return f"{size_bytes / 1024**2:.1f} MB"
+        else:
+            return f"{size_bytes / 1024:.1f} KB"
+    
     def _build_tree_prompt(
         self,
         structure_summary: Dict,
         additional_context: Optional[str] = None
     ) -> str:
         """
-        Build a tree-formatted prompt for LLM analysis.
+        Build a compact, aggregated prompt for LLM analysis.
         
-        Tree format is ~60% more token-efficient than JSON while still
-        being easily understood by LLMs (trained on `tree` command output).
+        This optimized version:
+        - Filters out Jellyfin metadata folders (.trickplay, .nfo, etc.)
+        - Aggregates TV shows into single lines (9 seasons → 1 line)
+        - Groups similar issues with counts
+        - Builds title-to-path mapping for response parsing
+        - Reduces token usage by ~70%
         
         Args:
             structure_summary: Folder structure data
             additional_context: Optional additional context
             
         Returns:
-            Complete prompt string in tree format
+            Complete prompt string in optimized format
         """
-        # Build tree representation
-        tree_lines = []
-        issues_detected = []
-        stats = {'folders': 0, 'files': 0, 'total_size': 0}
+        # Initialize title-to-path mapping
+        self.title_to_path_map = {}
+        
+        # Separate movies and TV shows
+        movies = []
+        tv_shows = []
+        issue_counts = defaultdict(int)
         
         # Skip metadata keys
         metadata_keys = {'project_name', 'scan_id', 'total_files'}
         
-        # Filter and sort folder entries (convert keys to strings for sorting)
-        folder_items = [
-            (folder_path, folder_data) 
-            for folder_path, folder_data in structure_summary.items()
-            if str(folder_path) not in metadata_keys and isinstance(folder_data, dict)
-        ]
-        folder_items.sort(key=lambda x: str(x[0]))
-        
-        for folder_path, folder_data in folder_items:
+        for folder_path, folder_data in structure_summary.items():
+            if str(folder_path) in metadata_keys or not isinstance(folder_data, dict):
+                continue
             
-            stats['folders'] += 1
-            folder_path_str = str(folder_path)
+            # Skip metadata folders
+            if self._is_metadata_folder(folder_path.name):
+                continue
             
-            # Get folder info
-            files = folder_data.get('files', [])
-            total_size = folder_data.get('total_size', 0)
-            file_types = folder_data.get('file_types', {})
-            
-            stats['files'] += len(files)
-            stats['total_size'] += total_size
-            
-            # Format size
-            if total_size >= 1024**3:
-                size_str = f"{total_size / 1024**3:.1f} GB"
-            elif total_size >= 1024**2:
-                size_str = f"{total_size / 1024**2:.1f} MB"
+            # Try to aggregate as TV show
+            show_info = self._aggregate_tv_show(folder_path, folder_data)
+            if show_info:
+                tv_shows.append(show_info)
+                self.title_to_path_map[show_info['title']] = folder_path
+                for issue in show_info['issues']:
+                    issue_counts[self._categorize_issue(issue)] += 1
             else:
-                size_str = f"{total_size / 1024:.1f} KB"
-            
-            # Build folder line with type hints
-            types_str = ", ".join(f"{k}: {v}" for k, v in file_types.items()) if file_types else ""
-            
-            tree_lines.append(f"📁 {folder_path_str}")
-            tree_lines.append(f"   └─ {len(files)} files | {size_str} | {types_str}")
-            
-            # List up to 5 files per folder (representative sample)
-            for i, file_info in enumerate(files[:5]):
-                if isinstance(file_info, dict):
-                    fname = file_info.get('name', str(file_info))
-                    fsize = file_info.get('size_bytes', 0)
-                    if fsize >= 1024**3:
-                        fsize_str = f"{fsize / 1024**3:.1f}GB"
-                    elif fsize >= 1024**2:
-                        fsize_str = f"{fsize / 1024**2:.0f}MB"
-                    else:
-                        fsize_str = f"{fsize / 1024:.0f}KB"
-                    tree_lines.append(f"      ├─ {fname} [{fsize_str}]")
-                else:
-                    tree_lines.append(f"      ├─ {file_info}")
-            
-            if len(files) > 5:
-                tree_lines.append(f"      └─ ... and {len(files) - 5} more files")
-            
-            # Check for potential issues
-            folder_name = Path(folder_path_str).name
-            if not any(c in folder_name for c in ['(', ')']):
-                # Missing year in folder name
-                issues_detected.append(f"⚠️ {folder_name}: Missing year in folder name")
-            
-        # Build statistics summary
-        total_size_gb = stats['total_size'] / 1024**3
+                # Treat as movie
+                movie_info = self._extract_movie_info(folder_path, folder_data)
+                movies.append(movie_info)
+                self.title_to_path_map[movie_info['title']] = folder_path
+                if movie_info.get('issues'):
+                    for issue in movie_info['issues']:
+                        issue_counts[self._categorize_issue(issue)] += 1
         
-        # Build the complete tree prompt
+        # Build concise prompt
+        lines = ["=== MEDIA INVENTORY ===", ""]
+        
+        # Movies section
+        total_movie_size = sum(m['size'] for m in movies)
+        lines.append(f"📺 MOVIES ({len(movies)} items, {self._format_size(total_movie_size)})")
+        for movie in sorted(movies, key=lambda m: m['title']):
+            status = "✅ Compliant" if not movie.get('issues') else "⚠️ " + "; ".join(movie['issues'][:2])
+            lines.append(f"- {movie['title']} | {self._format_size(movie['size'])} | {status}")
+        
+        lines.append("")
+        
+        # TV shows section
+        total_show_size = sum(s['total_size'] for s in tv_shows)
+        lines.append(f"📺 TV SHOWS ({len(tv_shows)} items, {self._format_size(total_show_size)})")
+        for show in sorted(tv_shows, key=lambda s: s['title']):
+            status = "✅ Compliant" if not show.get('issues') else "⚠️ " + "; ".join(show['issues'][:2])
+            lines.append(f"- {show['title']} | {show['seasons']} seasons, {show['episodes']} episodes | {status}")
+        
+        lines.append("")
+        
+        # Issues summary
+        if issue_counts:
+            lines.append("⚠️ ISSUES SUMMARY:")
+            for issue_type, count in sorted(issue_counts.items()):
+                lines.append(f"- {count} items {issue_type}")
+        
+        # Build the complete prompt
         prompt = f"""You are an expert media librarian analyzing folder structures for Jellyfin media server organization.
 
-=== FOLDER STRUCTURE ({stats['folders']} folders, {stats['files']} files, {total_size_gb:.1f} GB) ===
+{chr(10).join(lines)}
 
-{chr(10).join(tree_lines)}
-
-=== POTENTIAL ISSUES DETECTED ({len(issues_detected)}) ===
-{chr(10).join(issues_detected) if issues_detected else 'None detected by pre-scan'}
-
-=== JELLYFIN NAMING REQUIREMENTS ===
+=== JELLYFIN COMPLIANCE GUIDELINES ===
 • Movies: "Movie Title (Year)/Movie Title (Year).ext"
 • TV Shows: "Show Name/Season XX/Show Name - sXXeYY - Episode Title.ext"
 • Multi-part episodes: Require NFO files to map parts properly

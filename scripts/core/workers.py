@@ -277,6 +277,15 @@ class LLMAnalysisWorker(QThread):
 
             analysis_result = analyzer.analyze_structure(structure_summary)
 
+            # Map LLM response titles back to absolute paths using title_to_path_map
+            title_to_path = getattr(analyzer, 'title_to_path_map', {})
+            for media_item in analysis_result.get('detected_media', []):
+                title = media_item.get('current_location')
+                if title and title in title_to_path:
+                    media_item['absolute_path'] = str(title_to_path[title])
+                else:
+                    logger.warning(f"Could not map title to path: {title}")
+
             self.progress.emit("LLM analysis complete!")
             self.finished.emit(analysis_result)
 

@@ -1,0 +1,139 @@
+{
+  "suite_execution": {
+    "start_time": "2025-12-10 15:20:16.030359",
+    "end_time": "2025-12-10 15:20:56.133648",
+    "duration_seconds": 40.103289,
+    "scenarios_executed": 6,
+    "scenarios_passed": 5,
+    "scenarios_failed": 1
+  },
+  "performance_metrics": {
+    "total_gui_interactions": 20,
+    "total_errors_encountered": 0,
+    "average_scenario_duration": 6.683881499999999
+  },
+  "test_results": [
+    {
+      "success": false,
+      "scenario": "basic_workflow",
+      "error": "Failed to launch GUI",
+      "metrics": {
+        "scenario": "basic_workflow",
+        "start_time": "2025-12-10 15:20:16.030859",
+        "gui_interactions": 0,
+        "errors_encountered": 0,
+        "timeouts": 0,
+        "element_not_found": 0,
+        "recovery_attempts": 0
+      },
+      "duration_seconds": 0
+    },
+    {
+      "success": true,
+      "scenario": "slow_user",
+      "duration_seconds": 10.716703,
+      "metrics": {
+        "scenario": "slow_user",
+        "start_time": "2025-12-10 15:20:19.746003",
+        "gui_interactions": 5,
+        "errors_encountered": 0,
+        "timeouts": 0,
+        "element_not_found": 0,
+        "recovery_attempts": 0
+      },
+      "gui_app_launched": true,
+      "main_window_found": true,
+      "errors": []
+    },
+    {
+      "success": true,
+      "scenario": "fast_user",
+      "duration_seconds": 4.619153,
+      "metrics": {
+        "scenario": "fast_user",
+        "start_time": "2025-12-10 15:20:30.463206",
+        "gui_interactions": 5,
+        "errors_encountered": 0,
+        "timeouts": 0,
+        "element_not_found": 0,
+        "recovery_attempts": 0
+      },
+      "gui_app_launched": true,
+      "main_window_found": true,
+      "errors": []
+    },
+    {
+      "success": true,
+      "scenario": "interrupted_workflow",
+      "duration_seconds": 7.619116,
+      "metrics": {
+        "scenario": "interrupted_workflow",
+        "start_time": "2025-12-10 15:20:35.082860",
+        "gui_interactions": 3,
+        "errors_encountered": 0,
+        "timeouts": 0,
+        "element_not_found": 0,
+        "recovery_attempts": 0
+      },
+      "gui_app_launched": true,
+      "main_window_found": true,
+      "errors": []
+    },
+    {
+      "success": true,
+      "scenario": "error_recovery",
+      "duration_seconds": 6.711586,
+      "metrics": {
+        "scenario": "error_recovery",
+        "start_time": "2025-12-10 15:20:42.702476",
+        "gui_interactions": 5,
+        "errors_encountered": 0,
+        "timeouts": 0,
+        "element_not_found": 0,
+        "recovery_attempts": 1
+      },
+      "gui_app_launched": true,
+      "main_window_found": true,
+      "errors": []
+    },
+    {
+      "success": true,
+      "scenario": "alternative_paths",
+      "duration_seconds": 6.718585,
+      "metrics": {
+        "scenario": "alternative_paths",
+        "start_time": "2025-12-10 15:20:49.414562",
+        "gui_interactions": 2,
+        "errors_encountered": 0,
+        "timeouts": 0,
+        "element_not_found": 0,
+        "recovery_attempts": 0
+      },
+      "gui_app_launched": true,
+      "main_window_found": true,
+      "errors": []
+    }
+  ],
+  "failure_analysis": [
+    {
+      "scenario": "basic_workflow",
+      "success": false,
+      "errors": [],
+      "metrics": {
+        "scenario": "basic_workflow",
+        "start_time": "2025-12-10 15:20:16.030859",
+        "gui_interactions": 0,
+        "errors_encountered": 0,
+        "timeouts": 0,
+        "element_not_found": 0,
+        "recovery_attempts": 0
+      },
+      "suggested_fixes": [],
+      "root_cause_analysis": ""
+    }
+  ],
+  "recommendations": [
+    "Address failures in the following scenarios:",
+    "  - basic_workflow: Failed to launch GUI"
+  ]
+}

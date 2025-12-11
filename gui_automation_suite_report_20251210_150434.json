@@ -1,0 +1,55 @@
+{
+  "suite_execution": {
+    "start_time": "2025-12-10 15:04:34.170764",
+    "end_time": "2025-12-10 15:04:34.178766",
+    "duration_seconds": 0.008002,
+    "scenarios_executed": 1,
+    "scenarios_passed": 0,
+    "scenarios_failed": 1
+  },
+  "performance_metrics": {
+    "total_gui_interactions": 0,
+    "total_errors_encountered": 0,
+    "average_scenario_duration": 0.008002
+  },
+  "test_results": [
+    {
+      "success": false,
+      "scenario": "basic_workflow",
+      "error": "Failed to launch GUI",
+      "metrics": {
+        "scenario": "basic_workflow",
+        "start_time": "2025-12-10 15:04:34.171265",
+        "gui_interactions": 0,
+        "errors_encountered": 0,
+        "timeouts": 0,
+        "element_not_found": 0,
+        "recovery_attempts": 0
+      },
+      "duration_seconds": 0
+    }
+  ],
+  "failure_analysis": [
+    {
+      "scenario": "basic_workflow",
+      "success": false,
+      "errors": [],
+      "metrics": {
+        "scenario": "basic_workflow",
+        "start_time": "2025-12-10 15:04:34.171265",
+        "gui_interactions": 0,
+        "errors_encountered": 0,
+        "timeouts": 0,
+        "element_not_found": 0,
+        "recovery_attempts": 0
+      },
+      "suggested_fixes": [],
+      "root_cause_analysis": ""
+    }
+  ],
+  "recommendations": [
+    "Address failures in the following scenarios:",
+    "  - basic_workflow: Failed to launch GUI",
+    "Increase GUI interaction coverage - very few interactions detected"
+  ]
+}
