@@ -2013,3 +2013,40 @@ Implement fixes in priority order, test after each change, commit per fix group
 
 **Test Results:** 831 passed, 10 skipped ✅ (98.8% pass rate)
 **Linter:** No errors ✅
+
+### WINDOW HEIGHT REDUCTIONS (User Feedback)
+**Date:** 2025-12-11 17:15:00 → 2025-12-11 19:34:38
+**Status:** ✅ COMPLETE
+
+**User Feedback:** Main window still too tall on initial open
+
+**Reductions Applied:**
+
+1. **JellyRancher Studio (jelly_rancher_studio.py):**
+   - Initial height: 720px → 520px (200px reduction, 28% smaller)
+   - Welcome screen padding: 40px → 30px/20px margins
+   - Welcome screen spacing: 20px → 10px
+   - Title font: 28pt → 24pt
+   - Subtitle font: 12pt → 11pt
+   - Footer font: 11pt → 10pt
+   - All internal padding reduced by 50%
+
+2. **Main Window (jelly_rancher_main.py):**
+   - Initial height: 560px → 400px (160px reduction, 29% smaller)
+   - Minimum height: 500px → 380px (120px reduction)
+
+**Files Modified:**
+- `jelly_rancher_studio.py` - Window resize 720→520px
+- `scripts/ui/welcome_screen.py` - Reduced all padding, spacing, and font sizes
+- `scripts/core/jelly_rancher_main.py` - Window height 560→400px, minimum 500→380px
+
+**Git Commits:**
+- `d242e29` - Comprehensive UI fixes from screenshot review
+- `0f02494` - Reduce main window height from 560px to 480px
+- `9f43f6d` - Aggressively reduce window heights (Studio 720→520px, Main 480→400px, welcome screen padding reduced)
+
+**Final Status:** ✅ PHASE 65 COMPLETE
+**Total Work Duration:** 2025-12-11 16:40:38 → 2025-12-11 19:34:38 (~3 hours)
+**All Tests:** Passing ✅
+**All Fixes:** Implemented ✅
+**User Requirements:** Met ✅
