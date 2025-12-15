@@ -259,7 +259,8 @@ class JellyRancherStudio(QMainWindow):
 
         # Setup UI
         self.setWindowTitle("JellyRancher Studio")
-        self.resize(1400, 520)  # Aggressively reduced height from 720px
+        self.setFixedHeight(420)
+        self.resize(1400, 420)  # Fixed max height, no expansion
 
         self._create_menu_bar()
         self._create_main_layout()
@@ -419,7 +420,7 @@ class JellyRancherStudio(QMainWindow):
         main_splitter.addWidget(self.tab_widget)
 
         # Set splitter sizes
-        main_splitter.setSizes([250, 1150])
+        main_splitter.setSizes([200, 1200])  # Compressed explorer for height
 
         workspace_layout.addWidget(main_splitter)
         self.workspace_widget.setLayout(workspace_layout)
@@ -485,7 +486,7 @@ class JellyRancherStudio(QMainWindow):
         # Header
         header_widget = QWidget()
         header_layout = QVBoxLayout()
-        header_layout.setContentsMargins(8, 8, 8, 4)
+        header_layout.setContentsMargins(4, 4, 4, 2)  # Compact header
         header_layout.setSpacing(2)
 
         title = QLabel("Round-Up Explorer")
@@ -507,7 +508,7 @@ class JellyRancherStudio(QMainWindow):
         # Tree widget for 8-step workflow
         self.explorer_tree = QTreeWidget()
         self.explorer_tree.setHeaderHidden(True)
-        self.explorer_tree.setIndentation(20)
+        self.explorer_tree.setIndentation(16)  # Compact tree
         self.explorer_tree.setAnimated(True)
         self.explorer_tree.setAlternatingRowColors(True)
         self.explorer_tree.itemClicked.connect(self._on_explorer_item_clicked)
@@ -519,6 +520,7 @@ class JellyRancherStudio(QMainWindow):
     def _create_status_bar(self):
         """Create the status bar."""
         self.statusBar = QStatusBar()
+        self.statusBar.setFixedHeight(20)
         self.setStatusBar(self.statusBar)
 
         self.status_label = QLabel("Ready")

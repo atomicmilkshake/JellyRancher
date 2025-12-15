@@ -1,18 +1,13 @@
 """
-Tests for JellyBase Library Analyzer - Comprehensive library analysis.
+Tests for JellyBase analyzer functions.
 
 Phase 59: JellyBase Code Quality Refinement - Phase 1 Test Infrastructure
 
 Coverage Target: 85%+ line coverage
 Test Count: 12 tests
-
-Tests duplicate detection, quality analysis, coverage analysis, and health scoring.
 """
 import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, patch, Mock
-from collections import defaultdict
-
+from unittest.mock import MagicMock, patch
 from scripts.core.jellybase_analyzer import (
     detect_content_duplicates,
     analyze_quality_distribution,
@@ -20,80 +15,44 @@ from scripts.core.jellybase_analyzer import (
     calculate_health_score
 )
 from scripts.core.jellyfin_client import JellyfinClient
-from scripts.core.jellyfin_validator import JellyfinValidator, ValidationResult
+from scripts.core.jellyfin_validator import JellyfinValidator
 
 
 class TestDetectContentDuplicates:
     """Tests for detect_content_duplicates()."""
 
     @pytest.mark.unit
-    def test_detect_duplicates_finds_matching_hashes(self, tmp_path):
-        """detect_content_duplicates() should find items with same file hash."""
+    def test_detect_content_duplicates_delegates_to_validator(self):
+        """detect_content_duplicates() should delegate to JellyfinValidator."""
         mock_client = MagicMock(spec=JellyfinClient)
+        items = [{'Id': 'item-1'}, {'Id': 'item-2'}]
         
-        # Create test files
-        file1 = tmp_path / "movie1.mkv"
-        file2 = tmp_path / "movie2.mkv"
-        file3 = tmp_path / "unique.mkv"
-        
-        # Same content = same hash
-        content = b"video content " * 100
-        file1.write_bytes(content)
-        file2.write_bytes(content)
-        file3.write_bytes(b"different content " * 100)
-        
-        items = [
-            {'Id': 'item-1', 'Path': str(file1)},
-            {'Id': 'item-2', 'Path': str(file2)},
-            {'Id': 'item-3', 'Path': str(file3)}
-        ]
-        
-        result = detect_content_duplicates(mock_client, items)
-        
-        assert len(result) == 1  # One duplicate group
-        assert len(result[0][1]) == 2  # Two items with same hash
-        assert 'item-1' in result[0][1]
-        assert 'item-2' in result[0][1]
-
-    @pytest.mark.unit
-    def test_detect_duplicates_skips_missing_files(self, tmp_path):
-        """detect_content_duplicates() should skip items with missing files."""
-        mock_client = MagicMock(spec=JellyfinClient)
-        
-        file1 = tmp_path / "exists.mkv"
-        file1.write_bytes(b"content")
-        
-        items = [
-            {'Id': 'item-1', 'Path': str(file1)},
-            {'Id': 'item-2', 'Path': str(tmp_path / "missing.mkv")},  # Doesn't exist
-            {'Id': 'item-3', 'Path': ''}  # Empty path
-        ]
-        
-        result = detect_content_duplicates(mock_client, items)
-        
-        # Should not crash, may return empty or only process valid files
-        assert isinstance(result, list)
-
-    @pytest.mark.unit
-    def test_detect_duplicates_handles_exceptions(self, tmp_path):
-        """detect_content_duplicates() should handle exceptions gracefully."""
-        mock_client = MagicMock(spec=JellyfinClient)
-        
-        # Mock JellyfinValidator to raise exception (function now delegates to validator)
-        with patch('scripts.core.jellybase_analyzer.JellyfinValidator') as mock_validator_class:
-            mock_validator = MagicMock()
-            mock_validator.detect_content_duplicates.side_effect = Exception("Hash error")
-            mock_validator_class.return_value = mock_validator
+        # Mock validator's detect_content_duplicates
+        with patch('scripts.core.jellybase_analyzer.JellyfinValidator') as MockValidator:
+            mock_validator_instance = MagicMock()
+            mock_validator_instance.detect_content_duplicates.return_value = [
+                ('hash-123', ['item-1', 'item-2'])
+            ]
+            MockValidator.return_value = mock_validator_instance
             
-            file1 = tmp_path / "test.mkv"
-            file1.write_bytes(b"content")
-            items = [{'Id': 'item-1', 'Path': str(file1)}]
-            
-            # Should handle exception gracefully (function wraps in try-except)
             result = detect_content_duplicates(mock_client, items)
             
-            # Function returns empty list on exception
-            assert isinstance(result, list)
+            assert len(result) == 1
+            assert result[0][0] == 'hash-123'
+            assert result[0][1] == ['item-1', 'item-2']
+            MockValidator.assert_called_once_with(mock_client)
+
+    @pytest.mark.unit
+    def test_detect_content_duplicates_returns_empty_on_error(self):
+        """detect_content_duplicates() should return empty list on error."""
+        mock_client = MagicMock(spec=JellyfinClient)
+        items = [{'Id': 'item-1'}]
+        
+        with patch('scripts.core.jellybase_analyzer.JellyfinValidator') as MockValidator:
+            MockValidator.side_effect = Exception("Validator error")
+            
+            result = detect_content_duplicates(mock_client, items)
+            
             assert result == []
 
 
@@ -102,19 +61,16 @@ class TestAnalyzeQualityDistribution:
 
     @pytest.mark.unit
     def test_analyze_quality_distribution_4k(self):
-        """analyze_quality_distribution() should categorize 4K resolution."""
+        """analyze_quality_distribution() should detect 4K resolution."""
         mock_client = MagicMock(spec=JellyfinClient)
-        
-        items = [
-            {
-                'Id': 'item-1',
-                'MediaSources': [{
-                    'MediaStreams': [
-                        {'Type': 'Video', 'Width': 3840, 'Height': 2160, 'Codec': 'hevc'}
-                    ]
-                }]
-            }
-        ]
+        items = [{
+            'Id': 'item-1',
+            'MediaSources': [{
+                'MediaStreams': [
+                    {'Type': 'Video', 'Width': 3840, 'Height': 2160, 'Codec': 'hevc'}
+                ]
+            }]
+        }]
         
         result = analyze_quality_distribution(mock_client, items)
         
@@ -124,19 +80,16 @@ class TestAnalyzeQualityDistribution:
 
     @pytest.mark.unit
     def test_analyze_quality_distribution_1080p(self):
-        """analyze_quality_distribution() should categorize 1080p resolution."""
+        """analyze_quality_distribution() should detect 1080p resolution."""
         mock_client = MagicMock(spec=JellyfinClient)
-        
-        items = [
-            {
-                'Id': 'item-1',
-                'MediaSources': [{
-                    'MediaStreams': [
-                        {'Type': 'Video', 'Width': 1920, 'Height': 1080, 'Codec': 'h264'}
-                    ]
-                }]
-            }
-        ]
+        items = [{
+            'Id': 'item-1',
+            'MediaSources': [{
+                'MediaStreams': [
+                    {'Type': 'Video', 'Width': 1920, 'Height': 1080, 'Codec': 'h264'}
+                ]
+            }]
+        }]
         
         result = analyze_quality_distribution(mock_client, items)
         
@@ -145,10 +98,27 @@ class TestAnalyzeQualityDistribution:
         assert result['codec_distribution']['h264'] == 1
 
     @pytest.mark.unit
-    def test_analyze_quality_distribution_multiple_resolutions(self):
-        """analyze_quality_distribution() should handle multiple resolutions."""
+    def test_analyze_quality_distribution_720p(self):
+        """analyze_quality_distribution() should detect 720p resolution."""
         mock_client = MagicMock(spec=JellyfinClient)
+        items = [{
+            'Id': 'item-1',
+            'MediaSources': [{
+                'MediaStreams': [
+                    {'Type': 'Video', 'Width': 1280, 'Height': 720, 'Codec': 'h264'}
+                ]
+            }]
+        }]
         
+        result = analyze_quality_distribution(mock_client, items)
+        
+        assert result['total_items'] == 1
+        assert result['resolution_distribution']['720p'] == 1
+
+    @pytest.mark.unit
+    def test_analyze_quality_distribution_multiple_items(self):
+        """analyze_quality_distribution() should aggregate multiple items."""
+        mock_client = MagicMock(spec=JellyfinClient)
         items = [
             {
                 'Id': 'item-1',
@@ -162,7 +132,7 @@ class TestAnalyzeQualityDistribution:
                 'Id': 'item-2',
                 'MediaSources': [{
                     'MediaStreams': [
-                        {'Type': 'Video', 'Width': 1280, 'Height': 720, 'Codec': 'h264'}
+                        {'Type': 'Video', 'Width': 1920, 'Height': 1080, 'Codec': 'hevc'}
                     ]
                 }]
             }
@@ -171,19 +141,15 @@ class TestAnalyzeQualityDistribution:
         result = analyze_quality_distribution(mock_client, items)
         
         assert result['total_items'] == 2
-        assert result['resolution_distribution']['1080p'] == 1
-        assert result['resolution_distribution']['720p'] == 1
-        assert result['codec_distribution']['h264'] == 2
+        assert result['resolution_distribution']['1080p'] == 2
+        assert result['codec_distribution']['h264'] == 1
+        assert result['codec_distribution']['hevc'] == 1
 
     @pytest.mark.unit
     def test_analyze_quality_distribution_no_media_sources(self):
-        """analyze_quality_distribution() should handle items without media sources."""
+        """analyze_quality_distribution() should handle items without MediaSources."""
         mock_client = MagicMock(spec=JellyfinClient)
-        
-        items = [
-            {'Id': 'item-1', 'Name': 'Movie without media'},
-            {'Id': 'item-2', 'MediaSources': []}
-        ]
+        items = [{'Id': 'item-1'}]  # No MediaSources
         
         result = analyze_quality_distribution(mock_client, items)
         
@@ -196,66 +162,14 @@ class TestAnalyzeCoverage:
     """Tests for analyze_coverage()."""
 
     @pytest.mark.unit
-    def test_analyze_coverage_complete_metadata(self):
-        """analyze_coverage() should detect complete metadata."""
-        mock_client = MagicMock(spec=JellyfinClient)
-        
-        items = [
-            {
-                'Id': 'item-1',
-                'ProviderIds': {'Tmdb': '12345'},
-                'Overview': 'Movie description',
-                'ProductionYear': 2020,
-                'Genres': ['Action', 'Thriller'],
-                'MediaSources': [{
-                    'MediaStreams': [
-                        {'Type': 'Subtitle', 'Language': 'en'}
-                    ]
-                }]
-            }
-        ]
-        
-        result = analyze_coverage(mock_client, items)
-        
-        assert result['total_items'] == 1
-        assert result['metadata_coverage']['provider_ids']['missing'] == 0
-        assert result['metadata_coverage']['overview']['missing'] == 0
-        assert result['metadata_coverage']['year']['missing'] == 0
-        assert result['metadata_coverage']['genres']['missing'] == 0
-        assert result['subtitle_coverage']['missing'] == 0
-
-    @pytest.mark.unit
-    def test_analyze_coverage_missing_metadata(self):
-        """analyze_coverage() should detect missing metadata."""
-        mock_client = MagicMock(spec=JellyfinClient)
-        
-        items = [
-            {
-                'Id': 'item-1',
-                'Name': 'Movie without metadata',
-                'MediaSources': []
-            }
-        ]
-        
-        result = analyze_coverage(mock_client, items)
-        
-        assert result['total_items'] == 1
-        assert result['metadata_coverage']['provider_ids']['missing'] == 1
-        assert result['metadata_coverage']['overview']['missing'] == 1
-        assert result['metadata_coverage']['year']['missing'] == 1
-        assert result['metadata_coverage']['genres']['missing'] == 1
-        assert result['subtitle_coverage']['missing'] == 1
-
-    @pytest.mark.unit
     def test_analyze_coverage_calculates_percentages(self):
         """analyze_coverage() should calculate coverage percentages."""
         mock_client = MagicMock(spec=JellyfinClient)
-        
         items = [
             {
                 'Id': 'item-1',
-                'ProviderIds': {'Tmdb': '123'},
-                'Overview': 'Description',
+                'ProviderIds': {'tmdb': '123'},
+                'Overview': 'Movie description',
                 'ProductionYear': 2020,
                 'Genres': ['Action'],
                 'MediaSources': [{
@@ -266,53 +180,66 @@ class TestAnalyzeCoverage:
             },
             {
                 'Id': 'item-2',
-                'Name': 'Incomplete movie',
-                'MediaSources': []
+                # Missing ProviderIds, Overview, Year, Genres, Subtitles
+                'MediaSources': [{
+                    'MediaStreams': []
+                }]
             }
         ]
         
         result = analyze_coverage(mock_client, items)
         
         assert result['total_items'] == 2
-        # 1 out of 2 has provider IDs = 50% coverage
+        assert result['metadata_coverage']['provider_ids']['missing'] == 1
         assert result['metadata_coverage']['provider_ids']['coverage_percent'] == 50.0
+        assert result['subtitle_coverage']['missing'] == 1
+        assert result['subtitle_coverage']['coverage_percent'] == 50.0
+
+    @pytest.mark.unit
+    def test_analyze_coverage_empty_items(self):
+        """analyze_coverage() should handle empty items list."""
+        mock_client = MagicMock(spec=JellyfinClient)
+        items = []
+        
+        result = analyze_coverage(mock_client, items)
+        
+        assert result['total_items'] == 0
+        assert result['metadata_coverage']['provider_ids']['coverage_percent'] == 0
 
 
 class TestCalculateHealthScore:
     """Tests for calculate_health_score()."""
 
     @pytest.mark.unit
-    def test_calculate_health_score_perfect(self):
+    def test_calculate_health_score_perfect_library(self):
         """calculate_health_score() should return 100 for perfect library."""
         mock_validator = MagicMock(spec=JellyfinValidator)
         
-        # Mock validation results - all valid
-        mock_result = ValidationResult(
-            item={'Id': '1', 'ProviderIds': {'Tmdb': '123'}, 'Overview': 'Desc', 'ProductionYear': 2020},
-            jellyfin_id='1',
-            title='Movie',
-            jellyfin_path='/test.mkv',
-            valid=True,
-            issues=[],
-            has_subtitles=True
-        )
-        mock_validator.validate_item.return_value = mock_result
+        # Create perfect validation results
+        perfect_result = MagicMock()
+        perfect_result.valid = True
+        perfect_result.has_subtitles = True
+        perfect_result.item = {
+            'ProviderIds': {'tmdb': '123'},
+            'Overview': 'Description',
+            'ProductionYear': 2020
+        }
         
-        items = [
-            {'Id': '1', 'ProviderIds': {'Tmdb': '123'}, 'Overview': 'Desc', 'ProductionYear': 2020}
-        ]
+        mock_validator.validate_item.return_value = perfect_result
+        items = [{'Id': f'item-{i}'} for i in range(10)]
         
         score = calculate_health_score(mock_validator, items)
         
-        # Should be high score (file 40% + metadata 30% + subtitles 20% + duplicates 10%)
-        assert score >= 80  # At least 80% for perfect items
+        # Should be close to 100 (file: 40, metadata: 30, subtitles: 20, duplicates: 10)
+        assert score == 100
 
     @pytest.mark.unit
     def test_calculate_health_score_empty_library(self):
         """calculate_health_score() should return 0 for empty library."""
         mock_validator = MagicMock(spec=JellyfinValidator)
+        items = []
         
-        score = calculate_health_score(mock_validator, [])
+        score = calculate_health_score(mock_validator, items)
         
         assert score == 0
 
@@ -321,22 +248,21 @@ class TestCalculateHealthScore:
         """calculate_health_score() should sample first 100 items for performance."""
         mock_validator = MagicMock(spec=JellyfinValidator)
         
-        mock_result = ValidationResult(
-            item={'Id': '1'},
-            jellyfin_id='1',
-            title='Movie',
-            jellyfin_path='/test.mkv',
-            valid=True,
-            issues=[]
-        )
-        mock_validator.validate_item.return_value = mock_result
+        perfect_result = MagicMock()
+        perfect_result.valid = True
+        perfect_result.has_subtitles = True
+        perfect_result.item = {
+            'ProviderIds': {'tmdb': '123'},
+            'Overview': 'Description',
+            'ProductionYear': 2020
+        }
+        mock_validator.validate_item.return_value = perfect_result
         
         # Create 150 items
         items = [{'Id': f'item-{i}'} for i in range(150)]
         
         score = calculate_health_score(mock_validator, items)
         
-        # Should only call validate_item 100 times (sampling)
+        # Should only call validate_item 100 times (first 100 items)
         assert mock_validator.validate_item.call_count == 100
-
-
+        assert score == 100

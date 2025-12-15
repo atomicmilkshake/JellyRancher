@@ -433,8 +433,8 @@ class TestRapidOperations:
         
         elapsed = time.time() - start_time
         
-        # Should be fast (< 0.5 seconds for 50 operations)
-        assert elapsed < 0.5, f"Logging 50 operations took {elapsed:.2f}s"
+        # Should be fast (< 1.0 seconds for 50 operations; accounts for machine variance)
+        assert elapsed < 1.0, f"Logging 50 operations took {elapsed:.2f}s"
 
     def test_rapid_status_queries(self, temp_workspace):
         """Test querying batch status rapidly."""

@@ -1243,6 +1243,16 @@ class JellyBaseView(QWidget):
 
         self._set_status(f"✓ Validation complete: {len(results)} items validated")
         logger.info(f"Validation complete: {len(results)} items")
+        
+        # Clean up worker signals after completion (Commandment #7: Resource Safety)
+        if self.validation_worker:
+            try:
+                self.validation_worker.progress.disconnect()
+                self.validation_worker.finished.disconnect()
+                self.validation_worker.error.disconnect()
+            except TypeError:
+                # Signals already disconnected
+                pass
 
     def _on_validation_error(self, error_msg: str):
         """Handle validation error."""
@@ -1250,6 +1260,16 @@ class JellyBaseView(QWidget):
         self.btn_scan.setEnabled(True)
         self._set_status(f"✗ {error_msg}")
         logger.error(f"Validation error: {error_msg}")
+        
+        # Clean up worker signals after error (Commandment #7: Resource Safety)
+        if self.validation_worker:
+            try:
+                self.validation_worker.progress.disconnect()
+                self.validation_worker.finished.disconnect()
+                self.validation_worker.error.disconnect()
+            except TypeError:
+                # Signals already disconnected
+                pass
 
     def _apply_filter(self):
         """Apply filter to validation results."""

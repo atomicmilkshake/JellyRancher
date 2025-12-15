@@ -1,0 +1,2603 @@
+{
+  "metadata": {
+    "timestamp": "2025-12-15T16:35:03.421015",
+    "tool": "gui_visual_validator.py",
+    "output_dir": "V:\\JellyRancher\\gui_visual_issues",
+    "deps_available": true
+  },
+  "summary": {
+    "views_scanned": 21,
+    "total_issues": 245,
+    "score": 0,
+    "passed": false,
+    "issues_by_severity": {
+      "CRITICAL": 220,
+      "ERROR": 10,
+      "WARNING": 15,
+      "INFO": 0
+    },
+    "issues_by_type": {
+      "window_too_tall": 10,
+      "window_too_wide": 8,
+      "text_overlap": 220,
+      "small_text": 7
+    }
+  },
+  "screenshots": [
+    {
+      "name": "tabs_main_tabs_tab_0___Organization",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tabs_main_tabs_tab_0___Organization.png",
+      "issues_count": 1
+    },
+    {
+      "name": "main_window__tab_0___Organization",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\main_window__tab_0___Organization.png",
+      "issues_count": 1
+    },
+    {
+      "name": "tabs_main_tabs_tab_1___Subtitles",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tabs_main_tabs_tab_1___Subtitles.png",
+      "issues_count": 0
+    },
+    {
+      "name": "main_window__tab_1___Subtitles",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\main_window__tab_1___Subtitles.png",
+      "issues_count": 1
+    },
+    {
+      "name": "tabs_main_tabs_tab_2____Batch_Processing",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tabs_main_tabs_tab_2____Batch_Processing.png",
+      "issues_count": 23
+    },
+    {
+      "name": "main_window__tab_2____Batch_Processing",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\main_window__tab_2____Batch_Processing.png",
+      "issues_count": 25
+    },
+    {
+      "name": "tabs_main_tabs_tab_3___Code_Analysis",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tabs_main_tabs_tab_3___Code_Analysis.png",
+      "issues_count": 0
+    },
+    {
+      "name": "main_window__tab_3___Code_Analysis",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\main_window__tab_3___Code_Analysis.png",
+      "issues_count": 1
+    },
+    {
+      "name": "tabs_main_tabs_tab_4___Analytics",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tabs_main_tabs_tab_4___Analytics.png",
+      "issues_count": 26
+    },
+    {
+      "name": "main_window__tab_4___Analytics",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\main_window__tab_4___Analytics.png",
+      "issues_count": 27
+    },
+    {
+      "name": "tabs_main_tabs_tab_5____Settings",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tabs_main_tabs_tab_5____Settings.png",
+      "issues_count": 0
+    },
+    {
+      "name": "main_window__tab_5____Settings",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\main_window__tab_5____Settings.png",
+      "issues_count": 1
+    },
+    {
+      "name": "tabs_main_tabs_tab_0_Organization",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tabs_main_tabs_tab_0_Organization.png",
+      "issues_count": 14
+    },
+    {
+      "name": "tabs_main_tabs_tab_1_Subtitles",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tabs_main_tabs_tab_1_Subtitles.png",
+      "issues_count": 13
+    },
+    {
+      "name": "tabs_main_tabs_tab_2_Timeline",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tabs_main_tabs_tab_2_Timeline.png",
+      "issues_count": 31
+    },
+    {
+      "name": "tabs_main_tabs_tab_0_Step_1__Setup",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tabs_main_tabs_tab_0_Step_1__Setup.png",
+      "issues_count": 0
+    },
+    {
+      "name": "tabs_main_tabs_tab_1_Step_2__Scan",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tabs_main_tabs_tab_1_Step_2__Scan.png",
+      "issues_count": 5
+    },
+    {
+      "name": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "issues_count": 28
+    },
+    {
+      "name": "tabs_main_tabs_tab_3_Step_4__Organize",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tabs_main_tabs_tab_3_Step_4__Organize.png",
+      "issues_count": 14
+    },
+    {
+      "name": "tabs_main_tabs_tab_4_Step_5__Snapshots",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\tabs_main_tabs_tab_4_Step_5__Snapshots.png",
+      "issues_count": 15
+    },
+    {
+      "name": "main_window",
+      "path": "V:\\JellyRancher\\gui_visual_issues\\main_window.png",
+      "issues_count": 1
+    }
+  ],
+  "issues": [
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_0___Organization",
+      "severity": "CRITICAL",
+      "description": "Text '(Source' overlaps 'Were'",
+      "location": "(37, 263)",
+      "overlap_area": 120,
+      "screenshot": "tabs_main_tabs_tab_0___Organization.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text '1' overlaps '===]'",
+      "location": "(709, 105)",
+      "overlap_area": 104,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'Batch' overlaps 'Process'",
+      "location": "(798, 125)",
+      "overlap_area": 240,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'Batch' overlaps '“Appi'",
+      "location": "(798, 125)",
+      "overlap_area": 110,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'Processing' overlaps 'yout:'",
+      "location": "(826, 135)",
+      "overlap_area": 225,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'Processing' overlaps 'mute'",
+      "location": "(826, 135)",
+      "overlap_area": 203,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'Processing' overlaps 'folders'",
+      "location": "(826, 135)",
+      "overlap_area": 182,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'Processing' overlaps 'atonce'",
+      "location": "(826, 135)",
+      "overlap_area": 126,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'yout:' overlaps 'atonce'",
+      "location": "(898, 125)",
+      "overlap_area": 352,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'Process' overlaps '“Appi'",
+      "location": "(809, 137)",
+      "overlap_area": 340,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'Process' overlaps 'Ganarate'",
+      "location": "(809, 137)",
+      "overlap_area": 174,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'mute' overlaps 'ergarizaton'",
+      "location": "(842, 137)",
+      "overlap_area": 174,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'mute' overlaps 'report'",
+      "location": "(842, 137)",
+      "overlap_area": 144,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'folders' overlaps 'ergarizaton'",
+      "location": "(875, 137)",
+      "overlap_area": 156,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'folders' overlaps 'resin'",
+      "location": "(875, 137)",
+      "overlap_area": 289,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'atonce' overlaps 'ergarizaton'",
+      "location": "(905, 137)",
+      "overlap_area": 150,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'atonce' overlaps 'bule'",
+      "location": "(905, 137)",
+      "overlap_area": 340,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text '“Appi' overlaps 'Ganarate'",
+      "location": "(802, 148)",
+      "overlap_area": 340,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'ergarizaton' overlaps 'resin'",
+      "location": "(832, 159)",
+      "overlap_area": 234,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'ergarizaton' overlaps 'bule'",
+      "location": "(832, 159)",
+      "overlap_area": 144,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'ergarizaton' overlaps 'Ganarate'",
+      "location": "(832, 159)",
+      "overlap_area": 117,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'ergarizaton' overlaps 'report'",
+      "location": "(832, 159)",
+      "overlap_area": 234,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'ergarizaton' overlaps 'for'",
+      "location": "(832, 159)",
+      "overlap_area": 108,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'bule' overlaps 'operations'",
+      "location": "(914, 148)",
+      "overlap_area": 136,
+      "screenshot": "tabs_main_tabs_tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'ach' overlaps 'recess'",
+      "location": "(800, 158)",
+      "overlap_area": 126,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'Processing' overlaps 'lows'",
+      "location": "(828, 170)",
+      "overlap_area": 180,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'Processing' overlaps 'yout:'",
+      "location": "(828, 170)",
+      "overlap_area": 225,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'Processing' overlaps 'muti'",
+      "location": "(828, 170)",
+      "overlap_area": 207,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'Processing' overlaps 'fers'",
+      "location": "(828, 170)",
+      "overlap_area": 234,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'lows' overlaps 'recess'",
+      "location": "(875, 158)",
+      "overlap_area": 120,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'lows' overlaps 'fers'",
+      "location": "(875, 158)",
+      "overlap_area": 324,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'yout:' overlaps 'recess'",
+      "location": "(900, 158)",
+      "overlap_area": 168,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'yout:' overlaps 'at'",
+      "location": "(900, 158)",
+      "overlap_area": 144,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'yout:' overlaps 'once'",
+      "location": "(900, 158)",
+      "overlap_area": 198,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'yout:' overlaps 'nue'",
+      "location": "(900, 158)",
+      "overlap_area": 140,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'recess' overlaps 'muti'",
+      "location": "(804, 182)",
+      "overlap_area": 207,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'recess' overlaps 'fers'",
+      "location": "(804, 182)",
+      "overlap_area": 234,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'recess' overlaps 'once'",
+      "location": "(804, 182)",
+      "overlap_area": 153,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'recess' overlaps 'nes'",
+      "location": "(804, 182)",
+      "overlap_area": 153,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'recess' overlaps 'nue'",
+      "location": "(804, 182)",
+      "overlap_area": 234,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'muti' overlaps 'repr'",
+      "location": "(845, 170)",
+      "overlap_area": 152,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'fers' overlaps 'nes'",
+      "location": "(877, 170)",
+      "overlap_area": 304,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'at' overlaps 'nue'",
+      "location": "(907, 170)",
+      "overlap_area": 133,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'once' overlaps 'nue'",
+      "location": "(917, 170)",
+      "overlap_area": 342,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'nes' overlaps 'me'",
+      "location": "(887, 181)",
+      "overlap_area": 180,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'nue' overlaps 'me'",
+      "location": "(908, 181)",
+      "overlap_area": 320,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'nue' overlaps 'operations'",
+      "location": "(908, 181)",
+      "overlap_area": 120,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "CRITICAL",
+      "description": "Text 'operations' overlaps 'lage'",
+      "location": "(929, 192)",
+      "overlap_area": 132,
+      "screenshot": "main_window__tab_2____Batch_Processing.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text '‘Analytics' overlaps 'Reporting'",
+      "location": "(19, 61)",
+      "overlap_area": 378,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'crgaizaton' overlaps 'data'",
+      "location": "(48, 241)",
+      "overlap_area": 153,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'crgaizaton' overlaps 'avaiable'",
+      "location": "(48, 241)",
+      "overlap_area": 297,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'crgaizaton' overlaps 'yet'",
+      "location": "(48, 241)",
+      "overlap_area": 135,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'Togenerate' overlaps '1.Gote'",
+      "location": "(34, 255)",
+      "overlap_area": 464,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'Togenerate' overlaps 'Oganzaton'",
+      "location": "(34, 255)",
+      "overlap_area": 224,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'organization' overlaps 'Oganzaton'",
+      "location": "(86, 255)",
+      "overlap_area": 512,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'organization' overlaps 'tab'",
+      "location": "(86, 255)",
+      "overlap_area": 192,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'nays:' overlaps '(select'",
+      "location": "(137, 255)",
+      "overlap_area": 108,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'Oganzaton' overlaps 'Sten'",
+      "location": "(68, 267)",
+      "overlap_area": 272,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'Oganzaton' overlaps '1:'",
+      "location": "(68, 267)",
+      "overlap_area": 128,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'tab' overlaps 'Setup'",
+      "location": "(119, 267)",
+      "overlap_area": 256,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'Sten' overlaps 'Step'",
+      "location": "(83, 279)",
+      "overlap_area": 238,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'Setup' overlaps 'Sean'",
+      "location": "(114, 279)",
+      "overlap_area": 289,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text '(select' overlaps '(analyz'",
+      "location": "(139, 279)",
+      "overlap_area": 459,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'masiaflde?)' overlaps 'your'",
+      "location": "(167, 279)",
+      "overlap_area": 289,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'masiaflde?)' overlaps 'mecia)'",
+      "location": "(167, 279)",
+      "overlap_area": 476,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'masiaflde?)' overlaps 'rgaizaton)'",
+      "location": "(167, 279)",
+      "overlap_area": 145,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text '3.' overlaps '‘4.'",
+      "location": "(30, 290)",
+      "overlap_area": 176,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'Compete' overlaps 'Complete'",
+      "location": "(44, 290)",
+      "overlap_area": 576,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'Step' overlaps 'Step'",
+      "location": "(86, 290)",
+      "overlap_area": 272,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'Sean' overlaps 'Organize'",
+      "location": "(109, 290)",
+      "overlap_area": 256,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text '(analyz' overlaps 'Organize'",
+      "location": "(135, 290)",
+      "overlap_area": 208,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text '(analyz' overlaps '(neat'",
+      "location": "(135, 290)",
+      "overlap_area": 224,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'your' overlaps '(neat'",
+      "location": "(170, 290)",
+      "overlap_area": 208,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'mecia)' overlaps 'rgaizaton)'",
+      "location": "(191, 290)",
+      "overlap_area": 448,
+      "screenshot": "tabs_main_tabs_tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text '‘Analytics' overlaps 'Reporting'",
+      "location": "(21, 96)",
+      "overlap_area": 378,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'crgaizaton' overlaps 'data'",
+      "location": "(50, 276)",
+      "overlap_area": 153,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'crgaizaton' overlaps 'avaiable'",
+      "location": "(50, 276)",
+      "overlap_area": 297,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'crgaizaton' overlaps 'yet'",
+      "location": "(50, 276)",
+      "overlap_area": 135,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'Togenerate' overlaps '1.Gote'",
+      "location": "(36, 290)",
+      "overlap_area": 464,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'Togenerate' overlaps 'Oganzaton'",
+      "location": "(36, 290)",
+      "overlap_area": 224,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'organization' overlaps 'Oganzaton'",
+      "location": "(88, 290)",
+      "overlap_area": 512,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'organization' overlaps 'tab'",
+      "location": "(88, 290)",
+      "overlap_area": 192,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'nays:' overlaps '(select'",
+      "location": "(139, 290)",
+      "overlap_area": 108,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'Oganzaton' overlaps 'Sten'",
+      "location": "(70, 302)",
+      "overlap_area": 272,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'Oganzaton' overlaps '1:'",
+      "location": "(70, 302)",
+      "overlap_area": 128,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'tab' overlaps 'Setup'",
+      "location": "(121, 302)",
+      "overlap_area": 256,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'Sten' overlaps 'Step'",
+      "location": "(85, 314)",
+      "overlap_area": 238,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'Setup' overlaps 'Sean'",
+      "location": "(116, 314)",
+      "overlap_area": 289,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text '(select' overlaps '(analyz'",
+      "location": "(141, 314)",
+      "overlap_area": 459,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'masiaflde?)' overlaps 'your'",
+      "location": "(169, 314)",
+      "overlap_area": 289,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'masiaflde?)' overlaps 'mecia)'",
+      "location": "(169, 314)",
+      "overlap_area": 476,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'masiaflde?)' overlaps 'rgaizaton)'",
+      "location": "(169, 314)",
+      "overlap_area": 145,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text '3.' overlaps '‘4.'",
+      "location": "(32, 325)",
+      "overlap_area": 176,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'Compete' overlaps 'Complete'",
+      "location": "(46, 325)",
+      "overlap_area": 576,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'Step' overlaps 'Step'",
+      "location": "(88, 325)",
+      "overlap_area": 272,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'Sean' overlaps 'Organize'",
+      "location": "(111, 325)",
+      "overlap_area": 256,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text '(analyz' overlaps 'Organize'",
+      "location": "(137, 325)",
+      "overlap_area": 208,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text '(analyz' overlaps '(neat'",
+      "location": "(137, 325)",
+      "overlap_area": 224,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'your' overlaps '(neat'",
+      "location": "(172, 325)",
+      "overlap_area": 208,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "CRITICAL",
+      "description": "Text 'mecia)' overlaps 'rgaizaton)'",
+      "location": "(193, 325)",
+      "overlap_area": 448,
+      "screenshot": "main_window__tab_4___Analytics.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_0_Organization",
+      "severity": "CRITICAL",
+      "description": "Text 'crgaizaton' overlaps 'data'",
+      "location": "(29, 50)",
+      "overlap_area": 153,
+      "screenshot": "tabs_main_tabs_tab_0_Organization.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_0_Organization",
+      "severity": "CRITICAL",
+      "description": "Text 'crgaizaton' overlaps 'avaiable'",
+      "location": "(29, 50)",
+      "overlap_area": 297,
+      "screenshot": "tabs_main_tabs_tab_0_Organization.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_0_Organization",
+      "severity": "CRITICAL",
+      "description": "Text 'crgaizaton' overlaps 'yet'",
+      "location": "(29, 50)",
+      "overlap_area": 135,
+      "screenshot": "tabs_main_tabs_tab_0_Organization.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_0_Organization",
+      "severity": "CRITICAL",
+      "description": "Text 'Togenerate' overlaps '1.Gote'",
+      "location": "(15, 64)",
+      "overlap_area": 464,
+      "screenshot": "tabs_main_tabs_tab_0_Organization.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_0_Organization",
+      "severity": "CRITICAL",
+      "description": "Text 'Togenerate' overlaps 'Oganzaton'",
+      "location": "(15, 64)",
+      "overlap_area": 224,
+      "screenshot": "tabs_main_tabs_tab_0_Organization.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_0_Organization",
+      "severity": "CRITICAL",
+      "description": "Text 'organization' overlaps 'Oganzaton'",
+      "location": "(67, 64)",
+      "overlap_area": 512,
+      "screenshot": "tabs_main_tabs_tab_0_Organization.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_0_Organization",
+      "severity": "CRITICAL",
+      "description": "Text 'organization' overlaps 'tab'",
+      "location": "(67, 64)",
+      "overlap_area": 192,
+      "screenshot": "tabs_main_tabs_tab_0_Organization.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_0_Organization",
+      "severity": "CRITICAL",
+      "description": "Text 'nays:' overlaps '(select'",
+      "location": "(118, 64)",
+      "overlap_area": 108,
+      "screenshot": "tabs_main_tabs_tab_0_Organization.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_0_Organization",
+      "severity": "CRITICAL",
+      "description": "Text '1.Gote' overlaps 'Compete'",
+      "location": "(16, 76)",
+      "overlap_area": 120,
+      "screenshot": "tabs_main_tabs_tab_0_Organization.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_0_Organization",
+      "severity": "CRITICAL",
+      "description": "Text 'Oganzaton' overlaps 'Sten'",
+      "location": "(49, 76)",
+      "overlap_area": 272,
+      "screenshot": "tabs_main_tabs_tab_0_Organization.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_0_Organization",
+      "severity": "CRITICAL",
+      "description": "Text 'Oganzaton' overlaps '1:'",
+      "location": "(49, 76)",
+      "overlap_area": 128,
+      "screenshot": "tabs_main_tabs_tab_0_Organization.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_0_Organization",
+      "severity": "CRITICAL",
+      "description": "Text 'tab' overlaps 'Setup'",
+      "location": "(100, 76)",
+      "overlap_area": 256,
+      "screenshot": "tabs_main_tabs_tab_0_Organization.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_0_Organization",
+      "severity": "CRITICAL",
+      "description": "Text '3.' overlaps '4.'",
+      "location": "(11, 98)",
+      "overlap_area": 165,
+      "screenshot": "tabs_main_tabs_tab_0_Organization.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_0_Organization",
+      "severity": "CRITICAL",
+      "description": "Text 'Compete' overlaps 'Compete'",
+      "location": "(25, 98)",
+      "overlap_area": 570,
+      "screenshot": "tabs_main_tabs_tab_0_Organization.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_1_Subtitles",
+      "severity": "CRITICAL",
+      "description": "Text 'Togenerate' overlaps 'subttie'",
+      "location": "(15, 74)",
+      "overlap_area": 261,
+      "screenshot": "tabs_main_tabs_tab_1_Subtitles.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_1_Subtitles",
+      "severity": "CRITICAL",
+      "description": "Text 'Togenerate' overlaps 'anabice'",
+      "location": "(15, 74)",
+      "overlap_area": 306,
+      "screenshot": "tabs_main_tabs_tab_1_Subtitles.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_1_Subtitles",
+      "severity": "CRITICAL",
+      "description": "Text 'fiser' overlaps 'Detect'",
+      "location": "(57, 86)",
+      "overlap_area": 225,
+      "screenshot": "tabs_main_tabs_tab_1_Subtitles.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_1_Subtitles",
+      "severity": "CRITICAL",
+      "description": "Text 'with' overlaps 'Coverage’'",
+      "location": "(83, 86)",
+      "overlap_area": 255,
+      "screenshot": "tabs_main_tabs_tab_1_Subtitles.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_1_Subtitles",
+      "severity": "CRITICAL",
+      "description": "Text 'fee' overlaps 'scan'",
+      "location": "(125, 86)",
+      "overlap_area": 225,
+      "screenshot": "tabs_main_tabs_tab_1_Subtitles.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_1_Subtitles",
+      "severity": "CRITICAL",
+      "description": "Text 'Detect' overlaps 'Downioas'",
+      "location": "(48, 99)",
+      "overlap_area": 408,
+      "screenshot": "tabs_main_tabs_tab_1_Subtitles.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_1_Subtitles",
+      "severity": "CRITICAL",
+      "description": "Text 'Coverage’' overlaps 'Downioas'",
+      "location": "(76, 99)",
+      "overlap_area": 170,
+      "screenshot": "tabs_main_tabs_tab_1_Subtitles.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_1_Subtitles",
+      "severity": "CRITICAL",
+      "description": "Text 'Coverage’' overlaps 'Subtle'",
+      "location": "(76, 99)",
+      "overlap_area": 408,
+      "screenshot": "tabs_main_tabs_tab_1_Subtitles.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_1_Subtitles",
+      "severity": "CRITICAL",
+      "description": "Text 'scan' overlaps 'to'",
+      "location": "(127, 99)",
+      "overlap_area": 119,
+      "screenshot": "tabs_main_tabs_tab_1_Subtitles.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_1_Subtitles",
+      "severity": "CRITICAL",
+      "description": "Text 'for' overlaps 'ownions'",
+      "location": "(146, 99)",
+      "overlap_area": 204,
+      "screenshot": "tabs_main_tabs_tab_1_Subtitles.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_1_Subtitles",
+      "severity": "CRITICAL",
+      "description": "Text 'ising' overlaps 'ownions'",
+      "location": "(162, 99)",
+      "overlap_area": 255,
+      "screenshot": "tabs_main_tabs_tab_1_Subtitles.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_1_Subtitles",
+      "severity": "CRITICAL",
+      "description": "Text 'ising' overlaps 'masing'",
+      "location": "(162, 99)",
+      "overlap_area": 170,
+      "screenshot": "tabs_main_tabs_tab_1_Subtitles.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_1_Subtitles",
+      "severity": "CRITICAL",
+      "description": "Text 'Downioas' overlaps 'downioasing'",
+      "location": "(48, 110)",
+      "overlap_area": 114,
+      "screenshot": "tabs_main_tabs_tab_1_Subtitles.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text '“Times' overlaps 'Togenerate'",
+      "location": "(11, 63)",
+      "overlap_area": 108,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'Togenerate' overlaps 'Berferm'",
+      "location": "(15, 87)",
+      "overlap_area": 465,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'Togenerate' overlaps 'Operatons'",
+      "location": "(15, 87)",
+      "overlap_area": 152,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'meine' overlaps 'operation'",
+      "location": "(67, 87)",
+      "overlap_area": 315,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'datz' overlaps 'operation'",
+      "location": "(99, 87)",
+      "overlap_area": 165,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'datz' overlaps '(san'",
+      "location": "(99, 87)",
+      "overlap_area": 105,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text '5.' overlaps '2'",
+      "location": "(12, 100)",
+      "overlap_area": 102,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'Berferm' overlaps 'Operatons'",
+      "location": "(23, 100)",
+      "overlap_area": 493,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'Berferm' overlaps 'Refresh'",
+      "location": "(23, 100)",
+      "overlap_area": 168,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'any' overlaps 'Operatons'",
+      "location": "(58, 100)",
+      "overlap_area": 153,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'operation' overlaps 'are'",
+      "location": "(74, 100)",
+      "overlap_area": 170,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'operation' overlaps 'aviomatcaly'",
+      "location": "(74, 100)",
+      "overlap_area": 425,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'operation' overlaps 'eporto'",
+      "location": "(74, 100)",
+      "overlap_area": 186,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text '(san' overlaps 'aviomatcaly'",
+      "location": "(114, 100)",
+      "overlap_area": 340,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'organize,' overlaps 'logged'",
+      "location": "(140, 100)",
+      "overlap_area": 408,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'organize,' overlaps 'tothe'",
+      "location": "(140, 100)",
+      "overlap_area": 119,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'organize,' overlaps 'achty'",
+      "location": "(140, 100)",
+      "overlap_area": 156,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'download' overlaps 'tothe'",
+      "location": "(180, 100)",
+      "overlap_area": 187,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'download' overlaps 'aut'",
+      "location": "(180, 100)",
+      "overlap_area": 323,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'download' overlaps 'meine'",
+      "location": "(180, 100)",
+      "overlap_area": 162,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'sts)' overlaps 'wal'",
+      "location": "(219, 100)",
+      "overlap_area": 272,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text '2' overlaps '3'",
+      "location": "(11, 111)",
+      "overlap_area": 119,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'Operatons' overlaps 'Refresh'",
+      "location": "(25, 111)",
+      "overlap_area": 476,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'Operatons' overlaps 'th'",
+      "location": "(25, 111)",
+      "overlap_area": 170,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'are' overlaps 'eporto'",
+      "location": "(71, 111)",
+      "overlap_area": 187,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'aviomatcaly' overlaps 'eporto'",
+      "location": "(85, 111)",
+      "overlap_area": 340,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'aviomatcaly' overlaps 'see'",
+      "location": "(85, 111)",
+      "overlap_area": 204,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'aviomatcaly' overlaps 'your'",
+      "location": "(85, 111)",
+      "overlap_area": 204,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'logged' overlaps 'achty'",
+      "location": "(141, 111)",
+      "overlap_area": 357,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'tothe' overlaps 'meine'",
+      "location": "(169, 111)",
+      "overlap_area": 255,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Timeline",
+      "severity": "CRITICAL",
+      "description": "Text 'aut' overlaps 'meine'",
+      "location": "(195, 111)",
+      "overlap_area": 204,
+      "screenshot": "tabs_main_tabs_tab_2_Timeline.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_1_Step_2__Scan",
+      "severity": "CRITICAL",
+      "description": "Text 'Count' overlaps 'masia'",
+      "location": "(27, 224)",
+      "overlap_area": 168,
+      "screenshot": "tabs_main_tabs_tab_1_Step_2__Scan.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_1_Step_2__Scan",
+      "severity": "CRITICAL",
+      "description": "Text 'Count' overlaps 'fies'",
+      "location": "(27, 224)",
+      "overlap_area": 112,
+      "screenshot": "tabs_main_tabs_tab_1_Step_2__Scan.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_1_Step_2__Scan",
+      "severity": "CRITICAL",
+      "description": "Text '“Identity' overlaps 'shows'",
+      "location": "(21, 244)",
+      "overlap_area": 216,
+      "screenshot": "tabs_main_tabs_tab_1_Step_2__Scan.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_1_Step_2__Scan",
+      "severity": "CRITICAL",
+      "description": "Text '“Identity' overlaps 'and'",
+      "location": "(21, 244)",
+      "overlap_area": 135,
+      "screenshot": "tabs_main_tabs_tab_1_Step_2__Scan.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_1_Step_2__Scan",
+      "severity": "CRITICAL",
+      "description": "Text '“Identity' overlaps 'episodes'",
+      "location": "(21, 244)",
+      "overlap_area": 315,
+      "screenshot": "tabs_main_tabs_tab_1_Step_2__Scan.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'When' overlaps 'Use'",
+      "location": "(32, 104)",
+      "overlap_area": 126,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'When' overlaps 'This'",
+      "location": "(32, 104)",
+      "overlap_area": 135,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'When' overlaps 'Step'",
+      "location": "(32, 104)",
+      "overlap_area": 180,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'Episode' overlaps 'ties'",
+      "location": "(22, 143)",
+      "overlap_area": 180,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'Episode' overlaps 'areincoect'",
+      "location": "(22, 143)",
+      "overlap_area": 423,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'Episode' overlaps 'generic'",
+      "location": "(22, 143)",
+      "overlap_area": 252,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'Episode' overlaps 'Moa'",
+      "location": "(22, 143)",
+      "overlap_area": 132,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'Episode' overlaps 'namas'",
+      "location": "(22, 143)",
+      "overlap_area": 144,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'Episode' overlaps 'dont'",
+      "location": "(22, 143)",
+      "overlap_area": 114,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'Episode' overlaps 'match'",
+      "location": "(22, 143)",
+      "overlap_area": 144,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'Episode' overlaps 'acl'",
+      "location": "(22, 143)",
+      "overlap_area": 132,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'ties' overlaps 'namas'",
+      "location": "(64, 132)",
+      "overlap_area": 280,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'areincoect' overlaps 'dont'",
+      "location": "(88, 143)",
+      "overlap_area": 114,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'areincoect' overlaps 'match'",
+      "location": "(88, 143)",
+      "overlap_area": 144,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'or' overlaps 'the'",
+      "location": "(136, 132)",
+      "overlap_area": 112,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'generic' overlaps 'acl'",
+      "location": "(148, 132)",
+      "overlap_area": 308,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'namas' overlaps 'confusing'",
+      "location": "(60, 146)",
+      "overlap_area": 110,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'dont' overlaps 'confusing'",
+      "location": "(88, 146)",
+      "overlap_area": 209,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'match' overlaps 'contd'",
+      "location": "(111, 146)",
+      "overlap_area": 132,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'the' overlaps 'contd'",
+      "location": "(136, 146)",
+      "overlap_area": 143,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'acl' overlaps 'names'",
+      "location": "(153, 146)",
+      "overlap_area": 143,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'fim' overlaps 'names'",
+      "location": "(179, 146)",
+      "overlap_area": 154,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'confusing' overlaps 'suggestions'",
+      "location": "(74, 163)",
+      "overlap_area": 406,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'contd' overlaps 'forbeterrames'",
+      "location": "(123, 163)",
+      "overlap_area": 434,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'names' overlaps 'forbeterrames'",
+      "location": "(162, 163)",
+      "overlap_area": 434,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'Analysis' overlaps 'episode'",
+      "location": "(108, 239)",
+      "overlap_area": 138,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'Movie' overlaps 'Name'",
+      "location": "(32, 365)",
+      "overlap_area": 189,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_2_Step_3__Analyze",
+      "severity": "CRITICAL",
+      "description": "Text 'Movie' overlaps 'Analysis.'",
+      "location": "(32, 365)",
+      "overlap_area": 306,
+      "screenshot": "tabs_main_tabs_tab_2_Step_3__Analyze.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_3_Step_4__Organize",
+      "severity": "CRITICAL",
+      "description": "Text 'Organize' overlaps 'Your'",
+      "location": "(55, 49)",
+      "overlap_area": 153,
+      "screenshot": "tabs_main_tabs_tab_3_Step_4__Organize.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_3_Step_4__Organize",
+      "severity": "CRITICAL",
+      "description": "Text 'Organize' overlaps 'Media'",
+      "location": "(55, 49)",
+      "overlap_area": 207,
+      "screenshot": "tabs_main_tabs_tab_3_Step_4__Organize.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_3_Step_4__Organize",
+      "severity": "CRITICAL",
+      "description": "Text 'Before' overlaps 'You'",
+      "location": "(32, 104)",
+      "overlap_area": 126,
+      "screenshot": "tabs_main_tabs_tab_3_Step_4__Organize.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_3_Step_4__Organize",
+      "severity": "CRITICAL",
+      "description": "Text 'Before' overlaps 'Organize'",
+      "location": "(32, 104)",
+      "overlap_area": 333,
+      "screenshot": "tabs_main_tabs_tab_3_Step_4__Organize.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_3_Step_4__Organize",
+      "severity": "CRITICAL",
+      "description": "Text 'scanned' overlaps 'enabed'",
+      "location": "(108, 157)",
+      "overlap_area": 104,
+      "screenshot": "tabs_main_tabs_tab_3_Step_4__Organize.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_3_Step_4__Organize",
+      "severity": "CRITICAL",
+      "description": "Text 'Dy-run' overlaps '‘Reign'",
+      "location": "(38, 181)",
+      "overlap_area": 130,
+      "screenshot": "tabs_main_tabs_tab_3_Step_4__Organize.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_3_Step_4__Organize",
+      "severity": "CRITICAL",
+      "description": "Text 'enabed' overlaps 'resus'",
+      "location": "(105, 181)",
+      "overlap_area": 110,
+      "screenshot": "tabs_main_tabs_tab_3_Step_4__Organize.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_3_Step_4__Organize",
+      "severity": "CRITICAL",
+      "description": "Text '‘Reign' overlaps 'Soapehote'",
+      "location": "(28, 204)",
+      "overlap_area": 104,
+      "screenshot": "tabs_main_tabs_tab_3_Step_4__Organize.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_3_Step_4__Organize",
+      "severity": "CRITICAL",
+      "description": "Text 'processing' overlaps 'automaticaly'",
+      "location": "(161, 204)",
+      "overlap_area": 124,
+      "screenshot": "tabs_main_tabs_tab_3_Step_4__Organize.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_3_Step_4__Organize",
+      "severity": "CRITICAL",
+      "description": "Text 'Crest' overlaps 'Move'",
+      "location": "(28, 376)",
+      "overlap_area": 260,
+      "screenshot": "tabs_main_tabs_tab_3_Step_4__Organize.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_3_Step_4__Organize",
+      "severity": "CRITICAL",
+      "description": "Text 'prope' overlaps 'fest'",
+      "location": "(56, 376)",
+      "overlap_area": 260,
+      "screenshot": "tabs_main_tabs_tab_3_Step_4__Organize.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_3_Step_4__Organize",
+      "severity": "CRITICAL",
+      "description": "Text 'fest' overlaps 'feintgry'",
+      "location": "(52, 391)",
+      "overlap_area": 240,
+      "screenshot": "tabs_main_tabs_tab_3_Step_4__Organize.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_3_Step_4__Organize",
+      "severity": "CRITICAL",
+      "description": "Text 'feintgry' overlaps 'snapshot'",
+      "location": "(52, 409)",
+      "overlap_area": 374,
+      "screenshot": "tabs_main_tabs_tab_3_Step_4__Organize.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_3_Step_4__Organize",
+      "severity": "CRITICAL",
+      "description": "Text 'Gfenaties)' overlaps 'automaticaly'",
+      "location": "(101, 409)",
+      "overlap_area": 495,
+      "screenshot": "tabs_main_tabs_tab_3_Step_4__Organize.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4_Step_5__Snapshots",
+      "severity": "CRITICAL",
+      "description": "Text 'What' overlaps '“Snapthts'",
+      "location": "(33, 93)",
+      "overlap_area": 110,
+      "screenshot": "tabs_main_tabs_tab_4_Step_5__Snapshots.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4_Step_5__Snapshots",
+      "severity": "CRITICAL",
+      "description": "Text 'automaticaly' overlaps 'before'",
+      "location": "(66, 158)",
+      "overlap_area": 216,
+      "screenshot": "tabs_main_tabs_tab_4_Step_5__Snapshots.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4_Step_5__Snapshots",
+      "severity": "CRITICAL",
+      "description": "Text 'automaticaly' overlaps 'major'",
+      "location": "(66, 158)",
+      "overlap_area": 189,
+      "screenshot": "tabs_main_tabs_tab_4_Step_5__Snapshots.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4_Step_5__Snapshots",
+      "severity": "CRITICAL",
+      "description": "Text 'automaticaly' overlaps 'operations'",
+      "location": "(66, 158)",
+      "overlap_area": 360,
+      "screenshot": "tabs_main_tabs_tab_4_Step_5__Snapshots.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4_Step_5__Snapshots",
+      "severity": "CRITICAL",
+      "description": "Text 'automaticaly' overlaps 'changes'",
+      "location": "(66, 158)",
+      "overlap_area": 144,
+      "screenshot": "tabs_main_tabs_tab_4_Step_5__Snapshots.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4_Step_5__Snapshots",
+      "severity": "CRITICAL",
+      "description": "Text 'major' overlaps 'changes'",
+      "location": "(151, 148)",
+      "overlap_area": 221,
+      "screenshot": "tabs_main_tabs_tab_4_Step_5__Snapshots.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4_Step_5__Snapshots",
+      "severity": "CRITICAL",
+      "description": "Text 'operations' overlaps 'changes'",
+      "location": "(176, 148)",
+      "overlap_area": 195,
+      "screenshot": "tabs_main_tabs_tab_4_Step_5__Snapshots.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4_Step_5__Snapshots",
+      "severity": "CRITICAL",
+      "description": "Text 'yout' overlaps 'secur'",
+      "location": "(57, 163)",
+      "overlap_area": 195,
+      "screenshot": "tabs_main_tabs_tab_4_Step_5__Snapshots.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4_Step_5__Snapshots",
+      "severity": "CRITICAL",
+      "description": "Text 'organization' overlaps 'changes'",
+      "location": "(104, 173)",
+      "overlap_area": 297,
+      "screenshot": "tabs_main_tabs_tab_4_Step_5__Snapshots.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4_Step_5__Snapshots",
+      "severity": "CRITICAL",
+      "description": "Text '“Stored' overlaps 'secur'",
+      "location": "(22, 188)",
+      "overlap_area": 216,
+      "screenshot": "tabs_main_tabs_tab_4_Step_5__Snapshots.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4_Step_5__Snapshots",
+      "severity": "CRITICAL",
+      "description": "Text '“Stored' overlaps 'with'",
+      "location": "(22, 188)",
+      "overlap_area": 153,
+      "screenshot": "tabs_main_tabs_tab_4_Step_5__Snapshots.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4_Step_5__Snapshots",
+      "severity": "CRITICAL",
+      "description": "Text '“Stored' overlaps 'imestames'",
+      "location": "(22, 188)",
+      "overlap_area": 396,
+      "screenshot": "tabs_main_tabs_tab_4_Step_5__Snapshots.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4_Step_5__Snapshots",
+      "severity": "CRITICAL",
+      "description": "Text '“Stored' overlaps 'Upto'",
+      "location": "(22, 188)",
+      "overlap_area": 145,
+      "screenshot": "tabs_main_tabs_tab_4_Step_5__Snapshots.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4_Step_5__Snapshots",
+      "severity": "CRITICAL",
+      "description": "Text 'snapshots' overlaps 'kept'",
+      "location": "(67, 203)",
+      "overlap_area": 135,
+      "screenshot": "tabs_main_tabs_tab_4_Step_5__Snapshots.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "text_overlap",
+      "view": "tabs_main_tabs_tab_4_Step_5__Snapshots",
+      "severity": "CRITICAL",
+      "description": "Text 'snapshots' overlaps 'automaticaly'",
+      "location": "(67, 203)",
+      "overlap_area": 459,
+      "screenshot": "tabs_main_tabs_tab_4_Step_5__Snapshots.png",
+      "fix_suggestion": "Increase spacing or adjust layout margins"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 720px at 150% DPI on 1920x1080",
+      "actual_height": 800,
+      "effective_height": 720.0,
+      "resolution": "1920x1080",
+      "dpi": 150,
+      "fix_suggestion": "Reduce height to 684px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 768px at 100% DPI on 1366x768",
+      "actual_height": 800,
+      "effective_height": 768.0,
+      "resolution": "1366x768",
+      "dpi": 100,
+      "fix_suggestion": "Reduce height to 729px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 614px at 125% DPI on 1366x768",
+      "actual_height": 800,
+      "effective_height": 614.0,
+      "resolution": "1366x768",
+      "dpi": 125,
+      "fix_suggestion": "Reduce height to 583px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 512px at 150% DPI on 1366x768",
+      "actual_height": 800,
+      "effective_height": 512.0,
+      "resolution": "1366x768",
+      "dpi": 150,
+      "fix_suggestion": "Reduce height to 486px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 768px at 100% DPI on 1024x768",
+      "actual_height": 800,
+      "effective_height": 768.0,
+      "resolution": "1024x768",
+      "dpi": 100,
+      "fix_suggestion": "Reduce height to 729px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 614px at 125% DPI on 1024x768",
+      "actual_height": 800,
+      "effective_height": 614.0,
+      "resolution": "1024x768",
+      "dpi": 125,
+      "fix_suggestion": "Reduce height to 583px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 512px at 150% DPI on 1024x768",
+      "actual_height": 800,
+      "effective_height": 512.0,
+      "resolution": "1024x768",
+      "dpi": 150,
+      "fix_suggestion": "Reduce height to 486px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 600px at 100% DPI on 800x600",
+      "actual_height": 800,
+      "effective_height": 600.0,
+      "resolution": "800x600",
+      "dpi": 100,
+      "fix_suggestion": "Reduce height to 570px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 480px at 125% DPI on 800x600",
+      "actual_height": 800,
+      "effective_height": 480.0,
+      "resolution": "800x600",
+      "dpi": 125,
+      "fix_suggestion": "Reduce height to 456px or make scrollable"
+    },
+    {
+      "type": "window_too_tall",
+      "view": "main_window",
+      "severity": "ERROR",
+      "description": "Window 800px > effective 400px at 150% DPI on 800x600",
+      "actual_height": 800,
+      "effective_height": 400.0,
+      "resolution": "800x600",
+      "dpi": 150,
+      "fix_suggestion": "Reduce height to 380px or make scrollable"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 1093px at 125% DPI on 1366x768",
+      "actual_width": 1200,
+      "effective_width": 1093.0,
+      "resolution": "1366x768",
+      "dpi": 125,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 911px at 150% DPI on 1366x768",
+      "actual_width": 1200,
+      "effective_width": 911.0,
+      "resolution": "1366x768",
+      "dpi": 150,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 1024px at 100% DPI on 1024x768",
+      "actual_width": 1200,
+      "effective_width": 1024.0,
+      "resolution": "1024x768",
+      "dpi": 100,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 819px at 125% DPI on 1024x768",
+      "actual_width": 1200,
+      "effective_width": 819.0,
+      "resolution": "1024x768",
+      "dpi": 125,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 683px at 150% DPI on 1024x768",
+      "actual_width": 1200,
+      "effective_width": 683.0,
+      "resolution": "1024x768",
+      "dpi": 150,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 800px at 100% DPI on 800x600",
+      "actual_width": 1200,
+      "effective_width": 800.0,
+      "resolution": "800x600",
+      "dpi": 100,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 640px at 125% DPI on 800x600",
+      "actual_width": 1200,
+      "effective_width": 640.0,
+      "resolution": "800x600",
+      "dpi": 125,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "window_too_wide",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Window 1200px > effective 533px at 150% DPI on 800x600",
+      "actual_width": 1200,
+      "effective_width": 533.0,
+      "resolution": "800x600",
+      "dpi": 150,
+      "fix_suggestion": "Consider responsive layout or horizontal scrolling"
+    },
+    {
+      "type": "small_text",
+      "view": "main_window__tab_0___Organization",
+      "severity": "WARNING",
+      "description": "Text size 7pt below readable threshold (11pt)",
+      "actual_size": 7,
+      "min_size": 11,
+      "font_family": "Segoe UI",
+      "fix_suggestion": "Increase font size to at least 11pt"
+    },
+    {
+      "type": "small_text",
+      "view": "main_window__tab_1___Subtitles",
+      "severity": "WARNING",
+      "description": "Text size 7pt below readable threshold (11pt)",
+      "actual_size": 7,
+      "min_size": 11,
+      "font_family": "Segoe UI",
+      "fix_suggestion": "Increase font size to at least 11pt"
+    },
+    {
+      "type": "small_text",
+      "view": "main_window__tab_2____Batch_Processing",
+      "severity": "WARNING",
+      "description": "Text size 7pt below readable threshold (11pt)",
+      "actual_size": 7,
+      "min_size": 11,
+      "font_family": "Segoe UI",
+      "fix_suggestion": "Increase font size to at least 11pt"
+    },
+    {
+      "type": "small_text",
+      "view": "main_window__tab_3___Code_Analysis",
+      "severity": "WARNING",
+      "description": "Text size 7pt below readable threshold (11pt)",
+      "actual_size": 7,
+      "min_size": 11,
+      "font_family": "Segoe UI",
+      "fix_suggestion": "Increase font size to at least 11pt"
+    },
+    {
+      "type": "small_text",
+      "view": "main_window__tab_4___Analytics",
+      "severity": "WARNING",
+      "description": "Text size 7pt below readable threshold (11pt)",
+      "actual_size": 7,
+      "min_size": 11,
+      "font_family": "Segoe UI",
+      "fix_suggestion": "Increase font size to at least 11pt"
+    },
+    {
+      "type": "small_text",
+      "view": "main_window__tab_5____Settings",
+      "severity": "WARNING",
+      "description": "Text size 7pt below readable threshold (11pt)",
+      "actual_size": 7,
+      "min_size": 11,
+      "font_family": "Segoe UI",
+      "fix_suggestion": "Increase font size to at least 11pt"
+    },
+    {
+      "type": "small_text",
+      "view": "main_window",
+      "severity": "WARNING",
+      "description": "Text size 7pt below readable threshold (11pt)",
+      "actual_size": 7,
+      "min_size": 11,
+      "font_family": "Segoe UI",
+      "fix_suggestion": "Increase font size to at least 11pt"
+    }
+  ]
+}

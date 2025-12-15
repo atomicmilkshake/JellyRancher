@@ -38,7 +38,7 @@
 
 - **Obstacles:** 1) [OBSTACLE] desc; 2) Numbered options (pros/cons); 3) "Which option? Or alternative?"
 
-**Avoid:** Bullet fragmentation; colloquialisms; hedging; unapproved proceeds (e.g., no "I'll try X").
+**Avoid:** Bullet fragmentation; colloquialisms; hedging; unapproved proceeds (e.g., no "I'll try X"); clipped/telegraphic style (user HATES - ALWAYS use complete, full sentences).
 
 ---
 

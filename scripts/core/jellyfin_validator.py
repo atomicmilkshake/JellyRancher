@@ -460,6 +460,10 @@ class JellyfinValidator:
         """
         Detect duplicate content using hash-based comparison.
         
+        ⚠️ WARNING: This method performs BLOCKING file I/O operations.
+        MUST be called from a background thread (e.g., ValidationWorker).
+        DO NOT call directly from UI thread - will freeze application.
+        
         Args:
             items: List of Jellyfin items
             hash_cache: Optional cache of file paths to hashes

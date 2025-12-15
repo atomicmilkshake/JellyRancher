@@ -84,8 +84,14 @@ def group_by_genre(items: List[Dict], genre: str, fuzzy: bool = True) -> List[Di
     if not isinstance(items, list):
         raise TypeError(f"items must be list, got {type(items)}")
     
+    if items is None:
+        raise ValueError("items cannot be None")
+    
     if not isinstance(genre, str):
         raise TypeError(f"genre must be str, got {type(genre)}")
+    
+    if genre is None:
+        raise ValueError("genre cannot be None")
     
     if not genre or not genre.strip():
         raise ValueError("genre must be non-empty string")
@@ -148,6 +154,9 @@ def group_by_series(items: List[Dict]) -> List[Dict]:
     if not isinstance(items, list):
         raise TypeError(f"items must be list, got {type(items)}")
     
+    if items is None:
+        raise ValueError("items cannot be None")
+    
     try:
         logger.info("Grouping TV series...")
         
@@ -198,6 +207,9 @@ def group_by_franchise(items: List[Dict]) -> List[Dict]:
     # Commandment #2: Paranoid Input Validation
     if not isinstance(items, list):
         raise TypeError(f"items must be list, got {type(items)}")
+    
+    if items is None:
+        raise ValueError("items cannot be None")
     
     try:
         logger.info("Grouping by franchise...")
@@ -260,6 +272,9 @@ def group_by_director(items: List[Dict]) -> List[Dict]:
     # Commandment #2: Paranoid Input Validation
     if not isinstance(items, list):
         raise TypeError(f"items must be list, got {type(items)}")
+    
+    if items is None:
+        raise ValueError("items cannot be None")
     
     try:
         logger.info("Grouping by director...")
@@ -324,8 +339,14 @@ def apply_custom_grouping_rules(items: List[Dict], rules: List[Dict]) -> List[Di
     if not isinstance(items, list):
         raise TypeError(f"items must be list, got {type(items)}")
     
+    if items is None:
+        raise ValueError("items cannot be None")
+    
     if not isinstance(rules, list):
         raise TypeError(f"rules must be list, got {type(rules)}")
+    
+    if rules is None:
+        raise ValueError("rules cannot be None")
     
     if not rules:
         raise ValueError("rules must be non-empty list")

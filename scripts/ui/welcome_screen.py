@@ -39,7 +39,9 @@ class NewRoundUpDialog(QDialog):
         self.resize(500, 200)  # Reduced by 20% from 250px
 
         layout = QVBoxLayout()
-        layout.setSpacing(15)
+        layout.setSpacing(12)  # Height fix
+        layout = QVBoxLayout()
+        layout.setSpacing(12)  # Height fix
 
         # Round-Up name
         name_label = QLabel("Round-Up Name:")
@@ -50,7 +52,7 @@ class NewRoundUpDialog(QDialog):
         self.name_input.setObjectName("roundup_name_input")  # For AT-AT automated testing
         self.name_input.setPlaceholderText("e.g., My TV Library, Movie Collection 2024")
         self.name_input.setFont(QFont("Segoe UI", 11))
-        self.name_input.setMinimumHeight(28)  # Reduced by 20% from 35px
+        self.name_input.setMinimumHeight(25)  # Height fix
         layout.addWidget(self.name_input)
 
         # Spacer
@@ -184,25 +186,25 @@ class WelcomeScreen(QWidget):
     def _init_ui(self):
         """Initialize the UI."""
         layout = QVBoxLayout()
-        layout.setContentsMargins(30, 20, 30, 20)  # Reduced margins for compact display
+        layout.setContentsMargins(20, 10, 20, 10)  # Height fix: compact margins
         layout.setSpacing(10)  # Reduced spacing
 
         # Title
         title = QLabel("JellyRancher Studio")
-        title.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))  # Reduced from 28
+        title.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))  # Height fix
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
         # Subtitle
         subtitle = QLabel("Media Library Organization Made Easy")
-        subtitle.setFont(QFont("Segoe UI", 11))  # Reduced from 12
+        subtitle.setFont(QFont("Segoe UI", 10))
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        subtitle.setStyleSheet("padding-bottom: 10px;")  # Reduced from 20px
+        subtitle.setStyleSheet("padding-bottom: 5px;")
         layout.addWidget(subtitle)
 
         # Main content area
         content_layout = QHBoxLayout()
-        content_layout.setSpacing(20)  # Reduced from 40
+        content_layout.setSpacing(15)  # Height fix
 
         # Left side: Action buttons
         actions_widget = self._create_actions_panel()
@@ -224,7 +226,7 @@ class WelcomeScreen(QWidget):
         footer = QLabel("Press F1 for help • Round-Ups stored in ~/JellyRancher/roundups/")
         footer.setFont(QFont("Segoe UI", 10))  # Reduced from 11
         footer.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        footer.setStyleSheet("padding-top: 10px;")  # Reduced from 20px
+        footer.setStyleSheet("padding-top: 5px;")
         layout.addWidget(footer)
 
         self.setLayout(layout)
@@ -238,7 +240,7 @@ class WelcomeScreen(QWidget):
         # New Round-Up button
         btn_new = QPushButton("📁 New Round-Up")
         btn_new.setFont(QFont("Segoe UI", 14))
-        btn_new.setMinimumHeight(60)
+        btn_new.setMinimumHeight(50)  # Height fix
         btn_new.setMinimumWidth(250)
         btn_new.setToolTip("Create a new media organization project")
         btn_new.clicked.connect(self._on_new_clicked)
@@ -247,7 +249,7 @@ class WelcomeScreen(QWidget):
         # Open Round-Up button
         btn_open = QPushButton("📂 Open Round-Up...")
         btn_open.setFont(QFont("Segoe UI", 14))
-        btn_open.setMinimumHeight(60)
+        btn_open.setMinimumHeight(50)  # Height fix
         btn_open.setMinimumWidth(250)
         btn_open.setToolTip("Browse and open an existing Round-Up")
         btn_open.clicked.connect(self._on_open_clicked)
@@ -276,6 +278,7 @@ class WelcomeScreen(QWidget):
         self.recent_list.setSpacing(5)
         self.recent_list.itemDoubleClicked.connect(self._on_recent_double_clicked)
         self.recent_list.setMinimumWidth(350)
+        self.recent_list.setMaximumHeight(150)  # Height fix: scrollable
         self.recent_list.setMinimumHeight(300)
         layout.addWidget(self.recent_list)
 
@@ -286,7 +289,7 @@ class WelcomeScreen(QWidget):
         )
         self.empty_label.setFont(QFont("Segoe UI", 12))
         self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.empty_label.setStyleSheet("padding: 40px;")
+        self.empty_label.setStyleSheet("padding: 20px;")
         self.empty_label.setVisible(False)
         layout.addWidget(self.empty_label)
 
